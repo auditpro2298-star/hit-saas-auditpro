@@ -1,0 +1,18 @@
+{
+  "name": "hit-saas-auditpro",
+  "version": "2.0.0",
+  "description": "Sistema Integral HIT SaaS — Multi-Tenant Multi-Nivel para Casas de Cuotas y Créditos",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "postinstall": "cd backend && npm install"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7"
+  }
+}
