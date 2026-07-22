@@ -137,12 +137,34 @@ function showQrModal(nombre, token) {
     document.getElementById('modal-qr-client-name').innerText = nombre;
     document.getElementById('modal-qr-token-text').innerText = token;
     
-    // Generar código QR con la URL pública o API
+    // Generar código QR apuntando a la URL pública de la Cartilla del Cliente
+    const fullPublicUrl = `${window.location.origin}/?qr_cartilla=${token}`;
     const qrImage = document.getElementById('modal-qr-image');
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(token)}&color=0f172a&bgcolor=ffffff`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullPublicUrl)}&color=0f172a&bgcolor=ffffff`;
     qrImage.src = qrUrl;
 
+    // Configurar botones de enlace público
+    const linkInput = document.getElementById('modal-qr-public-link');
+    if (linkInput) linkInput.value = fullPublicUrl;
+
     document.getElementById('modal-client-qr').classList.remove('hidden');
+}
+
+function copiarLinkCartillaCliente() {
+    const linkInput = document.getElementById('modal-qr-public-link');
+    if (linkInput && linkInput.value) {
+        navigator.clipboard.writeText(linkInput.value);
+        alert('📋 ¡Enlace público de la Cartilla copiado al portapapeles! Podés pegarlo y mandarlo a cualquier cliente.');
+    }
+}
+
+function enviarLinkCartillaWhatsapp() {
+    const linkInput = document.getElementById('modal-qr-public-link');
+    const nombre = document.getElementById('modal-qr-client-name').innerText;
+    if (linkInput && linkInput.value) {
+        const msg = `Hola *${nombre}*, ingresá al siguiente enlace para ver tu Cartilla Virtual de cuotas en tiempo real:\n\n${linkInput.value}`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
 }
 
 async function submitNewClienteForm(event) {

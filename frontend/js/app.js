@@ -148,8 +148,22 @@ function updateThemeBtn(theme) {
     }
 }
 
+function consultarCartillaPublicaDirecta() {
+    const input = document.getElementById('public-qr-input');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+        alert('⚠️ Por favor ingrese su código QR o DNI para consultar su libreta de cuotas.');
+        return;
+    }
+    showPanel('panel-cliente');
+    if (window.loadCartillaPublica) {
+        window.loadCartillaPublica(val);
+    }
+}
+
 window.submitLoginForm = submitLoginForm;
 window.fillLoginFields = fillLoginFields;
 window.logout = logout;
 window.switchRoleView = switchRoleView;
 window.toggleTheme = toggleTheme;
+window.consultarCartillaPublicaDirecta = consultarCartillaPublicaDirecta;
