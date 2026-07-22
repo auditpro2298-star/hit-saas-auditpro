@@ -512,4 +512,58 @@ router.get('/whatsapp-log', async (req, res) => {
     }
 });
 
+// PUT /api/empresa/usuarios/:id/toggle-activo - Bloquear/Desbloquear empleado instantáneamente
+router.put('/usuarios/:id/toggle-activo', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+
+    try {
+        const usuario = await get('SELECT * FROM usuarios WHERE id_usuario = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!usuario) {
+            return res.status(404).json({ error: 'Empleado no encontrado.' });
+        }
+
+        const nuevoEstado = usuario.activo ? 0 : 1;
+        await run('UPDATE usuarios SET activo = ? WHERE id_usuario = ? AND id_empresa = ?', [nuevoEstado, id, id_empresa]);
+
+        res.json({
+            success: true,
+            activo: nuevoEstado === 1,
+            message: `Acceso para "${usuario.nombre}" ${nuevoEstado === 1 ? 'HABILITADO' : 'BLOQUEADO INSTANTÁNEAMENTE'}.`
+        });
+    } catch (err) {
+        console.error('Error cambiando estado de usuario:', err);
+        res.status(500).json({ error: 'Error al cambiar estado de acceso del empleado.' });
+    }
+});
+
+// PUT /api/empresa/usuarios/:id/reset-password - Cambiar contraseña y desvalidar sesiones en celulares extraviados
+router.put('/usuarios/:id/reset-password', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { nueva_password } = req.body;
+
+    if (!nueva_password || nueva_password.trim().length < 4) {
+        return res.status(400).json({ error: 'Ingrese una nueva contraseña válida (mínimo 4 caracteres).' });
+    }
+
+    try {
+        const usuario = await get('SELECT * FROM usuarios WHERE id_usuario = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!usuario) {
+            return res.status(404).json({ error: 'Empleado no encontrado.' });
+        }
+
+        const passHash = await bcrypt.hash(nueva_password.trim(), 10);
+        await run('UPDATE usuarios SET password_hash = ? WHERE id_usuario = ? AND id_empresa = ?', [passHash, id, id_empresa]);
+
+        res.json({
+            success: true,
+            message: `🔑 Contraseña de "${usuario.nombre}" actualizada exitosamente. Si el celular fue extraviado, el cobrador ya no podrá ingresar con la clave anterior.`
+        });
+    } catch (err) {
+        console.error('Error al resetear contraseña de empleado:', err);
+        res.status(500).json({ error: 'Error al cambiar contraseña del empleado.' });
+    }
+});
+
 module.exports = router;

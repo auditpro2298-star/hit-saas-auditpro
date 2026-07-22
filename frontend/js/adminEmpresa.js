@@ -617,7 +617,12 @@ async function loadCobradoresCalle() {
                         <button class="btn btn-success" style="padding:0.35rem 0.7rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.3rem;" onclick="enviarLugaresCobroWhatsapp('${cb.nombre}', '${cb.telefono || ''}', '${cb.zona_asignada || ''}', '${encodedLugares}')">
                             📲 Enviar WhatsApp
                         </button>
-                        ${btnBloqueo}
+                        <div class="flex gap-1">
+                            ${btnBloqueo}
+                            <button class="btn btn-warning" style="padding:0.35rem 0.6rem; font-size:0.78rem;" onclick="resetPasswordEmpleado(${cb.id_usuario}, '${cb.nombre}')" title="Resetear Clave por pérdida/robo de celular">
+                                🔑 Reset Clave
+                            </button>
+                        </div>
                     </div>
                 </td>
             `;
@@ -720,6 +725,18 @@ async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual,
     }
 }
 
+async function resetPasswordEmpleado(id_usuario, nombre) {
+    const nueva = prompt(`🔑 CAMBIO DE CONTRASEÑA REMOTO Y DESVALIDACIÓN DE SESIÓN:\n\nIngrese la nueva contraseña para "${nombre}" (por ejemplo ante robo o pérdida de celular en calle):`);
+    if (!nueva || nueva.trim().length < 4) return;
+
+    try {
+        const res = await api.put(`/empresa/usuarios/${id_usuario}/reset-password`, { nueva_password: nueva.trim() });
+        alert(res.message);
+    } catch (err) {
+        alert('Error al cambiar contraseña: ' + err.message);
+    }
+}
+
 window.initEmpresaPanel = initEmpresaPanel;
 window.switchEmpresaTab = switchEmpresaTab;
 window.showQrModal = showQrModal;
@@ -737,3 +754,4 @@ window.enviarLugaresCobroWhatsapp = enviarLugaresCobroWhatsapp;
 window.regenerarQrCliente = regenerarQrCliente;
 window.toggleActivoEmpleado = toggleActivoEmpleado;
 window.editarClienteMudanza = editarClienteMudanza;
+window.resetPasswordEmpleado = resetPasswordEmpleado;
