@@ -60,19 +60,24 @@ function routeUserByRole(user) {
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-    if (user.rol === 'SUPERADMIN') {
+    const switcher = document.getElementById('role-switcher-bar');
+
+    if (user.rol === 'SUPER_ADMIN') {
         showPanel('panel-superadmin');
-        const switcher = document.getElementById('role-switcher-bar');
         if (switcher) switcher.classList.remove('hidden'); // Solo visible si eres Súper Admin
         if (window.initSuperAdminPanel) window.initSuperAdminPanel();
-    } else if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR') {
-        showPanel('panel-empresa');
-        if (window.initEmpresaPanel) window.initEmpresaPanel();
-    } else if (user.rol === 'COBRADOR') {
-        showPanel('panel-cobrador');
-        if (window.initCobradorApp) window.initCobradorApp();
     } else {
-        showLoginPanel();
+        if (switcher) switcher.classList.add('hidden'); // Ocultar por completo a otros usuarios
+        
+        if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR') {
+            showPanel('panel-empresa');
+            if (window.initEmpresaPanel) window.initEmpresaPanel();
+        } else if (user.rol === 'COBRADOR') {
+            showPanel('panel-cobrador');
+            if (window.initCobradorApp) window.initCobradorApp();
+        } else {
+            showLoginPanel();
+        }
     }
 }
 
@@ -113,11 +118,11 @@ function updateUserBadge(user) {
 
 // Compatibilidad para cambio manual si sos Súper Admin
 async function switchRoleView(role, extraParam = null) {
-    if (!currentUser || currentUser.rol !== 'SUPERADMIN') {
+    if (!currentUser || currentUser.rol !== 'SUPER_ADMIN') {
         alert('🔒 Acción reservada únicamente al Súper Administrador.');
         return;
     }
-    if (role === 'superadmin') routeUserByRole({ ...currentUser, rol: 'SUPERADMIN' });
+    if (role === 'superadmin') routeUserByRole({ ...currentUser, rol: 'SUPER_ADMIN' });
     else if (role === 'empresa') routeUserByRole({ ...currentUser, rol: 'ADMIN_EMPRESA' });
     else if (role === 'cobrador') routeUserByRole({ ...currentUser, rol: 'COBRADOR' });
     else if (role === 'cliente') {
