@@ -86,9 +86,12 @@ function renderClientesTable(clientes) {
             <td><span class="badge badge-purple" style="font-family: monospace;">${c.qr_token}</span></td>
             <td><span class="badge badge-success">${c.calificacion}</span></td>
             <td>
-                <div class="flex gap-1 items-center">
+                <div class="flex gap-1 items-center flex-wrap">
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="showQrModal('${c.nombre_apellido}', '${c.qr_token}')">
                         📱 Ver QR
+                    </button>
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${c.nombre_apellido}', '${c.direccion}', '${c.barrio}', '${c.telefono || ''}')" title="Actualizar dirección por mudanza">
+                        ✏️ Mudanza
                     </button>
                     <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${c.nombre_apellido}')" title="Regenerar por pérdida o robo">
                         🔄 Revocar QR
@@ -673,6 +676,28 @@ async function toggleActivoEmpleado(id_usuario, nombre) {
     }
 }
 
+async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual, telActual) {
+    const nuevaDir = prompt(`🏠 MUDANZA / CAMBIO DE DOMICILIO DE "${nombre}":\n\nIngrese la nueva calle y número:`, dirActual);
+    if (!nuevaDir || !nuevaDir.trim()) return;
+
+    const nuevoBarrio = prompt(`📍 Ingrese el nuevo Barrio o Zona:`, barrioActual);
+    if (!nuevoBarrio || !nuevoBarrio.trim()) return;
+
+    const nuevoTel = prompt(`📞 Ingrese el nuevo Teléfono de contacto:`, telActual || '');
+
+    try {
+        const res = await api.put(`/empresa/clientes/${id_cliente}`, {
+            direccion: nuevaDir.trim(),
+            barrio: nuevoBarrio.trim(),
+            telefono: nuevoTel ? nuevoTel.trim() : telActual
+        });
+        alert(res.message);
+        loadClientesAndMap();
+    } catch (err) {
+        alert('Error al actualizar domicilio: ' + err.message);
+    }
+}
+
 window.initEmpresaPanel = initEmpresaPanel;
 window.switchEmpresaTab = switchEmpresaTab;
 window.showQrModal = showQrModal;
@@ -689,3 +714,4 @@ window.submitNewCobradorForm = submitNewCobradorForm;
 window.enviarLugaresCobroWhatsapp = enviarLugaresCobroWhatsapp;
 window.regenerarQrCliente = regenerarQrCliente;
 window.toggleActivoEmpleado = toggleActivoEmpleado;
+window.editarClienteMudanza = editarClienteMudanza;

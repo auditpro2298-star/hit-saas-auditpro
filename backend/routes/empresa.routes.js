@@ -92,6 +92,44 @@ router.post('/clientes', async (req, res) => {
     }
 });
 
+// PUT /api/empresa/clientes/:id - Editar cliente (Mudanzas, actualización de domicilio, teléfono y geolocalización GPS)
+router.put('/clientes/:id', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { direccion, barrio, telefono, latitud, longitud, calificacion } = req.body;
+
+    if (!direccion || !barrio) {
+        return res.status(400).json({ error: 'Dirección y barrio son obligatorios.' });
+    }
+
+    try {
+        const cliente = await get('SELECT * FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
+        }
+
+        const lat = latitud || cliente.latitud;
+        const lng = longitud || cliente.longitud;
+
+        await run(`
+            UPDATE clientes SET 
+                direccion = ?,
+                barrio = ?,
+                telefono = ?,
+                latitud = ?,
+                longitud = ?,
+                calificacion = ?
+            WHERE id_cliente = ? AND id_empresa = ?
+        `, [direccion, barrio, telefono || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
+
+        const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
+        res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });
+    } catch (err) {
+        console.error('Error al editar cliente:', err);
+        res.status(500).json({ error: 'Error al actualizar datos del cliente.' });
+    }
+});
+
 // GET /api/empresa/ficheros - Listado completo de ficheros
 router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
