@@ -28,8 +28,8 @@
             <span class="brand-badge">Multi-Tenant Platform v1.0</span>
         </div>
 
-        <div class="role-switcher" title="Haz clic en cualquier nivel para probar su entorno de inmediato">
-            <button class="role-btn active" data-role="superadmin" onclick="switchRoleView('superadmin')">
+        <div class="role-switcher hidden" id="role-switcher-bar" title="Panel de demostración">
+            <button class="role-btn" data-role="superadmin" onclick="switchRoleView('superadmin')">
                 👑 Nivel 1: Súper Admin
             </button>
             <button class="role-btn" data-role="empresa" onclick="switchRoleView('empresa')">
@@ -45,13 +45,13 @@
 
         <div class="header-controls">
             <span id="user-status-badge" style="font-size: 0.8rem; background: rgba(255,255,255,0.08); padding: 0.35rem 0.75rem; border-radius: var(--radius-full);">
-                👤 Conectando...
+                👤 No conectado
             </span>
             <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2); font-size: 0.78rem;" id="btn-theme-toggle" onclick="toggleTheme()">
                 🌙 Modo Oscuro
             </button>
-            <button class="btn btn-primary" style="font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="triggerDemoReset()" title="Restaurar datos semilla">
-                🔄 Reiniciar Datos
+            <button class="btn btn-danger hidden" id="btn-logout" style="font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="logout()">
+                🚪 Cerrar Sesión
             </button>
         </div>
     </header>
@@ -62,9 +62,52 @@
     <main style="max-width: 1320px; margin: 2rem auto; padding: 0 1.25rem;">
 
         <!-- ==================================================================
+             🔑 PANTALLA DE LOGIN SEGURO (ACCESO EXCLUSIVO POR ROL)
+             ================================================================== -->
+        <section id="panel-login" class="role-panel animate-fade hidden" style="max-width: 460px; margin: 3rem auto;">
+            <div class="glass-card" style="padding: 2.25rem; border-top: 4px solid var(--primary);">
+                <div class="text-center" style="margin-bottom: 1.75rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.25rem;">⚡</div>
+                    <h2 style="font-size: 1.6rem; font-weight: 800;">HIT SaaS Platform</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Ingrese con sus credenciales autorizadas.</p>
+                </div>
+
+                <form id="form-login" onsubmit="submitLoginForm(event)">
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label class="form-label" style="font-weight: 600;">Correo Electrónico</label>
+                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@empresa.com" required style="padding: 0.75rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label class="form-label" style="font-weight: 600;">Contraseña de Acceso</label>
+                        <input type="password" id="login-pass" class="form-control" placeholder="••••••••" required style="padding: 0.75rem;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
+                        🔐 Iniciar Sesión Segura
+                    </button>
+                </form>
+
+                <!-- Accesos directos de prueba (Desplegable) -->
+                <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.75rem;">
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">⚡ ACCESOS RÁPIDOS DE PRUEBA (DEMO):</div>
+                    <div class="flex flex-col gap-1">
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('superadmin@hitsaas.com', 'admin123')">
+                            👑 Súper Admin (Propietario SaaS)
+                        </button>
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('admin@electrohogar.com', 'admin123')">
+                            🏢 Admin de Empresa (Casa de Cuotas)
+                        </button>
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('juan.cobrador@hit.local', 'cobrador123')">
+                            📱 Cobrador Móvil (Calle)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
              👑 NIVEL 1: SÚPER ADMIN (CONTROL CENTRAL SaaS)
              ================================================================== -->
-        <section id="panel-superadmin" class="role-panel animate-fade">
+        <section id="panel-superadmin" class="role-panel animate-fade hidden">
             <div class="flex justify-between items-center" style="margin-bottom: 1.5rem;">
                 <div>
                     <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.025em;">Súper Admin — Panel Central SaaS</h1>

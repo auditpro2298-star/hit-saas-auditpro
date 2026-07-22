@@ -1,82 +1,107 @@
 /* ============================================================================
-   HIT SaaS — Gestor Global SPA & Enrutador por Nivel de Acceso
+   HIT SaaS — Gestor Global SPA & Enrutador por Nivel de Acceso Seguro
    ============================================================================ */
 
-let currentRoleView = 'superadmin';
+let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 HIT SaaS Multi-Tenant Web & Mobile Experience cargado.');
 
-    // Configurar modo oscuro o claro según preferencia previa
     initTheme();
 
-    // Si la URL tiene parámetro ?qr_cartilla=... abrir directamente el Nivel 4 (Vista Cliente)
+    // 1. Si la URL tiene ?qr_cartilla=... abrir la Cartilla Pública de Cliente (Nivel 4 sin login)
     const urlParams = new URLSearchParams(window.location.search);
     const cartillaToken = urlParams.get('qr_cartilla');
     if (cartillaToken) {
-        switchRoleView('cliente', cartillaToken);
+        showPanel('panel-cliente');
+        if (window.loadCartillaPublica) window.loadCartillaPublica(cartillaToken);
         return;
     }
 
-    // Por defecto iniciar con la demostración en Nivel 1 (Súper Admin) autologueado
-    await autoLoginAndSwitch('superadmin');
+    // 2. Verificar si hay token previo guardado en localStorage
+    if (api.token) {
+        try {
+            const res = await api.get('/auth/me');
+            if (res && res.user) {
+                routeUserByRole(res.user);
+                return;
+            }
+        } catch (err) {
+            console.warn('Sesión expirada o inválida:', err.message);
+            api.setAuth(null, null);
+        }
+    }
+
+    // 3. Si no hay sesión activa, mostrar pantalla de Login Obligatoria
+    showLoginPanel();
 });
 
-// Enrutador visual entre los 4 Niveles de Acceso del SaaS
-async function switchRoleView(role, extraParam = null) {
-    currentRoleView = role;
+function showLoginPanel() {
+    currentUser = null;
+    showPanel('panel-login');
+    const badge = document.getElementById('user-status-badge');
+    if (badge) badge.innerText = '👤 No conectado';
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+    const switcher = document.getElementById('role-switcher-bar');
+    if (switcher) switcher.classList.add('hidden');
+}
 
-    // Actualizar pills de navegación
-    document.querySelectorAll('.role-switcher .role-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.getAttribute('data-role') === role) btn.classList.add('active');
-    });
+function showPanel(panelId) {
+    document.querySelectorAll('.role-panel').forEach(p => p.classList.add('hidden'));
+    const target = document.getElementById(panelId);
+    if (target) target.classList.remove('hidden');
+}
 
-    // Ocultar todos los paneles del SPA
-    document.querySelectorAll('.role-panel').forEach(panel => panel.classList.add('hidden'));
+function routeUserByRole(user) {
+    currentUser = user;
+    updateUserBadge(user);
 
-    if (role === 'superadmin') {
-        await autoLoginAndSwitch('superadmin');
-        document.getElementById('panel-superadmin').classList.remove('hidden');
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+    if (user.rol === 'SUPERADMIN') {
+        showPanel('panel-superadmin');
+        const switcher = document.getElementById('role-switcher-bar');
+        if (switcher) switcher.classList.remove('hidden'); // Solo visible si eres Súper Admin
         if (window.initSuperAdminPanel) window.initSuperAdminPanel();
-    } else if (role === 'empresa') {
-        await autoLoginAndSwitch('empresa');
-        document.getElementById('panel-empresa').classList.remove('hidden');
+    } else if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR') {
+        showPanel('panel-empresa');
         if (window.initEmpresaPanel) window.initEmpresaPanel();
-    } else if (role === 'cobrador') {
-        await autoLoginAndSwitch('cobrador');
-        document.getElementById('panel-cobrador').classList.remove('hidden');
+    } else if (user.rol === 'COBRADOR') {
+        showPanel('panel-cobrador');
         if (window.initCobradorApp) window.initCobradorApp();
-    } else if (role === 'cliente') {
-        document.getElementById('panel-cliente').classList.remove('hidden');
-        if (window.loadCartillaPublica) {
-            window.loadCartillaPublica(extraParam || 'HIT-QR-8821-A90F');
-        }
+    } else {
+        showLoginPanel();
     }
 }
 
-// Autologueo por rol para demostración rápida y fluida al hacer clic en las pestañas
-async function autoLoginAndSwitch(role) {
-    let creds = { email: '', password: '' };
-    if (role === 'superadmin') {
-        creds = { email: 'admin@hitsaas.com', password: 'admin123' };
-    } else if (role === 'empresa') {
-        creds = { email: 'admin@electrohogar.com', password: 'admin123' };
-    } else if (role === 'cobrador') {
-        creds = { email: 'juan@electrohogar.com', password: 'cobrador123' };
-    }
-
-    if (!creds.email) return;
+async function submitLoginForm(event) {
+    event.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pass').value.trim();
 
     try {
-        const res = await api.post('/auth/login', creds);
-        if (res && res.token) {
+        const res = await api.post('/auth/login', { email, password });
+        if (res.success && res.token) {
             api.setAuth(res.token, res.user);
-            updateUserBadge(res.user);
+            routeUserByRole(res.user);
+        } else {
+            alert('⚠️ Error de autenticación: ' + (res.error || 'Credenciales no válidas'));
         }
     } catch (err) {
-        console.warn('Fallo autologin para demo:', err.message);
+        alert('🚫 Error al iniciar sesión: ' + err.message);
     }
+}
+
+function fillLoginFields(email, pass) {
+    document.getElementById('login-email').value = email;
+    document.getElementById('login-pass').value = pass;
+}
+
+function logout() {
+    api.setAuth(null, null);
+    showLoginPanel();
 }
 
 function updateUserBadge(user) {
@@ -86,20 +111,18 @@ function updateUserBadge(user) {
     }
 }
 
-// Botón para restablecer y poblar la base de datos con datos semilla limpios
-async function triggerDemoReset() {
-    if (!confirm('🔄 ¿Deseas restablecer la base de datos con los datos de prueba iniciales (2 empresas, clientes, ficheros, cuotas y cobradores)?')) {
+// Compatibilidad para cambio manual si sos Súper Admin
+async function switchRoleView(role, extraParam = null) {
+    if (!currentUser || currentUser.rol !== 'SUPERADMIN') {
+        alert('🔒 Acción reservada únicamente al Súper Administrador.');
         return;
     }
-    try {
-        const res = await api.post('/auth/login', { email: 'admin@hitsaas.com', password: 'admin123' });
-        if (res.token) api.setAuth(res.token, res.user);
-
-        const resetRes = await api.post('/auth/demo-reset', {});
-        alert('🎉 ' + resetRes.message);
-        switchRoleView(currentRoleView);
-    } catch (err) {
-        alert('Error restablecendo datos: ' + err.message);
+    if (role === 'superadmin') routeUserByRole({ ...currentUser, rol: 'SUPERADMIN' });
+    else if (role === 'empresa') routeUserByRole({ ...currentUser, rol: 'ADMIN_EMPRESA' });
+    else if (role === 'cobrador') routeUserByRole({ ...currentUser, rol: 'COBRADOR' });
+    else if (role === 'cliente') {
+        showPanel('panel-cliente');
+        if (window.loadCartillaPublica) window.loadCartillaPublica(extraParam || 'HIT-QR-8821-A90F');
     }
 }
 
@@ -125,6 +148,8 @@ function updateThemeBtn(theme) {
     }
 }
 
+window.submitLoginForm = submitLoginForm;
+window.fillLoginFields = fillLoginFields;
+window.logout = logout;
 window.switchRoleView = switchRoleView;
-window.triggerDemoReset = triggerDemoReset;
 window.toggleTheme = toggleTheme;
