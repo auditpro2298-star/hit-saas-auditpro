@@ -187,6 +187,7 @@ function enviarLinkCartillaWhatsapp() {
 // Variables del mapa de verificación del modal
 let modalMapInstance = null;
 let modalMapMarker = null;
+let modalMapGeocoder = null;
 
 function openNewClienteModal() {
     document.getElementById('form-new-cliente').reset();
@@ -198,11 +199,14 @@ function openNewClienteModal() {
 }
 
 async function verificarDireccionEnMapa() {
-    const dir = document.getElementById('new-cli-dir').value;
+    const calle = document.getElementById('new-cli-calle').value;
+    const altura = document.getElementById('new-cli-altura').value;
     const barrio = document.getElementById('new-cli-barrio').value;
+    
+    const dir = `${calle} ${altura}`.trim();
 
-    if (!dir || !barrio) {
-        alert('Por favor, complete primero la dirección y el barrio.');
+    if (!calle || !altura || !barrio) {
+        alert('Por favor, complete primero la calle, la altura y el barrio.');
         return;
     }
 
@@ -211,6 +215,7 @@ async function verificarDireccionEnMapa() {
 
     // Limpieza de términos de dirección en Argentina que confunden al geocodificador Nominatim (ej: "numero", "nro", "n°", etc.)
     const cleanDir = dir.toLowerCase()
+        .replace(/([a-z])(\d)/g, '$1 $2') // Separa letras de números, ej: calle121 -> calle 121
         .replace(/\bnumero\b/g, '')
         .replace(/\bnro\b/g, '')
         .replace(/\bn°\b/g, '')
@@ -297,6 +302,26 @@ function mostrarMapaVerificacion(lat, lng) {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(modalMapInstance);
+
+        if (L.Control.Geocoder) {
+            modalMapGeocoder = L.Control.geocoder({
+                defaultMarkGeocode: false,
+                placeholder: 'Buscar dirección manual...',
+                errorMessage: 'No encontrado.'
+            })
+            .on('markgeocode', function(e) {
+                const center = e.geocode.center;
+                modalMapInstance.setView(center, 15);
+                
+                if (modalMapMarker) {
+                    modalMapMarker.setLatLng(center);
+                }
+                window.tempClientLat = center.lat;
+                window.tempClientLng = center.lng;
+                console.log('Búsqueda manual, marcador a:', center.lat, center.lng);
+            })
+            .addTo(modalMapInstance);
+        }
     } else {
         modalMapInstance.setView([lat, lng], 15);
     }
@@ -325,7 +350,7 @@ async function submitNewClienteForm(event) {
         nombre_apellido: document.getElementById('new-cli-nombre').value,
         dni: document.getElementById('new-cli-dni').value,
         telefono: document.getElementById('new-cli-tel').value,
-        direccion: document.getElementById('new-cli-dir').value,
+        direccion: `${document.getElementById('new-cli-calle').value} ${document.getElementById('new-cli-altura').value}`.trim(),
         barrio: document.getElementById('new-cli-barrio').value
     };
 

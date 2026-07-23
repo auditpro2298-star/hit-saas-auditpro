@@ -12,6 +12,8 @@
     
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
     
     <!-- Custom Design System -->
     <link rel="stylesheet" href="css/styles.css">
@@ -762,10 +764,14 @@
                     <label>Teléfono / WhatsApp</label>
                     <input type="text" id="new-cli-tel" class="form-control" placeholder="Ej: +54 9 11 1234-5678">
                 </div>
-                <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+                <div class="grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
                     <div class="form-group" style="margin-bottom: 0.5rem;">
-                        <label>Dirección</label>
-                        <input type="text" id="new-cli-dir" class="form-control" placeholder="Av. San Martín 1500" required>
+                        <label>Calle</label>
+                        <input type="text" id="new-cli-calle" class="form-control" placeholder="Ej: Av. San Martín o 121" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label>Altura / Nro</label>
+                        <input type="text" id="new-cli-altura" class="form-control" placeholder="Ej: 1500" required>
                     </div>
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Barrio / Zona</label>
@@ -943,6 +949,7 @@
                     <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="width: 60%;">💾 Confirmar y Asentar</button>
                 </div>
+            </form>
         </div>
     </div>
 
@@ -1001,6 +1008,7 @@
     <!-- CDNs Externos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->

@@ -18,8 +18,27 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+const fs = require('fs');
+
+// Encontrar dinámicamente la ruta del directorio frontend
+const possibleFrontendPaths = [
+    path.join(__dirname, '..', 'frontend'),
+    path.join(process.cwd(), 'frontend'),
+    path.join(__dirname, 'frontend'),
+    path.join(process.cwd(), '..', 'frontend')
+];
+
+let frontendPath = possibleFrontendPaths.find(p => fs.existsSync(path.join(p, 'index.html')));
+
+if (!frontendPath) {
+    console.error('⚠️ ALERTA: No se encontró index.html en las rutas frontend conocidas.');
+    frontendPath = path.join(__dirname, '..', 'frontend');
+} else {
+    console.log(`📁 Carpeta Frontend vinculada con éxito: ${frontendPath}`);
+}
+
 // Servir el Frontend Multi-Portal (Archivos estáticos CSS, JS, HTML y Assets)
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use(express.static(frontendPath));
 
 // Inicializar y verificar conexión a la base de datos (SQLite / PostgreSQL)
 initDatabase();
@@ -33,7 +52,12 @@ app.use('/api/cliente', clienteRoutes);
 
 // Ruta de fallback para SPA (Single Page Application): Cualquier otra ruta redirige a index.html
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+    const indexPath = path.join(frontendPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send('<h1>HIT SaaS — Error 404</h1><p>No se encontró el archivo index.html en el servidor.</p>');
+    }
 });
 
 // Iniciar servidor

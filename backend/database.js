@@ -6,8 +6,8 @@ const DB_PATH = path.join(__dirname, 'hit_saas.sqlite');
 const SCHEMA_PATH = path.join(__dirname, '..', 'database', 'schema.sql');
 const SEED_PATH = path.join(__dirname, '..', 'database', 'seed.sql');
 
-// Conexión y configuración del motor dual (SQLite por defecto para desarrollo, o PostgreSQL si DATABASE_URL está definida)
-const isPostgres = !!process.env.DATABASE_URL;
+// Conexión y configuración del motor dual (SQLite por defecto para desarrollo, o PostgreSQL si USE_POSTGRES es true)
+const isPostgres = process.env.USE_POSTGRES === 'true' && !!process.env.DATABASE_URL;
 
 let db;
 
