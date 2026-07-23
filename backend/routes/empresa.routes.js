@@ -135,7 +135,7 @@ router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const ficheros = await query(`
-            SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token,
+            SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes
@@ -210,6 +210,21 @@ router.put('/ficheros/:id/asignar', async (req, res) => {
     } catch (err) {
         console.error('Error al asignar fichero:', err);
         res.status(500).json({ error: 'Error en asignación de cobrador.' });
+    }
+});
+
+// PUT /api/empresa/ficheros/:id/orden - Cambiar el orden de visita de un fichero (Secuenciación de Hojas de Ruta)
+router.put('/ficheros/:id/orden', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { orden_visita } = req.body;
+
+    try {
+        await run('UPDATE ficheros SET orden_visita = ? WHERE id_fichero = ? AND id_empresa = ?', [parseInt(orden_visita) || 0, id, id_empresa]);
+        res.json({ success: true, message: `Orden de visita actualizado a: ${orden_visita}` });
+    } catch (err) {
+        console.error('Error al actualizar orden de visita:', err);
+        res.status(500).json({ error: 'Error al actualizar orden de visita.' });
     }
 });
 

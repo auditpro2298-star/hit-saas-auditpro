@@ -21,7 +21,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND (f.id_cobrador_asignado = ? OR req_user_rol != 'COBRADOR') AND f.estado = 'ACTIVO'
-            ORDER BY c.barrio ASC, c.direccion ASC
+            ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC
         `.replace('req_user_rol', `'${req.user.rol}'`), [id_empresa, id_usuario]);
 
         res.json(ruta);

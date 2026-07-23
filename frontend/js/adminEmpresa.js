@@ -292,10 +292,28 @@ async function submitNewFicheroForm(event) {
 }
 
 // SOLAPA 3: ASIGNACIÓN DINÁMICA DE RUTAS
+let routeMapInstance = null;
+let routeMapMarkers = [];
+let routeMapLines = [];
+
 async function loadAsignacionRutas() {
     const ficheros = await api.get('/empresa/ficheros');
     const cobradores = await api.get('/empresa/cobradores');
+    
+    // Guardar en caché global para el trazador de mapas
+    window.currentFicherosCache = ficheros;
+
+    // Poblar filtro del mapa
+    const selectFilter = document.getElementById('select-filter-route-map');
+    if (selectFilter) {
+        selectFilter.innerHTML = '<option value="ALL">📍 Ver Todo el Personal</option>';
+        cobradores.forEach(cb => {
+            selectFilter.innerHTML += `<option value="${cb.id_usuario}">🛵 ${cb.nombre} (${cb.zona_asignada})</option>`;
+        });
+    }
+
     renderAsignacionTable(ficheros, cobradores);
+    drawRouteMap();
 }
 
 function renderAsignacionTable(ficheros, cobradores) {
@@ -305,7 +323,7 @@ function renderAsignacionTable(ficheros, cobradores) {
 
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
     if (activos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No hay ficheros activos para asignar.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay ficheros activos para asignar.</td></tr>`;
         return;
     }
 
@@ -316,24 +334,29 @@ function renderAsignacionTable(ficheros, cobradores) {
         let optionsHtml = `<option value="">-- Sin asignar --</option>`;
         cobradores.forEach(cb => {
             const selected = f.id_cobrador_asignado === cb.id_usuario ? 'selected' : '';
-            optionsHtml += `<option value="${cb.id_usuario}" ${selected}>🛵 ${cb.nombre} (${cb.zona_asignada})</option>`;
+            optionsHtml += `<option value="${cb.id_usuario}" ${selected}>🛵 ${cb.nombre}</option>`;
         });
 
         tr.innerHTML = `
-            <td><strong>Fichero #${f.id_fichero}</strong></td>
+            <td><strong>#${f.id_fichero}</strong></td>
+            <td>
+                <input type="number" class="form-control" value="${f.orden_visita || 0}" 
+                    style="width: 65px; padding: 0.35rem 0.5rem; text-align: center; font-weight: 700; border: 1px solid var(--border-color); border-radius: 6px;" 
+                    onchange="updateFicheroOrden(${f.id_fichero}, this.value)" 
+                    title="Defina prioridad numérica (1, 2, 3...) para ordenar la hoja de ruta de este cobrador">
+            </td>
             <td>
                 <strong>${f.cliente_nombre}</strong>
-                <div style="font-size:0.75rem;">📍 ${f.direccion} (${f.barrio})</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">📍 ${f.direccion} (${f.barrio})</div>
+                <div style="font-size:0.75rem; color:var(--primary); font-weight:600;">📦 ${f.producto_nombre}</div>
             </td>
-            <td>${f.producto_nombre} ($${Number(f.valor_cuota).toLocaleString('es-AR')} x ${f.cantidad_cuotas})</td>
-            <td><span class="badge badge-purple">${f.cobrador_nombre || 'Sin Cobrador'}</span></td>
             <td>
                 <div class="flex items-center gap-2">
                     <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
                         ${optionsHtml}
                     </select>
                     <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})">
-                        💾 Asignar
+                        💾
                     </button>
                 </div>
             </td>
@@ -353,6 +376,130 @@ async function asignarFichero(id_fichero) {
     } catch (err) {
         alert('Error asignando cobrador: ' + err.message);
     }
+}
+
+async function updateFicheroOrden(id_fichero, nuevoOrden) {
+    try {
+        const res = await api.put(`/empresa/ficheros/${id_fichero}/orden`, { orden_visita: parseInt(nuevoOrden) || 0 });
+        console.log('Orden guardado:', res.message);
+        
+        // Actualizar caché local y redibujar el mapa de ruta sin recargar toda la tabla
+        if (window.currentFicherosCache) {
+            const fIdx = window.currentFicherosCache.findIndex(x => x.id_fichero === id_fichero);
+            if (fIdx >= 0) {
+                window.currentFicherosCache[fIdx].orden_visita = parseInt(nuevoOrden) || 0;
+            }
+        }
+        drawRouteMap();
+    } catch (err) {
+        alert('Error guardando prioridad de ruta: ' + err.message);
+    }
+}
+
+function drawRouteMap() {
+    const container = document.getElementById('route-map-container');
+    if (!container) return;
+
+    if (!routeMapInstance) {
+        routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(routeMapInstance);
+    }
+
+    // Limpiar previo
+    routeMapMarkers.forEach(m => routeMapInstance.removeLayer(m));
+    routeMapMarkers = [];
+    routeMapLines.forEach(l => routeMapInstance.removeLayer(l));
+    routeMapLines = [];
+
+    const selectedCobId = document.getElementById('select-filter-route-map')?.value || 'ALL';
+    if (!window.currentFicherosCache) return;
+
+    const coordsMap = {};
+    window.currentFicherosCache.forEach(f => {
+        if (f.estado !== 'ACTIVO') return;
+        if (f.latitud && f.longitud) {
+            const cobId = f.id_cobrador_asignado || 0;
+            if (!coordsMap[cobId]) coordsMap[cobId] = [];
+            coordsMap[cobId].push({
+                lat: parseFloat(f.latitud),
+                lng: parseFloat(f.longitud),
+                orden: parseInt(f.orden_visita) || 0,
+                cliente: f.cliente_nombre,
+                direccion: f.direccion,
+                producto: f.producto_nombre,
+                id_fichero: f.id_fichero
+            });
+        }
+    });
+
+    const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+    let colorIndex = 0;
+    const bounds = [];
+
+    Object.keys(coordsMap).forEach(cobIdStr => {
+        if (selectedCobId !== 'ALL' && selectedCobId !== cobIdStr) return;
+
+        const points = coordsMap[cobIdStr];
+        // Ordenar recorrido por orden de visita (prioridad)
+        points.sort((a, b) => a.orden - b.orden);
+
+        const pathCoords = [];
+        points.forEach((p, idx) => {
+            pathCoords.push([p.lat, p.lng]);
+            bounds.push([p.lat, p.lng]);
+
+            const markerColor = cobIdStr === '0' ? '#94a3b8' : colors[colorIndex % colors.length];
+            const markerHtml = `
+                <div style="background:${markerColor}; color:white; width:26px; height:26px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; font-weight:800; font-size:0.75rem; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                    ${p.orden > 0 ? p.orden : idx + 1}
+                </div>
+            `;
+
+            const icon = L.divIcon({
+                html: markerHtml,
+                className: 'custom-route-icon',
+                iconSize: [26, 26]
+            });
+
+            const marker = L.marker([p.lat, p.lng], { icon })
+                .bindPopup(`
+                    <div style="font-family:sans-serif; font-size:0.82rem; line-height:1.4;">
+                        <strong style="color:${markerColor}">📍 Visita #${p.orden > 0 ? p.orden : idx + 1}</strong><br>
+                        <strong>Cliente:</strong> ${p.cliente}<br>
+                        <strong>Dirección:</strong> ${p.direccion}<br>
+                        <strong>Producto:</strong> ${p.producto}<br>
+                        <strong>Fichero:</strong> #${p.id_fichero}
+                    </div>
+                `)
+                .addTo(routeMapInstance);
+
+            routeMapMarkers.push(marker);
+        });
+
+        // Dibujar polilínea secuencial si está asignado a un cobrador
+        if (pathCoords.length > 1 && cobIdStr !== '0') {
+            const polyline = L.polyline(pathCoords, {
+                color: colors[colorIndex % colors.length],
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '8, 8'
+            }).addTo(routeMapInstance);
+
+            routeMapLines.push(polyline);
+        }
+
+        if (cobIdStr !== '0') colorIndex++;
+    });
+
+    if (bounds.length > 0) {
+        routeMapInstance.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    setTimeout(() => {
+        routeMapInstance.invalidateSize();
+    }, 200);
 }
 
 // SOLAPA 4: AUDITORÍA DE CAJA EN VIVO & COMPROBANTES
@@ -755,3 +902,5 @@ window.regenerarQrCliente = regenerarQrCliente;
 window.toggleActivoEmpleado = toggleActivoEmpleado;
 window.editarClienteMudanza = editarClienteMudanza;
 window.resetPasswordEmpleado = resetPasswordEmpleado;
+window.updateFicheroOrden = updateFicheroOrden;
+window.drawRouteMap = drawRouteMap;

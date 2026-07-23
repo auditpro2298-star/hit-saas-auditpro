@@ -404,24 +404,38 @@
 
             <!-- SOLAPA 4: Asignación de Rutas -->
             <div id="tab-content-rutas" class="empresa-tab-content hidden animate-fade">
-                <div class="glass-card">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación Dinámica a Cobradores en Calle</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                        Selecciona o reasigna quién se encarga de cobrar cada fichero. El cambio impacta instantáneamente en la app móvil del cobrador.
-                    </p>
-                    <div class="table-container">
-                        <table class="styled-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Cliente / Dirección</th>
-                                    <th>Producto / Cuotas</th>
-                                    <th>Cobrador Actual</th>
-                                    <th>Reasignar Hojas de Ruta</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-asignacion"></tbody>
-                        </table>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y Priorización de Rutas</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                            Defina el orden de visitas (ej. 1, 2, 3...) y asigne cobradores. El orden se refleja en tiempo real en la App Móvil de calle.
+                        </p>
+                        <div class="table-container" style="max-height: 520px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th style="width: 75px;">Orden</th>
+                                        <th>Cliente / Dirección / Producto</th>
+                                        <th>Cobrador Actual / Reasignar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-asignacion"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800;">🗺️ Mapa Secuencial de Hojas de Ruta</h3>
+                            <select id="select-filter-route-map" class="form-control" style="max-width: 190px; padding: 0.35rem; font-size: 0.82rem;" onchange="drawRouteMap()">
+                                <option value="ALL">📍 Ver Todo el Personal</option>
+                            </select>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                            Las líneas discontinuas muestran el camino sugerido en base al número de orden asignado a la izquierda.
+                        </p>
+                        <div id="route-map-container" style="height: 440px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); z-index: 1;"></div>
                     </div>
                 </div>
             </div>

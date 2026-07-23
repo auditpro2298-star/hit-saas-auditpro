@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS ficheros (
     fecha_entrega DATE NOT NULL,
     estado VARCHAR(30) NOT NULL DEFAULT 'ACTIVO', -- 'ACTIVO', 'FINALIZADO', 'CANCELADO', 'MOROSO'
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    orden_visita INTEGER DEFAULT 0,
     FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE CASCADE,
     FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa) ON DELETE CASCADE,
     FOREIGN KEY (id_cobrador_asignado) REFERENCES usuarios(id_usuario) ON DELETE SET NULL
