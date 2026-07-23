@@ -194,7 +194,7 @@
                     <p style="color: var(--text-secondary); font-size: 0.95rem;">Entorno privado del dueño para clientes, geoposicionamiento en mapa, ficheros y hojas de ruta.</p>
                 </div>
                 <div class="flex gap-2">
-                    <button class="btn btn-primary" onclick="document.getElementById('modal-new-cliente').classList.remove('hidden')">
+                    <button class="btn btn-primary" onclick="openNewClienteModal()">
                         ➕ Nuevo Cliente + QR
                     </button>
                     <button class="btn btn-success" onclick="openNewFicheroModal()">
@@ -762,18 +762,28 @@
                     <label>Teléfono / WhatsApp</label>
                     <input type="text" id="new-cli-tel" class="form-control" placeholder="Ej: +54 9 11 1234-5678">
                 </div>
-                <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1rem;">
-                    <div class="form-group">
+                <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Dirección</label>
                         <input type="text" id="new-cli-dir" class="form-control" placeholder="Av. San Martín 1500" required>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Barrio / Zona</label>
                         <input type="text" id="new-cli-barrio" class="form-control" placeholder="Flores" required>
                     </div>
                 </div>
+                
+                <div class="flex items-center gap-2" style="margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="verificarDireccionEnMapa()">
+                        🔍 Verificar en Mapa
+                    </button>
+                    <span id="verificando-loader" style="font-size: 0.78rem; color: var(--text-secondary); display: none; font-weight: 500;">⌛ Geolocalizando dirección...</span>
+                </div>
+
+                <div id="modal-map-container" style="height: 180px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1rem; display: none; position: relative;"></div>
+
                 <div style="background: rgba(16,185,129,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.8rem; color: #059669;">
-                    🌐 Al guardar, el backend asignará coordenadas exactas de GPS en el mapa de zonas y creará una tarjeta con código QR único para el cobrador.
+                    🌐 Al guardar, se usarán las coordenadas verificadas arriba. Podés arrastrar el marcador del mapa para precisar el domicilio.
                 </div>
                 <div class="flex justify-between">
                     <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">Cancelar</button>

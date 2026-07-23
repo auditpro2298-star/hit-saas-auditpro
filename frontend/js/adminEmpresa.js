@@ -167,6 +167,109 @@ function enviarLinkCartillaWhatsapp() {
     }
 }
 
+// Variables del mapa de verificación del modal
+let modalMapInstance = null;
+let modalMapMarker = null;
+
+function openNewClienteModal() {
+    document.getElementById('form-new-cliente').reset();
+    window.tempClientLat = null;
+    window.tempClientLng = null;
+    const mapDiv = document.getElementById('modal-map-container');
+    if (mapDiv) mapDiv.style.display = 'none';
+    document.getElementById('modal-new-cliente').classList.remove('hidden');
+}
+
+async function verificarDireccionEnMapa() {
+    const dir = document.getElementById('new-cli-dir').value;
+    const barrio = document.getElementById('new-cli-barrio').value;
+
+    if (!dir || !barrio) {
+        alert('Por favor, complete primero la dirección y el barrio.');
+        return;
+    }
+
+    const loader = document.getElementById('verificando-loader');
+    if (loader) loader.style.display = 'inline';
+
+    // Construir consulta para buscar en Nominatim (OSM) de forma gratuita y sin keys
+    const query = `${dir.trim()}, ${barrio.trim()}, Buenos Aires, Argentina`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+
+    try {
+        const response = await fetch(url);
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+            const best = results[0];
+            const lat = parseFloat(best.lat);
+            const lng = parseFloat(best.lon);
+
+            window.tempClientLat = lat;
+            window.tempClientLng = lng;
+
+            mostrarMapaVerificacion(lat, lng);
+        } else {
+            // Reintento: buscar solo por barrio/zona
+            const fallbackQuery = `${barrio.trim()}, Buenos Aires, Argentina`;
+            const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}`;
+            
+            const fallbackResponse = await fetch(fallbackUrl);
+            const fallbackResults = await fallbackResponse.json();
+
+            if (fallbackResults && fallbackResults.length > 0) {
+                const bestB = fallbackResults[0];
+                const latB = parseFloat(bestB.lat);
+                const lngB = parseFloat(bestB.lon);
+
+                window.tempClientLat = latB;
+                window.tempClientLng = lngB;
+
+                mostrarMapaVerificacion(latB, lngB);
+                alert('⚠️ No se halló el número exacto. Se centró en el Barrio de manera aproximada. ¡Podés arrastrar el pin rojo al lugar exacto!');
+            } else {
+                alert('❌ No pudimos encontrar la dirección ni el barrio en el mapa. Por favor, revisa la escritura.');
+            }
+        }
+    } catch (err) {
+        console.error('Error buscando dirección:', err);
+        alert('Error al conectar con el geolocalizador. Verifique su conexión de red.');
+    } finally {
+        if (loader) loader.style.display = 'none';
+    }
+}
+
+function mostrarMapaVerificacion(lat, lng) {
+    const mapDiv = document.getElementById('modal-map-container');
+    if (mapDiv) mapDiv.style.display = 'block';
+
+    if (!modalMapInstance) {
+        modalMapInstance = L.map('modal-map-container').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(modalMapInstance);
+    } else {
+        modalMapInstance.setView([lat, lng], 15);
+    }
+
+    if (modalMapMarker) {
+        modalMapMarker.setLatLng([lat, lng]);
+    } else {
+        modalMapMarker = L.marker([lat, lng], { draggable: true }).addTo(modalMapInstance);
+        
+        modalMapMarker.on('dragend', function() {
+            const pos = modalMapMarker.getLatLng();
+            window.tempClientLat = pos.lat;
+            window.tempClientLng = pos.lng;
+            console.log('Marcador arrastrado a:', pos.lat, pos.lng);
+        });
+    }
+
+    setTimeout(() => {
+        modalMapInstance.invalidateSize();
+    }, 150);
+}
+
 async function submitNewClienteForm(event) {
     event.preventDefault();
     const payload = {
@@ -177,11 +280,23 @@ async function submitNewClienteForm(event) {
         barrio: document.getElementById('new-cli-barrio').value
     };
 
+    if (window.tempClientLat && window.tempClientLng) {
+        payload.latitud = window.tempClientLat;
+        payload.longitud = window.tempClientLng;
+    }
+
     try {
         await api.post('/empresa/clientes', payload);
         alert('✅ Cliente registrado e indexado geográficamente.');
         document.getElementById('modal-new-cliente').classList.add('hidden');
         document.getElementById('form-new-cliente').reset();
+        
+        // Limpiar temporales
+        window.tempClientLat = null;
+        window.tempClientLng = null;
+        const mapDiv = document.getElementById('modal-map-container');
+        if (mapDiv) mapDiv.style.display = 'none';
+
         loadClientesAndMap();
         initEmpresaPanel();
     } catch (err) {
@@ -905,3 +1020,5 @@ window.editarClienteMudanza = editarClienteMudanza;
 window.resetPasswordEmpleado = resetPasswordEmpleado;
 window.updateFicheroOrden = updateFicheroOrden;
 window.drawRouteMap = drawRouteMap;
+window.openNewClienteModal = openNewClienteModal;
+window.verificarDireccionEnMapa = verificarDireccionEnMapa;
