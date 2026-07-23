@@ -209,8 +209,17 @@ async function verificarDireccionEnMapa() {
     const loader = document.getElementById('verificando-loader');
     if (loader) loader.style.display = 'inline';
 
+    // Limpieza de términos de dirección en Argentina que confunden al geocodificador Nominatim (ej: "numero", "nro", "n°", etc.)
+    const cleanDir = dir.toLowerCase()
+        .replace(/\bnumero\b/g, '')
+        .replace(/\bnro\b/g, '')
+        .replace(/\bn°\b/g, '')
+        .replace(/#/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     // Construir consulta para buscar en Nominatim (OSM) de forma gratuita y sin keys
-    const query = `${dir.trim()}, ${barrio.trim()}, Buenos Aires, Argentina`;
+    const query = `${cleanDir}, ${barrio.trim()}, Buenos Aires, Argentina`;
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
 
     try {

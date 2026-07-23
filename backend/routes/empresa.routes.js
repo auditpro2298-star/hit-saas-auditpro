@@ -44,6 +44,36 @@ function getSimulatedCoords(barrio) {
     };
 }
 
+// Geocodificador en el backend para auto-corrección de mudanzas y registros sin verificación manual
+async function geocodeAddress(direccion, barrio) {
+    const cleanDir = (direccion || '').toLowerCase()
+        .replace(/\bnumero\b/g, '')
+        .replace(/\bnro\b/g, '')
+        .replace(/\bn°\b/g, '')
+        .replace(/#/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const query = `${cleanDir}, ${(barrio || '').trim()}, Buenos Aires, Argentina`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'AuditPro-SaaS-Agent/1.0' }
+        });
+        const results = await response.json();
+        if (results && results.length > 0) {
+            return {
+                lat: parseFloat(results[0].lat),
+                lng: parseFloat(results[0].lon)
+            };
+        }
+    } catch (e) {
+        console.error('Nominatim geocode backend falló:', e);
+    }
+    return null;
+}
+
 // GET /api/empresa/dashboard - Métricas de la Casa de Cuotas
 router.get('/dashboard', async (req, res) => {
     const id_empresa = getEmpresaId(req);
@@ -106,9 +136,19 @@ router.post('/clientes', async (req, res) => {
         // Corrección Crítica 1: Generar un UUID v4 alfanumérico largo e imposible de adivinar
         const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
         
-        const coords = getSimulatedCoords(barrio);
-        const lat = latitud || coords.lat;
-        const lng = longitud || coords.lng;
+        let lat = latitud;
+        let lng = longitud;
+        if (!lat && !lng) {
+            const geocoded = await geocodeAddress(direccion, barrio);
+            if (geocoded) {
+                lat = geocoded.lat;
+                lng = geocoded.lng;
+            } else {
+                const coords = getSimulatedCoords(barrio);
+                lat = coords.lat;
+                lng = coords.lng;
+            }
+        }
 
         const result = await run(
             'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
@@ -145,9 +185,15 @@ router.put('/clientes/:id', async (req, res) => {
         // Si no se pasaron coordenadas específicas y cambió la dirección o barrio, recalculamos coordenadas para mover el pin en el mapa
         if (!lat && !lng) {
             if (direccion.toLowerCase().trim() !== cliente.direccion.toLowerCase().trim() || barrio.toLowerCase().trim() !== cliente.barrio.toLowerCase().trim()) {
-                const coords = getSimulatedCoords(barrio);
-                lat = coords.lat;
-                lng = coords.lng;
+                const geocoded = await geocodeAddress(direccion, barrio);
+                if (geocoded) {
+                    lat = geocoded.lat;
+                    lng = geocoded.lng;
+                } else {
+                    const coords = getSimulatedCoords(barrio);
+                    lat = coords.lat;
+                    lng = coords.lng;
+                }
             } else {
                 lat = cliente.latitud;
                 lng = cliente.longitud;
