@@ -13,7 +13,7 @@ router.get('/cartilla/:token', async (req, res) => {
         }
 
         const empresa = await get('SELECT nombre_comercial, logo_url FROM empresas WHERE id_empresa = ?', [cliente.id_empresa]);
-        const ficheros = await query('SELECT id_fichero, producto_nombre, cantidad_cuotas, valor_cuota, monto_total, fecha_entrega, estado FROM ficheros WHERE id_cliente = ? ORDER BY id_fichero DESC', [cliente.id_cliente]);
+        const ficheros = await query('SELECT id_fichero, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, fecha_entrega, estado FROM ficheros WHERE id_cliente = ? ORDER BY id_fichero DESC', [cliente.id_cliente]);
 
         let cartillas = [];
         let totalSaldado = 0;
