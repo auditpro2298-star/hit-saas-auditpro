@@ -2,14 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { query, get } = require('../database');
 
-// GET /api/cliente/cartilla/:token - Vista pública y de solo lectura de la Cartilla Virtual por escaneo QR
+// GET /api/cliente/cartilla/:token - Vista pública y de solo lectura de la Cartilla Virtual por escaneo QR o DNI
 router.get('/cartilla/:token', async (req, res) => {
     const { token } = req.params;
 
     try {
-        const cliente = await get('SELECT id_cliente, id_empresa, nombre_apellido, direccion, barrio, qr_token, calificacion FROM clientes WHERE qr_token = ?', [token]);
+        const cliente = await get('SELECT id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, qr_token, calificacion FROM clientes WHERE qr_token = ? OR dni = ?', [token, token]);
         if (!cliente) {
-            return res.status(404).json({ error: 'Cartilla virtual no encontrada. Verifique el código QR.' });
+            return res.status(404).json({ error: 'Cartilla virtual no encontrada. Verifique el código QR o DNI.' });
         }
 
         const empresa = await get('SELECT nombre_comercial, logo_url FROM empresas WHERE id_empresa = ?', [cliente.id_empresa]);
@@ -43,6 +43,9 @@ router.get('/cartilla/:token', async (req, res) => {
             success: true,
             cliente: {
                 nombre_apellido: cliente.nombre_apellido,
+                dni: cliente.dni,
+                telefono: cliente.telefono,
+                direccion: cliente.direccion,
                 barrio: cliente.barrio,
                 qr_token: cliente.qr_token,
                 calificacion: cliente.calificacion
