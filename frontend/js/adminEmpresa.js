@@ -199,13 +199,11 @@ function openNewClienteModal() {
 }
 
 async function verificarDireccionEnMapa() {
-    const calle = document.getElementById('new-cli-calle').value;
-    const altura = document.getElementById('new-cli-altura').value;
-    const barrio = document.getElementById('new-cli-barrio').value;
+    const rawCalle = document.getElementById('new-cli-calle').value.trim();
+    const rawAltura = document.getElementById('new-cli-altura').value.trim();
+    const rawBarrio = document.getElementById('new-cli-barrio').value.trim();
     
-    const dir = `${calle} ${altura}`.trim();
-
-    if (!calle || !altura || !barrio) {
+    if (!rawCalle || !rawAltura || !rawBarrio) {
         alert('Por favor, complete primero la calle, la altura y el barrio.');
         return;
     }
@@ -213,61 +211,75 @@ async function verificarDireccionEnMapa() {
     const loader = document.getElementById('verificando-loader');
     if (loader) loader.style.display = 'inline';
 
-    // Limpieza de términos de dirección en Argentina que confunden al geocodificador Nominatim (ej: "numero", "nro", "n°", etc.)
-    const cleanDir = dir.toLowerCase()
-        .replace(/([a-z])(\d)/g, '$1 $2') // Separa letras de números, ej: calle121 -> calle 121
-        .replace(/\bnumero\b/g, '')
-        .replace(/\bnro\b/g, '')
-        .replace(/\bn°\b/g, '')
-        .replace(/#/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+    // Normalizar la calle: Si es numérica (ej: "121"), anteponer "Calle " para evitar que Nominatim devuelva el centro de la ciudad
+    let calle = rawCalle;
+    if (/^\d+[a-zA-Z]?$/.test(calle) || !/^(calle|av|avenida|pasaje|diagonal|ruta|camino|c\.)/i.test(calle)) {
+        calle = `Calle ${calle}`;
+    }
 
-    // 1. Intentar buscar dirección completa (Calle + Altura + Barrio)
-    const queryFull = `${cleanDir}, ${barrio.trim()}, Buenos Aires, Argentina`;
-    const urlFull = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFull)}`;
+    const cleanCalle = calle.replace(/\b(nro|n°|numero|#)\b/gi, '').replace(/\s+/g, ' ').trim();
+    const cleanAltura = rawAltura.replace(/\D/g, ''); // solo números
+
+    // Función auxiliar para descartar resultados que representan partidos o límites municipales genéricos
+    const isStreetResult = (r) => r && r.class !== 'boundary' && r.type !== 'administrative' && r.type !== 'city';
+
+    // Consultas en cascada de mayor a menor precisión
+    const candidateQueries = [
+        `${cleanCalle} ${cleanAltura}, ${rawBarrio}, Buenos Aires, Argentina`,
+        `${cleanCalle} N° ${cleanAltura}, ${rawBarrio}, Buenos Aires, Argentina`,
+        `${cleanCalle}, ${rawBarrio}, Buenos Aires, Argentina`
+    ];
 
     try {
-        const response = await fetch(urlFull);
-        const results = await response.json();
+        let matchedResult = null;
+        let isApproximate = false;
 
-        if (results && results.length > 0) {
-            const best = results[0];
-            const lat = parseFloat(best.lat);
-            const lng = parseFloat(best.lon);
+        for (let i = 0; i < candidateQueries.length; i++) {
+            const queryText = candidateQueries[i];
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryText)}`;
+            const response = await fetch(url);
+            const results = await response.json();
+
+            // Filtrar resultados válidos de calle/edificio
+            const streetMatches = results.filter(isStreetResult);
+
+            if (streetMatches.length > 0) {
+                matchedResult = streetMatches[0];
+                if (i === 2) isApproximate = true; // Se ubicó en la calle sin altura exacta
+                break;
+            }
+        }
+
+        // Si Nominatim no devolvió calle válida, probar con Photon API (Komoot / OpenStreetMap)
+        if (!matchedResult) {
+            const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanCalle + ' ' + cleanAltura + ' ' + rawBarrio + ' Buenos Aires')}`;
+            const pResp = await fetch(photonUrl);
+            const pData = await pResp.json();
+
+            if (pData && pData.features && pData.features.length > 0) {
+                const feat = pData.features[0];
+                const coords = feat.geometry.coordinates; // [lon, lat]
+                matchedResult = { lat: coords[1], lon: coords[0] };
+            }
+        }
+
+        if (matchedResult) {
+            const lat = parseFloat(matchedResult.lat);
+            const lng = parseFloat(matchedResult.lon);
 
             window.tempClientLat = lat;
             window.tempClientLng = lng;
 
             mostrarMapaVerificacion(lat, lng);
+
+            if (isApproximate) {
+                alert(`📍 Se ubicó el pin en "${cleanCalle.toUpperCase()}". Podés arrastrar el marcador rojo en el mapa para posicionarlo en el número exacto (${cleanAltura}).`);
+            }
             return;
         }
 
-        // 2. Si falló, intentar buscar solo la Calle (sin número) dentro del Barrio
-        // Extraer calle quitando los números del final (ej: "calle 121 129" -> "calle 121")
-        const streetOnly = cleanDir.replace(/\s+\d+$/, '').trim();
-        if (streetOnly && streetOnly !== cleanDir) {
-            const queryStreet = `${streetOnly}, ${barrio.trim()}, Buenos Aires, Argentina`;
-            const urlStreet = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStreet)}`;
-            const responseStreet = await fetch(urlStreet);
-            const resultsStreet = await responseStreet.json();
-
-            if (resultsStreet && resultsStreet.length > 0) {
-                const bestS = resultsStreet[0];
-                const latS = parseFloat(bestS.lat);
-                const lngS = parseFloat(bestS.lon);
-
-                window.tempClientLat = latS;
-                window.tempClientLng = lngS;
-
-                mostrarMapaVerificacion(latS, lngS);
-                alert(`⚠️ No se encontró la altura exacta (número) en el mapa de zonas. Se ubicó en la calle "${streetOnly.toUpperCase()}". Podés arrastrar el pin rojo al número de casa exacto.`);
-                return;
-            }
-        }
-
-        // 3. Si falló la calle, buscar el Barrio / Zona en general
-        const queryBarrio = `${barrio.trim()}, Buenos Aires, Argentina`;
+        // Fallback final: Buscar el Barrio / Zona
+        const queryBarrio = `${rawBarrio}, Buenos Aires, Argentina`;
         const urlBarrio = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryBarrio)}`;
         const responseBarrio = await fetch(urlBarrio);
         const resultsBarrio = await responseBarrio.json();
@@ -281,16 +293,28 @@ async function verificarDireccionEnMapa() {
             window.tempClientLng = lngB;
 
             mostrarMapaVerificacion(latB, lngB);
-            alert(`⚠️ No se encontró la calle ni la altura en el mapa. Se centró en el Barrio "${barrio.toUpperCase()}" de manera aproximada. ¡Arrastrá el pin rojo al lugar correcto!`);
+            alert(`⚠️ No se encontró la calle "${cleanCalle}". Se centró en el Barrio "${rawBarrio.toUpperCase()}". Podés arrastrar el pin rojo al punto exacto.`);
         } else {
-            alert('❌ No pudimos encontrar la dirección ni el barrio en el mapa. Por favor, revisa la escritura.');
+            alert('❌ No se encontró la dirección en el mapa. Revisa la calle y barrio, o arrastrá el pin en el mapa.');
         }
     } catch (err) {
         console.error('Error buscando dirección:', err);
-        alert('Error al conectar con el geolocalizador. Verifique su conexión de red.');
+        alert('Error de conexión al geolocalizar. Reintente.');
     } finally {
         if (loader) loader.style.display = 'none';
     }
+}
+
+function abrirBusquedaGoogleMaps() {
+    const calle = document.getElementById('new-cli-calle').value.trim();
+    const altura = document.getElementById('new-cli-altura').value.trim();
+    const barrio = document.getElementById('new-cli-barrio').value.trim();
+    
+    let query = `${calle} ${altura} ${barrio}`.trim();
+    if (!query) query = 'Berazategui Buenos Aires';
+    
+    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    window.open(gmapsUrl, '_blank');
 }
 
 function mostrarMapaVerificacion(lat, lng) {

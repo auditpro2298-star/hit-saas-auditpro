@@ -779,9 +779,12 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-2" style="margin-bottom: 1rem;">
+                <div class="flex items-center gap-2" style="margin-bottom: 1rem; flex-wrap: wrap;">
                     <button type="button" class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="verificarDireccionEnMapa()">
                         🔍 Verificar en Mapa
+                    </button>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="abrirBusquedaGoogleMaps()">
+                        🗺️ Ver en Google Maps
                     </button>
                     <span id="verificando-loader" style="font-size: 0.78rem; color: var(--text-secondary); display: none; font-weight: 500;">⌛ Geolocalizando dirección...</span>
                 </div>
