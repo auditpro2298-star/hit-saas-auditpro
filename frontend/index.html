@@ -659,17 +659,19 @@
                 </p>
                 
                 <!-- Buscador rápido para probar en escritorio -->
-                <div class="flex gap-2 justify-center" style="margin-top: 1.25rem;">
-                    <input type="text" id="input-cliente-qr" class="form-control" placeholder="Ingrese o pegue token UUID QR" value="4f3b9a12-e82b-4cc3-a123-456789abcdef" style="max-width: 340px;">
-                    <button class="btn btn-primary" onclick="loadCartillaPublica()">🔍 Ver Mi Cartilla</button>
-                </div>
-                <div class="flex gap-2 justify-center" style="margin-top: 0.6rem;">
-                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
-                        ⚡ Demo Cartilla: Marcelo Gómez (UUID)
-                    </button>
-                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
-                        ⚡ Demo Cartilla: Lucía Fernández (UUID)
-                    </button>
+                <div id="cartilla-search-wrapper">
+                    <div class="flex gap-2 justify-center" style="margin-top: 1.25rem;">
+                        <input type="text" id="input-cliente-qr" class="form-control" placeholder="Ingrese o pegue token UUID QR" value="4f3b9a12-e82b-4cc3-a123-456789abcdef" style="max-width: 340px;">
+                        <button class="btn btn-primary" onclick="loadCartillaPublica()">🔍 Ver Mi Cartilla</button>
+                    </div>
+                    <div class="flex gap-2 justify-center" style="margin-top: 0.6rem;">
+                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
+                            ⚡ Demo Cartilla: Marcelo Gómez (UUID)
+                        </button>
+                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
+                            ⚡ Demo Cartilla: Lucía Fernández (UUID)
+                        </button>
+                    </div>
                 </div>
             </div>
 

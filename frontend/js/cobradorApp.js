@@ -138,9 +138,21 @@ function stopCameraScanner() {
 
 // Simulación o lectura real por Token QR (Levantar planilla inmediatamente)
 async function simulateQrScan(qrToken) {
-    console.log('📡 Levantando Fichero Digital por QR Token:', qrToken);
+    let cleanToken = qrToken ? qrToken.trim() : '';
+    
+    // Si el QR escaneado es una URL completa de cartilla, extraer el UUID
+    if (cleanToken.includes('?qr_cartilla=')) {
+        try {
+            const urlObj = new URL(cleanToken);
+            cleanToken = urlObj.searchParams.get('qr_cartilla') || cleanToken;
+        } catch (e) {
+            console.warn('No se pudo parsear URL del QR, usando texto original:', e);
+        }
+    }
+
+    console.log('📡 Levantando Fichero Digital por QR Token:', cleanToken);
     try {
-        const data = await api.get(`/cobrador/fichero-qr/${qrToken}`);
+        const data = await api.get(`/cobrador/fichero-qr/${cleanToken}`);
         currentScannedData = data;
         renderPlanillaDigital(data);
 

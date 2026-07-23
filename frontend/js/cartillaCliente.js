@@ -15,6 +15,13 @@ async function loadCartillaPublica(qrTokenInput) {
 
     try {
         const data = await api.get(`/cliente/cartilla/${token}`);
+        
+        // Si se carga la cartilla con éxito, ocultar el buscador para maximizar pantalla en celulares de clientes
+        const searchWrapper = document.getElementById('cartilla-search-wrapper');
+        if (searchWrapper) {
+            searchWrapper.classList.add('hidden');
+        }
+
         renderCartillaUI(data);
     } catch (err) {
         resultContainer.innerHTML = `
@@ -33,7 +40,35 @@ function renderCartillaUI(data) {
     const container = document.getElementById('cartilla-resultado');
     container.innerHTML = '';
 
-    // Tarjeta Carnet Superior
+    // Tarjeta 1: Código QR de Cobro Escaneable (para mostrarle al Cobrador en puerta)
+    const qrCard = document.createElement('div');
+    qrCard.className = 'cartilla-card animate-fade';
+    qrCard.style.marginBottom = '1.5rem';
+    qrCard.style.textAlign = 'center';
+    qrCard.style.background = 'rgba(139, 92, 246, 0.08)';
+    qrCard.style.border = '2px dashed var(--saas-purple)';
+    qrCard.style.padding = '1.5rem';
+
+    // Generar la URL de la cartilla que el cobrador puede escanear
+    const qrUrl = cliente.qr_token; // El cobrador procesa el QR token crudo para levantar el fichero
+
+    qrCard.innerHTML = `
+        <div style="font-size:0.95rem; font-weight:800; color:var(--saas-purple); margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.05em;">
+            📲 QR DE COBRO DIGITAL
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.15rem; line-height:1.35; max-width:400px; margin-left:auto; margin-right:auto;">
+            Presente esta pantalla al cobrador en calle para que registre su pago al instante en su planilla.
+        </div>
+        <div style="display:inline-block; padding:0.85rem; background:white; border-radius:12px; box-shadow:var(--shadow-md); transition: transform 0.2s ease;" class="hover-scale">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=0f172a&data=${encodeURIComponent(qrUrl)}" style="width:170px; height:170px; display:block;" alt="QR del Cliente">
+        </div>
+        <div style="font-size:0.75rem; font-family:monospace; color:var(--text-secondary); margin-top:0.75rem; opacity:0.85; word-break: break-all;">
+            Código: ${cliente.qr_token}
+        </div>
+    `;
+    container.appendChild(qrCard);
+
+    // Tarjeta 2: Carnet Superior (Información del Titular)
     const headerCard = document.createElement('div');
     headerCard.className = 'cartilla-card animate-fade';
     headerCard.style.marginBottom = '1.75rem';
