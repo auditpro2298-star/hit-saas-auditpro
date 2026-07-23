@@ -1,67 +1,989 @@
-const express = require('express');
-const router = express.Router();
-const { query, get } = require('../database');
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIT — Software as a Service (SaaS) | Multi-Tenant Platform</title>
+    
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    
+    <!-- Custom Design System -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
 
-// GET /api/cliente/cartilla/:token - Vista pública y de solo lectura de la Cartilla Virtual por escaneo QR o DNI
-router.get('/cartilla/:token', async (req, res) => {
-    const { token } = req.params;
+    <!-- ======================================================================
+         TOP BAR & ROLE SWITCHER (NIVELES 1 AL 4)
+         ====================================================================== -->
+    <header class="app-header">
+        <div class="brand-logo">
+            <span>⚡ HIT SaaS</span>
+            <span class="brand-badge">Multi-Tenant Platform v1.0</span>
+        </div>
 
-    try {
-        const cliente = await get('SELECT id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, qr_token, calificacion FROM clientes WHERE qr_token = ? OR dni = ?', [token, token]);
-        if (!cliente) {
-            return res.status(404).json({ error: 'Cartilla virtual no encontrada. Verifique el código QR o DNI.' });
-        }
+        <div class="role-switcher hidden" id="role-switcher-bar" title="Panel de demostración">
+            <button class="role-btn" data-role="superadmin" onclick="switchRoleView('superadmin')">
+                👑 Nivel 1: Súper Admin
+            </button>
+            <button class="role-btn" data-role="empresa" onclick="switchRoleView('empresa')">
+                🏢 Nivel 2: Admin Empresa
+            </button>
+            <button class="role-btn" data-role="cobrador" onclick="switchRoleView('cobrador')">
+                📱 Nivel 3: App Cobrador QR
+            </button>
+            <button class="role-btn" data-role="cliente" onclick="switchRoleView('cliente')">
+                💳 Nivel 4: Vista Cliente QR
+            </button>
+        </div>
 
-        const empresa = await get('SELECT nombre_comercial, logo_url FROM empresas WHERE id_empresa = ?', [cliente.id_empresa]);
-        const ficheros = await query('SELECT id_fichero, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, fecha_entrega, estado FROM ficheros WHERE id_cliente = ? ORDER BY id_fichero DESC', [cliente.id_cliente]);
+        <div class="header-controls">
+            <span id="user-status-badge" style="font-size: 0.8rem; background: rgba(255,255,255,0.08); padding: 0.35rem 0.75rem; border-radius: var(--radius-full);">
+                👤 No conectado
+            </span>
+            <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2); font-size: 0.78rem;" id="btn-theme-toggle" onclick="toggleTheme()">
+                🌙 Modo Oscuro
+            </button>
+            <button class="btn btn-danger hidden" id="btn-logout" style="font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="logout()">
+                🚪 Cerrar Sesión
+            </button>
+        </div>
+    </header>
 
-        let cartillas = [];
-        let totalSaldado = 0;
-        let totalPendiente = 0;
+    <!-- ======================================================================
+         CONTENEDOR PRINCIPAL DEL SaaS
+         ====================================================================== -->
+    <main style="max-width: 1320px; margin: 2rem auto; padding: 0 1.25rem;">
 
-        for (let f of ficheros) {
-            const cuotas = await query('SELECT id_cuota, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago FROM cuotas WHERE id_fichero = ? ORDER BY nro_cuota ASC', [f.id_fichero]);
-            
-            const pagadas = cuotas.filter(q => q.estado === 'PAGADO');
-            const pendientes = cuotas.filter(q => q.estado === 'PENDIENTE');
-            
-            totalSaldado += pagadas.reduce((sum, q) => sum + q.monto, 0);
-            totalPendiente += pendientes.reduce((sum, q) => sum + q.monto, 0);
+        <!-- ==================================================================
+             🔑 PANTALLA DE LOGIN SEGURO (ACCESO EXCLUSIVO POR ROL)
+             ================================================================== -->
+        <section id="panel-login" class="role-panel animate-fade hidden" style="max-width: 460px; margin: 3rem auto;">
+            <div class="glass-card" style="padding: 2.25rem; border-top: 4px solid var(--primary);">
+                <div class="text-center" style="margin-bottom: 1.75rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.25rem;">⚡</div>
+                    <h2 style="font-size: 1.6rem; font-weight: 800;">HIT SaaS Platform</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Ingrese con sus credenciales autorizadas.</p>
+                </div>
 
-            cartillas.push({
-                fichero: f,
-                cuotas: cuotas,
-                resumen_fichero: {
-                    pagadas_count: pagadas.length,
-                    pendientes_count: pendientes.length,
-                    porcentaje_progreso: Math.round((pagadas.length / f.cantidad_cuotas) * 100) || 0
-                }
-            });
-        }
+                <form id="form-login" onsubmit="submitLoginForm(event)">
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label class="form-label" style="font-weight: 600;">Correo Electrónico</label>
+                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@empresa.com" required style="padding: 0.75rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label class="form-label" style="font-weight: 600;">Contraseña de Acceso</label>
+                        <input type="password" id="login-pass" class="form-control" placeholder="••••••••" required style="padding: 0.75rem;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
+                        🔐 Iniciar Sesión Segura
+                    </button>
+                </form>
 
-        res.json({
-            success: true,
-            cliente: {
-                nombre_apellido: cliente.nombre_apellido,
-                dni: cliente.dni,
-                telefono: cliente.telefono,
-                direccion: cliente.direccion,
-                barrio: cliente.barrio,
-                qr_token: cliente.qr_token,
-                calificacion: cliente.calificacion
-            },
-            empresa: empresa || { nombre_comercial: 'Casa de Cuotas' },
-            resumen_global: {
-                total_saldado: totalSaldado,
-                total_pendiente: totalPendiente,
-                ficheros_activos: ficheros.filter(f => f.estado === 'ACTIVO').length
-            },
-            cartillas
-        });
-    } catch (err) {
-        console.error('Error obteniendo cartilla del cliente:', err);
-        res.status(500).json({ error: 'Error cargando cartilla virtual.' });
-    }
-});
+                <!-- Buscador de Cartilla Pública del Cliente (Acceso Libre Sin Clave) -->
+                <div style="margin-top: 1.5rem; background: rgba(59, 130, 246, 0.08); padding: 1rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.3);">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.4rem;">💳 ¿SOS CLIENTE? CONSULTÁ TU LIBRETA DE CUOTAS SIN CLAVE:</div>
+                    <div class="flex gap-2">
+                        <input type="text" id="public-qr-input" class="form-control" placeholder="Ingrese su código QR o DNI..." style="font-size: 0.8rem; padding: 0.45rem;">
+                        <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.45rem 0.75rem; white-space: nowrap;" onclick="consultarCartillaPublicaDirecta()">
+                            🔍 Ver Cartilla
+                        </button>
+                    </div>
+                </div>
 
-module.exports = router;
+                <!-- Accesos directos de prueba (Desplegable) -->
+                <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.75rem;">
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">⚡ ACCESOS RÁPIDOS DE PRUEBA (DEMO):</div>
+                    <div class="flex flex-col gap-1">
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('superadmin@hitsaas.com', 'admin123')">
+                            👑 Súper Admin (Propietario SaaS)
+                        </button>
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('admin@electrohogar.com', 'admin123')">
+                            🏢 Admin de Empresa (Casa de Cuotas)
+                        </button>
+                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('juan.cobrador@hit.local', 'cobrador123')">
+                            📱 Cobrador Móvil (Calle)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             👑 NIVEL 1: SÚPER ADMIN (CONTROL CENTRAL SaaS)
+             ================================================================== -->
+        <section id="panel-superadmin" class="role-panel animate-fade hidden">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.5rem;">
+                <div>
+                    <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.025em;">Súper Admin — Panel Central SaaS</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Monitoreo universal, facturación (MRR), alta y bloqueo de empresas inquilinas en 1 clic.</p>
+                </div>
+                <button class="btn btn-purple" onclick="document.getElementById('modal-new-tenant').classList.remove('hidden')">
+                    ➕ Alta de Nueva Empresa (Tenant)
+                </button>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="glass-card metric-card purple">
+                    <span class="metric-label">Ingreso Mensual (MRR)</span>
+                    <span class="metric-value" id="super-mrr">$0</span>
+                </div>
+                <div class="glass-card metric-card">
+                    <span class="metric-label">Total Empresas</span>
+                    <span class="metric-value" id="super-tenants-total">0</span>
+                </div>
+                <div class="glass-card metric-card green">
+                    <span class="metric-label">Suscripciones Activas</span>
+                    <span class="metric-value" id="super-tenants-activas">0</span>
+                </div>
+                <div class="glass-card metric-card red">
+                    <span class="metric-label">Cuentas Bloqueadas</span>
+                    <span class="metric-value" id="super-tenants-bloqueadas">0</span>
+                </div>
+                <div class="glass-card metric-card orange">
+                    <span class="metric-label">Recaudación Global Procesada</span>
+                    <span class="metric-value" id="super-total-recaudado">$0</span>
+                </div>
+            </div>
+
+            <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="glass-card">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🏢 Empresas Inquilinas (Tenants)</h3>
+                    <div class="table-container">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>CUIT / RUT</th>
+                                    <th>Abono Mensual</th>
+                                    <th>Volumen</th>
+                                    <th>Estado</th>
+                                    <th>Acción de Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-tenants">
+                                <!-- Dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">📊 Gráfico de Ingresos SaaS</h3>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="chart-saas-mrr"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             🏢 NIVEL 2: ADMIN DE EMPRESA (CASA DE CUOTAS / DUEÑOS)
+             ================================================================== -->
+        <section id="panel-empresa" class="role-panel hidden animate-fade">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <div>
+                    <h1 style="font-size: 1.85rem; font-weight: 800;">ElectroHogar S.A. — Gestión de Casa de Cuotas</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Entorno privado del dueño para clientes, geoposicionamiento en mapa, ficheros y hojas de ruta.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary" onclick="document.getElementById('modal-new-cliente').classList.remove('hidden')">
+                        ➕ Nuevo Cliente + QR
+                    </button>
+                    <button class="btn btn-success" onclick="openNewFicheroModal()">
+                        📝 Crear Fichero (Calco Papel)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Mini -->
+            <div class="metrics-grid" style="grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+                <div class="glass-card metric-card" style="padding: 1rem;">
+                    <span class="metric-label" style="font-size: 0.75rem;">Total Clientes</span>
+                    <span class="metric-value" style="font-size: 1.4rem;" id="emp-clientes-total">0</span>
+                </div>
+                <div class="glass-card metric-card purple" style="padding: 1rem;">
+                    <span class="metric-label" style="font-size: 0.75rem;">Ficheros Activos</span>
+                    <span class="metric-value" style="font-size: 1.4rem;" id="emp-ficheros-activos">0</span>
+                </div>
+                <div class="glass-card metric-card green" style="padding: 1rem;">
+                    <span class="metric-label" style="font-size: 0.75rem;">Cartera Activa</span>
+                    <span class="metric-value" style="font-size: 1.4rem;" id="emp-cartera-activa">$0</span>
+                </div>
+                <div class="glass-card metric-card green" style="padding: 1rem;">
+                    <span class="metric-label" style="font-size: 0.75rem;">Cobrado Hoy en Calle</span>
+                    <span class="metric-value" style="font-size: 1.4rem;" id="emp-cobrado-hoy">$0</span>
+                    <span style="font-size: 0.7rem; color: var(--success);" id="emp-cuotas-hoy">0 cobros</span>
+                </div>
+                <div class="glass-card metric-card orange" style="padding: 1rem;">
+                    <span class="metric-label" style="font-size: 0.75rem;">Deuda Pendiente</span>
+                    <span class="metric-value" style="font-size: 1.4rem;" id="emp-deuda-monto">$0</span>
+                </div>
+            </div>
+
+            <!-- Sub-Tabs Navigation -->
+            <div class="panel-tabs" id="empresa-panel">
+                <button class="tab-btn active" data-tab="clientes" onclick="switchEmpresaTab('clientes')">
+                    📍 1. Clientes & Mapa Geográfico
+                </button>
+                <button class="tab-btn" data-tab="ficheros" onclick="switchEmpresaTab('ficheros')">
+                    📑 2. Ficheros & Ventas (1 al 34)
+                </button>
+                <button class="tab-btn" data-tab="personal" onclick="switchEmpresaTab('personal')">
+                    👥 3. Personal (Vendedores & Cobradores)
+                </button>
+                <button class="tab-btn" data-tab="rutas" onclick="switchEmpresaTab('rutas')">
+                    🛵 4. Asignación Dinámica de Rutas
+                </button>
+                <button class="tab-btn" data-tab="auditoria" onclick="switchEmpresaTab('auditoria')">
+                    🛡️ 5. Auditoría de Caja & Comprobantes
+                </button>
+                <button class="tab-btn" data-tab="promesas" onclick="switchEmpresaTab('promesas')">
+                    ⚠️ 6. Promesas & Morosidad
+                </button>
+                <button class="tab-btn" data-tab="whatsapp" onclick="switchEmpresaTab('whatsapp')">
+                    📲 7. Log WhatsApp Automáticos
+                </button>
+            </div>
+
+            <!-- SOLAPA 1: Clientes y Mapa -->
+            <div id="tab-content-clientes" class="empresa-tab-content animate-fade">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de Clientes en Mapa</h3>
+                        <div id="map-container"></div>
+                    </div>
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">👥 Listado de Clientes con Código QR</h3>
+                        <div class="table-container" style="max-height: 340px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Dirección / Barrio</th>
+                                        <th>Teléfono</th>
+                                        <th>Token QR</th>
+                                        <th>Calificación</th>
+                                        <th>QR</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-clientes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 2: Ficheros -->
+            <div id="tab-content-ficheros" class="empresa-tab-content hidden animate-fade">
+                <div class="glass-card">
+                    <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                        <div>
+                            <h3 style="font-size: 1.15rem; font-weight: 800;">📑 Ficheros Digitales (Calco de Tarjeta Física)</h3>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Generación de planes automáticos semanales/quincenales/mensuales</span>
+                        </div>
+                        <button class="btn btn-success" onclick="openNewFicheroModal()">➕ Crear Nuevo Fichero</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fichero / Producto</th>
+                                    <th>Cliente / Barrio</th>
+                                    <th>Plan de Cuotas</th>
+                                    <th>Total Deuda</th>
+                                    <th>Progreso (Saldadas)</th>
+                                    <th>Cobrador Asignado</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ficheros"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 3: PERSONAL (VENDEDORES & COBRADORES) -->
+            <div id="tab-content-personal" class="empresa-tab-content hidden animate-fade">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <!-- Caja 1: Gestión de Vendedores y Ranking Quién Vendió Más -->
+                    <div class="glass-card" style="border-top: 4px solid #3b82f6;">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #3b82f6;">🌟 Sector Vendedores & Ranking Comercial</h3>
+                            <span class="badge badge-purple">Quién Vendió Más</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Sector separado de los empleados para dar de alta vendedores y medir automáticamente <strong>quién cerró más ventas y volumen de dinero</strong>.
+                        </p>
+
+                        <form id="form-new-vendedor" onsubmit="submitNewVendedorForm(event)" class="grid" style="grid-template-columns: 1.5fr 1fr 1fr auto; gap: 0.6rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Nombre Vendedor</label>
+                                <input type="text" id="new-vend-nombre" class="form-control" placeholder="Ej: Milagros" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
+                                <input type="text" id="new-vend-tel" class="form-control" placeholder="11-9988-7766" style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Zona / Sector</label>
+                                <input type="text" id="new-vend-zona" class="form-control" placeholder="Berazategui" style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Vendedor</button>
+                        </form>
+
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>🏆 Puesto / Vendedor</th>
+                                        <th>Zona & Contacto</th>
+                                        <th>Ficheros Vendidos</th>
+                                        <th>Monto Total ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-vendedores-ranking"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Caja 2: Gestión de Cobradores en Calle y Envíos de Lugares por WhatsApp -->
+                    <div class="glass-card" style="border-top: 4px solid #10b981;">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #10b981;">🛵 Sector Cobradores & Lugares a Cobrar</h3>
+                            <span class="badge badge-success">Envíos por WhatsApp</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Dar de alta cobradores con acceso a la App Móvil y <strong>enviar por WhatsApp en 1 clic los lugares exactos y domicilios</strong> donde tienen que cobrar.
+                        </p>
+
+                        <form id="form-new-cobrador" onsubmit="submitNewCobradorForm(event)" class="grid" style="grid-template-columns: 1.2fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Nombre Cobrador</label>
+                                <input type="text" id="new-cob-nombre" class="form-control" placeholder="Ej: Juan Pérez" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Email (App Login)</label>
+                                <input type="email" id="new-cob-email" class="form-control" placeholder="juan@hit.com" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Contraseña</label>
+                                <input type="password" id="new-cob-pass" class="form-control" placeholder="••••••••" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
+                                <input type="text" id="new-cob-tel" class="form-control" placeholder="11-3344-5566" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <button type="submit" class="btn btn-success" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Cobrador</button>
+                        </form>
+
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cobrador & Login</th>
+                                        <th>Zona / Contacto</th>
+                                        <th>Ficheros / Lugares</th>
+                                        <th>Enviar Hoja de Ruta</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-cobradores-calle"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 4: Asignación de Rutas -->
+            <div id="tab-content-rutas" class="empresa-tab-content hidden animate-fade">
+                <div class="glass-card">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación Dinámica a Cobradores en Calle</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                        Selecciona o reasigna quién se encarga de cobrar cada fichero. El cambio impacta instantáneamente en la app móvil del cobrador.
+                    </p>
+                    <div class="table-container">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente / Dirección</th>
+                                    <th>Producto / Cuotas</th>
+                                    <th>Cobrador Actual</th>
+                                    <th>Reasignar Hojas de Ruta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-asignacion"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 4: Auditoría de Caja -->
+            <div id="tab-content-auditoria" class="empresa-tab-content hidden animate-fade">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">💰 Rendición y Arqueo por Cobrador (Hoy)</h3>
+                        <div class="table-container">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cobrador / Zona</th>
+                                        <th>Efectivo en Mano</th>
+                                        <th>Transferencias</th>
+                                        <th>Cobros</th>
+                                        <th>Rechazos</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-audit-summary"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">📸 Conciliación con Recibos Bancarios</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Las cuotas pagadas con transferencia exigen foto del comprobante para auditar antes de cerrar caja.
+                        </p>
+                        <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Cliente</th>
+                                        <th>Cuota</th>
+                                        <th>Monto</th>
+                                        <th>Medio</th>
+                                        <th>Verificación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-audit-details"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 5: Promesas de Pago & Morosidad -->
+            <div id="tab-content-promesas" class="empresa-tab-content hidden animate-fade">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #d97706;">📅 Agenda de Promesas de Pago Pendientes</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Visitas no cobradas donde el cliente comprometió una fecha y hora de pago posterior.
+                        </p>
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha Prometida</th>
+                                        <th>Cliente</th>
+                                        <th>Cuota / Monto</th>
+                                        <th>Cobrador / Motivo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-promesas-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--danger);">🚨 Ranking de Clientes con Más Postergaciones</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Detección temprana de morosidad crónica por postergaciones repetidas.
+                        </p>
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente / Teléfono</th>
+                                        <th>Barrio</th>
+                                        <th>Calificación</th>
+                                        <th>Postergaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-ranking-clientes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 6: Log WhatsApp Automáticos -->
+            <div id="tab-content-whatsapp" class="empresa-tab-content hidden animate-fade">
+                <div class="glass-card">
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #16a34a;">📲 Auditoría de Notificaciones Automáticas por WhatsApp</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                        Transparencia antirrobo: cada cobro en calle dispara al instante un comprobante virtual al WhatsApp del cliente con saldo en vivo.
+                    </p>
+                    <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha / Hora</th>
+                                    <th>Cliente / Teléfono</th>
+                                    <th>Cuota</th>
+                                    <th>Mensaje Enviado</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-whatsapp-log"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             📱 NIVEL 3: APP MÓVIL DEL COBRADOR (CALLE & ESCÁNER QR EN VIVO)
+             ================================================================== -->
+        <section id="panel-cobrador" class="role-panel hidden animate-fade">
+            <div class="text-center" style="margin-bottom: 1.5rem;">
+                <h1 style="font-size: 1.75rem; font-weight: 800;">Vista Móvil del Cobrador en Calle</h1>
+                <p style="color: var(--text-secondary); font-size: 0.95rem;">
+                    Simulación de teléfono inteligente iOS/Android. Sincronización offline-ready, escáner QR en vivo por cámara y casilleros interactivos.
+                </p>
+            </div>
+
+            <!-- SIMULADOR DE SMARTPHONE -->
+            <div class="mobile-simulator-wrapper">
+                <div class="phone-frame">
+                    <div class="phone-notch">
+                        <div class="phone-camera"></div>
+                    </div>
+
+                    <div class="phone-screen">
+                        <!-- Cabecera Móvil -->
+                        <div class="flex justify-between items-center" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                            <div>
+                                <h3 style="font-size: 1.1rem; font-weight: 800;">🛵 Hola, Juan</h3>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary);">Ruta: Flores / Caballito</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="badge badge-success" style="font-size: 0.68rem;" id="cobrador-online-badge">🟢 ONLINE</span>
+                                <button class="btn btn-warning hidden" id="btn-sync-offline" style="font-size: 0.68rem; padding: 0.25rem 0.5rem;" onclick="syncOfflineQueue()">
+                                    🔄 Sync (0)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Resumen de Bolsillo -->
+                        <div class="glass-card" style="padding: 0.85rem; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
+                            <div class="flex justify-between items-center" style="font-size: 0.78rem; font-weight: 700; color: var(--primary);">
+                                <span>💵 Efectivo Bolsillo: <strong id="cob-efectivo-bolsillo">$0</strong></span>
+                                <span>📲 Transf: <strong id="cob-transf-cargadas">$0</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Botón y Contenedor del Escáner QR de Cámara -->
+                        <div class="glass-card text-center" style="padding: 1rem; border: 2px solid var(--primary);">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.4rem;">📷 Escáner Tarjeta QR Físico</h4>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                                Apunta a la tarjeta QR del cliente para levantar su planilla sin buscar en listas.
+                            </p>
+                            <div class="flex gap-2 justify-center flex-wrap">
+                                <button class="btn btn-primary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="startCameraScanner()">
+                                    📸 Activar Cámara
+                                </button>
+                                <button class="btn btn-warning" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="buscarClientePorDni()" title="Emergencia si el cliente perdió su tarjeta QR">
+                                    🔍 Buscar por DNI (Sin QR)
+                                </button>
+                                <button class="btn btn-danger hidden" id="btn-stop-camera" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="stopCameraScanner()">
+                                    🛑 Cerrar Cámara
+                                </button>
+                            </div>
+                            <!-- Contenedor del Lector HTML5 -->
+                            <div id="qr-reader-container" class="hidden" style="margin-top: 1rem;"></div>
+                        </div>
+
+                        <!-- Botones de prueba instantánea de escaneo QR (Para testing rápido desde PC sin tarjeta física) -->
+                        <div style="background: rgba(139, 92, 246, 0.08); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed rgba(139,92,246,0.3);">
+                            <div style="font-size: 0.72rem; font-weight: 700; color: var(--saas-purple); margin-bottom: 0.5rem;">
+                                ⚡ SIMULADOR INSTANTÁNEO DE ESCANEO QR (DEMO PC - UUIDs Seguros):
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-purple" style="flex:1; font-size: 0.72rem; padding: 0.4rem;" onclick="simulateQrScan('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
+                                    📱 Escanear Marcelo Gómez (QR UUID)
+                                </button>
+                                <button class="btn btn-purple" style="flex:1; font-size: 0.72rem; padding: 0.4rem;" onclick="simulateQrScan('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
+                                    📱 Escanear Lucía Fernández (QR UUID)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- VISTA A: HOJA DE RUTA DEL DÍA -->
+                        <div id="cobrador-vista-ruta">
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0.5rem 0;">📋 Hoja de Ruta Priorizada por Zona</h4>
+                            <div id="hoja-ruta-list">
+                                <!-- Dinámico -->
+                            </div>
+                        </div>
+
+                        <!-- VISTA B: PLANILLA DEL FICHERO DIGITAL ESCANEADO -->
+                        <div id="cobrador-vista-planilla" class="hidden animate-fade">
+                            <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;" onclick="backToRuta()">
+                                    ⬅ Volver a Ruta
+                                </button>
+                                <span class="badge badge-purple" id="planilla-qr-badge">QR-TOKEN</span>
+                            </div>
+
+                            <div class="glass-card" style="padding: 1rem; margin-bottom: 1rem; border-left: 4px solid var(--success);">
+                                <h3 id="planilla-client-name" style="font-size: 1.15rem; font-weight: 800;">Cliente</h3>
+                                <span id="planilla-client-dir" style="font-size: 0.8rem; color: var(--text-secondary);">Dirección</span>
+                            </div>
+
+                            <div id="ficheros-planilla-container">
+                                <!-- Dinámico (Grilla de casilleros del 1 al 34) -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             💳 NIVEL 4: VISTA DE CLIENTE (CARTILLA VIRTUAL POR ESCANEO QR)
+             ================================================================== -->
+        <section id="panel-cliente" class="role-panel hidden animate-fade">
+            <div class="text-center" style="max-width: 640px; margin: 0 auto 2rem auto;">
+                <h1 style="font-size: 1.85rem; font-weight: 800; margin-bottom: 0.5rem;">💳 Cartilla Virtual Digital del Cliente</h1>
+                <p style="color: var(--text-secondary); font-size: 0.95rem;">
+                    Acceso instantáneo vía escaneo de QR para control transparente de cuotas saldadas, próximas a vencer y saldos en tiempo real.
+                </p>
+                
+                <!-- Buscador rápido para probar en escritorio -->
+                <div class="flex gap-2 justify-center" style="margin-top: 1.25rem;">
+                    <input type="text" id="input-cliente-qr" class="form-control" placeholder="Ingrese o pegue token UUID QR" value="4f3b9a12-e82b-4cc3-a123-456789abcdef" style="max-width: 340px;">
+                    <button class="btn btn-primary" onclick="loadCartillaPublica()">🔍 Ver Mi Cartilla</button>
+                </div>
+                <div class="flex gap-2 justify-center" style="margin-top: 0.6rem;">
+                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
+                        ⚡ Demo Cartilla: Marcelo Gómez (UUID)
+                    </button>
+                    <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
+                        ⚡ Demo Cartilla: Lucía Fernández (UUID)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor donde se dibuja el carnet / cartilla premium -->
+            <div id="cartilla-resultado" style="max-width: 680px; margin: 0 auto;"></div>
+        </section>
+
+    </main>
+
+    <!-- ======================================================================
+         MODALES GLOBALES DEL SISTEMA
+         ====================================================================== -->
+
+    <!-- MODAL 1: ALTA DE EMPRESA (SÚPER ADMIN) -->
+    <div id="modal-new-tenant" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 800;">🏢 Alta de Nueva Empresa (Tenant)</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">✖</button>
+            </div>
+            <form id="form-new-tenant" onsubmit="submitNewTenantForm(event)">
+                <div class="form-group">
+                    <label>Nombre Comercial de la Empresa</label>
+                    <input type="text" id="new-tenant-nombre" class="form-control" placeholder="Ej: Créditos Sur o Fiados El Amigo" required>
+                </div>
+                <div class="form-group">
+                    <label>CUIT / RUT Único</label>
+                    <input type="text" id="new-tenant-cuit" class="form-control" placeholder="Ej: 30-88112233-4" required>
+                </div>
+                <div class="form-group">
+                    <label>Monto Abono Mensual ($ ARS)</label>
+                    <input type="number" id="new-tenant-abono" class="form-control" value="35000" required>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.75rem;">👤 Usuario Administrador de esta Empresa</h4>
+                    <div class="form-group">
+                        <label>Nombre del Dueño / Admin</label>
+                        <input type="text" id="new-tenant-admin-nombre" class="form-control" placeholder="Ej: Roberto González" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email de Acceso</label>
+                        <input type="email" id="new-tenant-admin-email" class="form-control" placeholder="admin@creditos.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña Inicial</label>
+                        <input type="password" id="new-tenant-admin-pass" class="form-control" value="admin123" required>
+                    </div>
+                </div>
+                <div class="flex justify-between" style="margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar Empresa y Crear Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ALTA DE CLIENTE CON GEOLOCALIZACIÓN -->
+    <div id="modal-new-cliente" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 800;">📍 Nuevo Cliente & Generador QR</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">✖</button>
+            </div>
+            <form id="form-new-cliente" onsubmit="submitNewClienteForm(event)">
+                <div class="form-group">
+                    <label>Nombre y Apellido del Cliente</label>
+                    <input type="text" id="new-cli-nombre" class="form-control" placeholder="Ej: Carlos Tevez" required>
+                </div>
+                <div class="form-group">
+                    <label>DNI / Documento</label>
+                    <input type="text" id="new-cli-dni" class="form-control" placeholder="Ej: 30123456" required>
+                </div>
+                <div class="form-group">
+                    <label>Teléfono / WhatsApp</label>
+                    <input type="text" id="new-cli-tel" class="form-control" placeholder="Ej: +54 9 11 1234-5678">
+                </div>
+                <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="new-cli-dir" class="form-control" placeholder="Av. San Martín 1500" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Barrio / Zona</label>
+                        <input type="text" id="new-cli-barrio" class="form-control" placeholder="Flores" required>
+                    </div>
+                </div>
+                <div style="background: rgba(16,185,129,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.8rem; color: #059669;">
+                    🌐 Al guardar, el backend asignará coordenadas exactas de GPS en el mapa de zonas y creará una tarjeta con código QR único para el cobrador.
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="btn btn-success">💾 Registrar Cliente e Imprimir QR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: TARJETA QR DEL CLIENTE (PREVIEW IMPRESIÓN) -->
+    <div id="modal-client-qr" class="modal-overlay hidden">
+        <div class="modal-box text-center" style="max-width: 420px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                <h3 style="font-size: 1.15rem; font-weight: 800;">📱 Tarjeta QR Físico / Digital</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-client-qr').classList.add('hidden')">✖</button>
+            </div>
+            <div class="glass-card" style="padding: 1.5rem; border: 2px solid var(--primary); background: #ffffff; color: #0f172a; margin-bottom: 1.25rem;">
+                <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem;">Cliente Nombre</h4>
+                <div style="font-family: monospace; font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;" id="modal-qr-token-text">HIT-QR-TOKEN</div>
+                <div style="display: flex; justify-content: center; margin: 1rem 0;">
+                    <img id="modal-qr-image" src="" alt="QR" style="width: 200px; height: 200px; border-radius: 8px;">
+                </div>
+                <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem;">
+                    Esta tarjeta es escaneada por el cobrador al presentarse en el domicilio o por el cliente para ver su cartilla en línea.
+                </p>
+                <div class="flex flex-col gap-2">
+                    <input type="text" id="modal-qr-public-link" class="form-control" readonly style="font-size: 0.72rem; background: #f1f5f9; color: #334155;">
+                    <div class="flex gap-2">
+                        <button class="btn btn-outline" style="flex:1; font-size: 0.75rem; padding: 0.4rem;" onclick="copiarLinkCartillaCliente()">📋 Copiar Link</button>
+                        <button class="btn btn-success" style="flex:1; font-size: 0.75rem; padding: 0.4rem;" onclick="enviarLinkCartillaWhatsapp()">📲 WhatsApp</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta QR</button>
+        </div>
+    </div>
+
+    <!-- MODAL 4: CREAR FICHERO DIGITAL (CALCO PAPEL 1 AL 34) -->
+    <div id="modal-new-fichero" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 800;">📑 Crear Fichero de Venta (Calco de Papel)</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">✖</button>
+            </div>
+            <form id="form-new-fichero" onsubmit="submitNewFicheroForm(event)">
+                <div class="form-group">
+                    <label>Seleccionar Cliente</label>
+                    <select id="new-fich-cliente" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Nombre del Producto o Préstamo</label>
+                    <input type="text" id="new-fich-producto" class="form-control" placeholder="Ej: Smart TV 55 Samsung o Préstamo $100k" required>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Frecuencia de Pago</label>
+                        <select id="new-fich-frecuencia" class="form-control">
+                            <option value="SEMANAL">Semanal (7 días)</option>
+                            <option value="QUINCENAL">Quincenal (15 días)</option>
+                            <option value="MENSUAL">Mensual (Mes)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad de Cuotas</label>
+                        <input type="number" id="new-fich-cuotas" class="form-control" value="34" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor por Cuota ($)</label>
+                        <input type="number" id="new-fich-valor" class="form-control" placeholder="5000" required>
+                    </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Vendedor (Quien vendió el producto)</label>
+                        <select id="new-fich-vendedor" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Encargado de Zona</label>
+                        <input type="text" id="new-fich-encargado" class="form-control" placeholder="Ej: Natasha">
+                    </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Asignar a Cobrador en Calle</label>
+                        <select id="new-fich-cobrador" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Entrega / Inicio</label>
+                        <input type="date" id="new-fich-fecha" class="form-control" required>
+                    </div>
+                </div>
+                <div style="background: rgba(59,130,246,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; font-size: 0.8rem; color: #2563eb;">
+                    ✨ El sistema generará automáticamente la planilla idéntica al papel (casilleros del 1 hasta N) con vencimientos según la frecuencia elegida.
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="btn btn-success">💾 Generar Fichero Digital</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 5: REGISTRAR COBRO EN CALLE (COBRADOR APP) -->
+    <div id="modal-registrar-cobro" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 450px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                <h3 id="cobro-modal-title" style="font-size: 1.2rem; font-weight: 800;">Registrar Casillero</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">✖</button>
+            </div>
+            <p id="cobro-modal-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;"></p>
+
+            <form id="form-cobrar-cuota" onsubmit="submitCobroForm(event)">
+                <div class="form-group">
+                    <label>Medio de Pago / Estado de Visita</label>
+                    <select id="cobro-medio-select" class="form-control" onchange="toggleCobroFields()" required>
+                        <option value="EFECTIVO">💵 Pago Exacto en EFECTIVO</option>
+                        <option value="TRANSFERENCIA">📲 Pago vía TRANSFERENCIA (Exige Foto)</option>
+                        <option value="NO_COBRADO">❌ NO COBRADO (Asentar Motivo)</option>
+                    </select>
+                </div>
+
+                <!-- Campo condicional para TRANSFERENCIA (Subir/pegar imagen del comprobante) -->
+                <div id="div-transf-img" class="form-group hidden animate-fade" style="background: rgba(139,92,246,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple);">
+                    <label style="color: var(--saas-purple); font-weight: 700;">📸 Adjuntar URL / Foto de Captura Bancaria</label>
+                    <input type="text" id="cobro-transf-url" class="form-control" placeholder="Pegue URL o deje vacío para usar imagen simulada de recibo real">
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.35rem;">
+                        💡 Obligatorio para que la casa pueda conciliar con el banco antes de cerrar caja.
+                    </span>
+                </div>
+
+                <!-- Campo condicional para NO COBRADO -->
+                <div id="div-rechazo-motivo" class="form-group hidden animate-fade" style="background: rgba(239,68,68,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--danger);">
+                    <label style="color: var(--danger); font-weight: 700;">❌ Motivo del No Cobro</label>
+                    <select id="cobro-rechazo-select" class="form-control">
+                        <option value="AUSENTE - No respondieron timbre">Ausente — No respondieron timbre</option>
+                        <option value="PASA_MAÑANA - Pide pasar mañana o el jueves">Pasa Mañana / Jueves</option>
+                        <option value="DOMICILIO_CERRADO - Local o casa cerrada">Domicilio Cerrado / Mudanza</option>
+                        <option value="SIN_DINERO - Dijo que no tiene para pagar hoy">Sin dinero por hoy</option>
+                    </select>
+                </div>
+
+                <!-- Campo condicional para NO COBRADO: Fecha y Hora de Promesa de Pago (Función 2) -->
+                <div id="div-promesa-fecha" class="form-group hidden animate-fade" style="background: rgba(245,158,11,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed #f59e0b; margin-top: 0.75rem;">
+                    <label style="color: #d97706; font-weight: 700;">📅 Fecha y Hora de Promesa de Pago (Obligatorio)</label>
+                    <input type="datetime-local" id="cobro-promesa-fecha" class="form-control" style="margin-top: 0.35rem;">
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.35rem;">
+                        💡 Agendar para seguimiento en el ranking de morosidad y alertas de central.
+                    </span>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones o Notas del Cobrador</label>
+                    <textarea id="cobro-notas" class="form-control" rows="2" placeholder="Ej: Se cobró en puerta, todo normal."></textarea>
+                </div>
+
+                <div class="flex justify-between" style="margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="width: 60%;">💾 Confirmar y Asentar</button>
+                </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: ALERTA EN VIVO DE WHATSAPP AUTOMÁTICO -->
+    <div id="modal-whatsapp-live" class="modal-overlay hidden" style="z-index: 10000;">
+        <div class="modal-box animate-fade" style="max-width: 440px; border: 2px solid #22c55e; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(22, 163, 74, 0.25);">
+            <div class="flex items-center gap-2" style="background: #22c55e; color: #fff; padding: 0.85rem 1.15rem; margin: -1.75rem -1.75rem 1.25rem -1.75rem; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+                <span style="font-size: 1.4rem;">💬</span>
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 800; margin: 0;">WhatsApp Automático Disparado</h3>
+                    <span style="font-size: 0.75rem; opacity: 0.9;">Alerta Antirrobo de Central HIT -> Cliente</span>
+                </div>
+            </div>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem; font-family: sans-serif;">
+                <div class="flex justify-between items-center" style="margin-bottom: 0.5rem; border-bottom: 1px solid #dcfce7; padding-bottom: 0.4rem;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #166534;">De: Central HIT SaaS (+54 9 11 BOT)</span>
+                    <span class="badge badge-success" style="font-size: 0.65rem;">✔✔ Enviado</span>
+                </div>
+                <p id="whatsapp-live-msg" style="font-size: 0.88rem; color: #15803d; line-height: 1.45; white-space: pre-wrap; font-weight: 500;"></p>
+            </div>
+            <div class="text-center">
+                <button class="btn btn-success" style="width: 100%; font-weight: 800;" onclick="document.getElementById('modal-whatsapp-live').classList.add('hidden')">
+                    👌 Entendido (Cerrar Simulación)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: VER FOTO COMPROBANTE TRANSFERENCIA (AUDITORÍA) -->
+    <div id="modal-ver-comprobante" class="modal-overlay hidden">
+        <div class="modal-box text-center" style="max-width: 480px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                <h3 id="modal-comprobante-title" style="font-size: 1.1rem; font-weight: 800;">Recibo de Transferencia</h3>
+                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✖</button>
+            </div>
+            <div style="margin: 1rem 0;">
+                <img id="modal-comprobante-img" src="" alt="Comprobante Bancario" style="max-width: 100%; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✅ Verificado por Tesorería</button>
+        </div>
+    </div>
+
+    <!-- MODAL 7: BLOQUEO DE SUSCRIPCIÓN SAAS (CUANDO SÚPER ADMIN BLOQUEA UNA EMPRESA) -->
+    <div id="modal-block-subscription" class="modal-overlay hidden">
+        <div class="modal-box text-center" style="max-width: 480px; border: 3px solid #ef4444;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">🚫</div>
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: #ef4444; margin-bottom: 0.75rem;">Suscripción Bloqueada</h2>
+            <p id="block-msg-text" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;"></p>
+            <div style="background: rgba(239,68,68,0.1); padding: 1rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #dc2626; margin-bottom: 1.5rem;">
+                📞 Para regularizar la situación del servicio de software o realizar el pago del abono mensual, comuníquese con el <strong>Súper Administrador del Sistema HIT</strong>.
+            </div>
+            <button class="btn btn-danger" style="width: 100%;" onclick="document.getElementById('modal-block-subscription').classList.add('hidden')">Entendido</button>
+        </div>
+    </div>
+
+    <!-- CDNs Externos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <!-- Scripts de la Aplicación -->
+    <script src="js/api.js"></script>
+    <script src="js/superadmin.js"></script>
+    <script src="js/adminEmpresa.js"></script>
+    <script src="js/cobradorApp.js"></script>
+    <script src="js/cartillaCliente.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
