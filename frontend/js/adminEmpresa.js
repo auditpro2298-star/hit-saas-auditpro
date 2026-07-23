@@ -286,6 +286,7 @@ async function submitNewFicheroForm(event) {
         document.getElementById('form-new-fichero').reset();
         loadFicheros();
         initEmpresaPanel();
+        switchEmpresaTab('ficheros');
     } catch (err) {
         alert('Error al crear fichero: ' + err.message);
     }

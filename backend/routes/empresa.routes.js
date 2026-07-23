@@ -15,6 +15,35 @@ function getEmpresaId(req) {
         : req.user.id_empresa;
 }
 
+// Simulador de geocodificación de direcciones según el barrio/zona
+function getSimulatedCoords(barrio) {
+    const b = (barrio || '').toLowerCase().trim();
+    let baseLat = -34.6150;
+    let baseLng = -58.4350;
+
+    if (b.includes('flores')) {
+        baseLat = -34.6300;
+        baseLng = -58.4650;
+    } else if (b.includes('caballito')) {
+        baseLat = -34.6180;
+        baseLng = -58.4420;
+    } else if (b.includes('avellaneda')) {
+        baseLat = -34.6620;
+        baseLng = -58.3640;
+    } else if (b.includes('berazategui')) {
+        baseLat = -34.7630;
+        baseLng = -58.2120;
+    } else if (b.includes('sur')) {
+        baseLat = -34.6800;
+        baseLng = -58.3800;
+    }
+
+    return {
+        lat: baseLat + (Math.random() - 0.5) * 0.015,
+        lng: baseLng + (Math.random() - 0.5) * 0.015
+    };
+}
+
 // GET /api/empresa/dashboard - Métricas de la Casa de Cuotas
 router.get('/dashboard', async (req, res) => {
     const id_empresa = getEmpresaId(req);
@@ -76,8 +105,10 @@ router.post('/clientes', async (req, res) => {
     try {
         // Corrección Crítica 1: Generar un UUID v4 alfanumérico largo e imposible de adivinar
         const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-        const lat = latitud || -34.6150 + (Math.random() - 0.5) * 0.05;
-        const lng = longitud || -58.4350 + (Math.random() - 0.5) * 0.05;
+        
+        const coords = getSimulatedCoords(barrio);
+        const lat = latitud || coords.lat;
+        const lng = longitud || coords.lng;
 
         const result = await run(
             'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
@@ -108,8 +139,20 @@ router.put('/clientes/:id', async (req, res) => {
             return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
         }
 
-        const lat = latitud || cliente.latitud;
-        const lng = longitud || cliente.longitud;
+        let lat = latitud;
+        let lng = longitud;
+
+        // Si no se pasaron coordenadas específicas y cambió la dirección o barrio, recalculamos coordenadas para mover el pin en el mapa
+        if (!lat && !lng) {
+            if (direccion.toLowerCase().trim() !== cliente.direccion.toLowerCase().trim() || barrio.toLowerCase().trim() !== cliente.barrio.toLowerCase().trim()) {
+                const coords = getSimulatedCoords(barrio);
+                lat = coords.lat;
+                lng = coords.lng;
+            } else {
+                lat = cliente.latitud;
+                lng = cliente.longitud;
+            }
+        }
 
         await run(`
             UPDATE clientes SET 
