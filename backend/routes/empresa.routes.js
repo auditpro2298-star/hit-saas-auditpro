@@ -54,11 +54,12 @@ async function geocodeAddress(direccion, barrio) {
         .replace(/\s+/g, ' ')
         .trim();
 
-    const query = `${cleanDir}, ${(barrio || '').trim()}, Buenos Aires, Argentina`;
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+    // 1. Intentar dirección completa (Calle + Altura + Barrio)
+    const queryFull = `${cleanDir}, ${(barrio || '').trim()}, Buenos Aires, Argentina`;
+    const urlFull = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFull)}`;
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(urlFull, {
             headers: { 'User-Agent': 'AuditPro-SaaS-Agent/1.0' }
         });
         const results = await response.json();
@@ -66,6 +67,37 @@ async function geocodeAddress(direccion, barrio) {
             return {
                 lat: parseFloat(results[0].lat),
                 lng: parseFloat(results[0].lon)
+            };
+        }
+
+        // 2. Si falló, intentar buscar solo la Calle (sin número) dentro del Barrio
+        const streetOnly = cleanDir.replace(/\s+\d+$/, '').trim();
+        if (streetOnly && streetOnly !== cleanDir) {
+            const queryStreet = `${streetOnly}, ${(barrio || '').trim()}, Buenos Aires, Argentina`;
+            const urlStreet = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStreet)}`;
+            const responseStreet = await fetch(urlStreet, {
+                headers: { 'User-Agent': 'AuditPro-SaaS-Agent/1.0' }
+            });
+            const resultsStreet = await responseStreet.json();
+            if (resultsStreet && resultsStreet.length > 0) {
+                return {
+                    lat: parseFloat(resultsStreet[0].lat),
+                    lng: parseFloat(resultsStreet[0].lon)
+                };
+            }
+        }
+
+        // 3. Si falló la calle, buscar el Barrio / Zona en general
+        const queryBarrio = `${(barrio || '').trim()}, Buenos Aires, Argentina`;
+        const urlBarrio = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryBarrio)}`;
+        const responseBarrio = await fetch(urlBarrio, {
+            headers: { 'User-Agent': 'AuditPro-SaaS-Agent/1.0' }
+        });
+        const resultsBarrio = await responseBarrio.json();
+        if (resultsBarrio && resultsBarrio.length > 0) {
+            return {
+                lat: parseFloat(resultsBarrio[0].lat),
+                lng: parseFloat(resultsBarrio[0].lon)
             };
         }
     } catch (e) {

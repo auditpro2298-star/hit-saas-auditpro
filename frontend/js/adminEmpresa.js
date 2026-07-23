@@ -218,12 +218,12 @@ async function verificarDireccionEnMapa() {
         .replace(/\s+/g, ' ')
         .trim();
 
-    // Construir consulta para buscar en Nominatim (OSM) de forma gratuita y sin keys
-    const query = `${cleanDir}, ${barrio.trim()}, Buenos Aires, Argentina`;
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+    // 1. Intentar buscar dirección completa (Calle + Altura + Barrio)
+    const queryFull = `${cleanDir}, ${barrio.trim()}, Buenos Aires, Argentina`;
+    const urlFull = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryFull)}`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(urlFull);
         const results = await response.json();
 
         if (results && results.length > 0) {
@@ -235,27 +235,50 @@ async function verificarDireccionEnMapa() {
             window.tempClientLng = lng;
 
             mostrarMapaVerificacion(lat, lng);
-        } else {
-            // Reintento: buscar solo por barrio/zona
-            const fallbackQuery = `${barrio.trim()}, Buenos Aires, Argentina`;
-            const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}`;
-            
-            const fallbackResponse = await fetch(fallbackUrl);
-            const fallbackResults = await fallbackResponse.json();
+            return;
+        }
 
-            if (fallbackResults && fallbackResults.length > 0) {
-                const bestB = fallbackResults[0];
-                const latB = parseFloat(bestB.lat);
-                const lngB = parseFloat(bestB.lon);
+        // 2. Si falló, intentar buscar solo la Calle (sin número) dentro del Barrio
+        // Extraer calle quitando los números del final (ej: "calle 121 129" -> "calle 121")
+        const streetOnly = cleanDir.replace(/\s+\d+$/, '').trim();
+        if (streetOnly && streetOnly !== cleanDir) {
+            const queryStreet = `${streetOnly}, ${barrio.trim()}, Buenos Aires, Argentina`;
+            const urlStreet = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStreet)}`;
+            const responseStreet = await fetch(urlStreet);
+            const resultsStreet = await responseStreet.json();
 
-                window.tempClientLat = latB;
-                window.tempClientLng = lngB;
+            if (resultsStreet && resultsStreet.length > 0) {
+                const bestS = resultsStreet[0];
+                const latS = parseFloat(bestS.lat);
+                const lngS = parseFloat(bestS.lon);
 
-                mostrarMapaVerificacion(latB, lngB);
-                alert('⚠️ No se halló el número exacto. Se centró en el Barrio de manera aproximada. ¡Podés arrastrar el pin rojo al lugar exacto!');
-            } else {
-                alert('❌ No pudimos encontrar la dirección ni el barrio en el mapa. Por favor, revisa la escritura.');
+                window.tempClientLat = latS;
+                window.tempClientLng = lngS;
+
+                mostrarMapaVerificacion(latS, lngS);
+                alert(`⚠️ No se encontró la altura exacta (número) en el mapa de zonas. Se ubicó en la calle "${streetOnly.toUpperCase()}". Podés arrastrar el pin rojo al número de casa exacto.`);
+                return;
             }
+        }
+
+        // 3. Si falló la calle, buscar el Barrio / Zona en general
+        const queryBarrio = `${barrio.trim()}, Buenos Aires, Argentina`;
+        const urlBarrio = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryBarrio)}`;
+        const responseBarrio = await fetch(urlBarrio);
+        const resultsBarrio = await responseBarrio.json();
+
+        if (resultsBarrio && resultsBarrio.length > 0) {
+            const bestB = resultsBarrio[0];
+            const latB = parseFloat(bestB.lat);
+            const lngB = parseFloat(bestB.lon);
+
+            window.tempClientLat = latB;
+            window.tempClientLng = lngB;
+
+            mostrarMapaVerificacion(latB, lngB);
+            alert(`⚠️ No se encontró la calle ni la altura en el mapa. Se centró en el Barrio "${barrio.toUpperCase()}" de manera aproximada. ¡Arrastrá el pin rojo al lugar correcto!`);
+        } else {
+            alert('❌ No pudimos encontrar la dirección ni el barrio en el mapa. Por favor, revisa la escritura.');
         }
     } catch (err) {
         console.error('Error buscando dirección:', err);
