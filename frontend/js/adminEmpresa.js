@@ -78,8 +78,12 @@ function renderClientesTable(clientes) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <strong>${c.nombre_apellido}</strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">DNI: ${c.dni}</div>
+                <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
+                    onclick="focusClientOnMap(${c.id_cliente})" 
+                    title="Hacer clic para ubicar en el mapa">
+                    📍 ${c.nombre_apellido}
+                </strong>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">DNI: ${c.dni}</div>
             </td>
             <td>📍 ${c.direccion} (${c.barrio})</td>
             <td>${c.telefono || '-'}</td>
@@ -103,6 +107,18 @@ function renderClientesTable(clientes) {
     });
 }
 
+function focusClientOnMap(id_cliente) {
+    if (!mapInstance || !mapMarkers) return;
+    const marker = mapMarkers.find(m => m.id_cliente === id_cliente);
+    if (marker) {
+        mapInstance.setView(marker.getLatLng(), 15);
+        marker.openPopup();
+        
+        // Scroll suave al mapa en pantallas chicas
+        document.getElementById('map-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
 function initMap(clientes) {
     const mapContainer = document.getElementById('map-container');
     if (!mapContainer || !window.L) return;
@@ -121,6 +137,7 @@ function initMap(clientes) {
     clientes.forEach(c => {
         if (c.latitud && c.longitud) {
             const marker = L.marker([c.latitud, c.longitud]).addTo(mapInstance);
+            marker.id_cliente = c.id_cliente; // Asociar ID del cliente al marcador
             marker.bindPopup(`
                 <div style="font-family: Inter, sans-serif;">
                     <strong>${c.nombre_apellido}</strong><br>
@@ -1022,3 +1039,4 @@ window.updateFicheroOrden = updateFicheroOrden;
 window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;
+window.focusClientOnMap = focusClientOnMap;
