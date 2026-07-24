@@ -100,6 +100,9 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${c.nombre_apellido}')" title="Regenerar por pérdida o robo">
                         🔄 Revocar QR
                     </button>
+                    <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${c.nombre_apellido}')" title="Eliminar cliente por error o cuando termina de pagar todo">
+                        🗑️ Eliminar
+                    </button>
                 </div>
             </td>
         `;
@@ -533,9 +536,48 @@ function renderFicherosTable(ficheros) {
             </td>
             <td>🛵 <strong>${f.cobrador_nombre || 'Sin asignar'}</strong></td>
             <td><span class="badge ${badgeStatus}">${f.estado}</span></td>
+            <td>
+                <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero}, '${f.producto_nombre}')" title="Eliminar fichero por equivocación o cancelación">
+                    🗑️ Eliminar
+                </button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+async function eliminarClienteConfirmado(id_cliente, nombre_apellido) {
+    if (!confirm(`⚠️ ¿Está seguro que desea eliminar al cliente "${nombre_apellido}"?\n\nEsta acción eliminará al cliente, sus ficheros de venta y su historial de cuotas asociadas.`)) {
+        return;
+    }
+
+    try {
+        const res = await api.delete(`/empresa/clientes/${id_cliente}`);
+        if (res.success) {
+            alert(`✅ ${res.message}`);
+            await loadClientesAndMap();
+            initEmpresaPanel();
+        }
+    } catch (err) {
+        alert('❌ Error al eliminar cliente: ' + err.message);
+    }
+}
+
+async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
+    if (!confirm(`⚠️ ¿Está seguro que desea eliminar el Fichero #${id_fichero} ("${producto_nombre}")?\n\nEsta acción borrará la venta y su historial de casilleros.`)) {
+        return;
+    }
+
+    try {
+        const res = await api.delete(`/empresa/ficheros/${id_fichero}`);
+        if (res.success) {
+            alert(`✅ ${res.message}`);
+            await loadFicheros();
+            initEmpresaPanel();
+        }
+    } catch (err) {
+        alert('❌ Error al eliminar fichero: ' + err.message);
+    }
 }
 
 async function submitNewFicheroForm(event) {

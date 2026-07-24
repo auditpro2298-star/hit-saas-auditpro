@@ -702,4 +702,58 @@ router.put('/usuarios/:id/reset-password', async (req, res) => {
     }
 });
 
+// DELETE /api/empresa/clientes/:id - Eliminar cliente y sus ficheros/cuotas asociadas
+router.delete('/clientes/:id', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+
+    try {
+        const cliente = await get('SELECT * FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado.' });
+        }
+
+        const ficheros = await query('SELECT id_fichero FROM ficheros WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        for (const f of ficheros) {
+            await run('DELETE FROM cuotas WHERE id_fichero = ? AND id_empresa = ?', [f.id_fichero, id_empresa]);
+        }
+
+        await run('DELETE FROM ficheros WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        await run('DELETE FROM whatsapp_notifications WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        await run('DELETE FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+
+        res.json({
+            success: true,
+            message: `🗑️ Cliente "${cliente.nombre_apellido}" y sus ficheros fueron eliminados correctamente.`
+        });
+    } catch (err) {
+        console.error('Error al eliminar cliente:', err);
+        res.status(500).json({ error: 'Error al eliminar cliente.' });
+    }
+});
+
+// DELETE /api/empresa/ficheros/:id - Eliminar fichero/venta por equivocación
+router.delete('/ficheros/:id', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+
+    try {
+        const fichero = await get('SELECT * FROM ficheros WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!fichero) {
+            return res.status(404).json({ error: 'Fichero no encontrado.' });
+        }
+
+        await run('DELETE FROM cuotas WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
+        await run('DELETE FROM ficheros WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
+
+        res.json({
+            success: true,
+            message: `🗑️ Fichero #${id} ("${fichero.producto_nombre}") fue eliminado correctamente.`
+        });
+    } catch (err) {
+        console.error('Error al eliminar fichero:', err);
+        res.status(500).json({ error: 'Error al eliminar fichero.' });
+    }
+});
+
 module.exports = router;
