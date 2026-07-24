@@ -198,6 +198,28 @@ function openNewClienteModal() {
     document.getElementById('modal-new-cliente').classList.remove('hidden');
 }
 
+async function geocodeEsri(query) {
+    try {
+        const url = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(query)}&maxLocations=3`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data && data.candidates && data.candidates.length > 0) {
+            const best = data.candidates[0];
+            if (best.score >= 70) {
+                return {
+                    lat: best.location.y,
+                    lng: best.location.x,
+                    address: best.address,
+                    score: best.score
+                };
+            }
+        }
+    } catch (e) {
+        console.warn('Esri Geocode Error:', e);
+    }
+    return null;
+}
+
 async function verificarDireccionEnMapa() {
     const rawCalle = document.getElementById('new-cli-calle').value.trim();
     const rawAltura = document.getElementById('new-cli-altura').value.trim();
@@ -211,95 +233,87 @@ async function verificarDireccionEnMapa() {
     const loader = document.getElementById('verificando-loader');
     if (loader) loader.style.display = 'inline';
 
-    // Normalizar la calle: Si es numérica (ej: "121"), anteponer "Calle " para evitar que Nominatim devuelva el centro de la ciudad
-    let calle = rawCalle;
-    if (/^\d+[a-zA-Z]?$/.test(calle) || !/^(calle|av|avenida|pasaje|diagonal|ruta|camino|c\.)/i.test(calle)) {
-        calle = `Calle ${calle}`;
+    let calleFormatted = rawCalle;
+    if (/^\d+[a-zA-Z]?$/.test(calleFormatted) || !/^(calle|av|avenida|pasaje|diagonal|ruta|camino|c\.)/i.test(calleFormatted)) {
+        calleFormatted = `Calle ${calleFormatted}`;
     }
 
-    const cleanCalle = calle.replace(/\b(nro|n°|numero|#)\b/gi, '').replace(/\s+/g, ' ').trim();
-    const cleanAltura = rawAltura.replace(/\D/g, ''); // solo números
-
-    // Función auxiliar para descartar resultados que representan partidos o límites municipales genéricos
-    const isStreetResult = (r) => r && r.class !== 'boundary' && r.type !== 'administrative' && r.type !== 'city';
-
-    // Consultas en cascada de mayor a menor precisión
-    const candidateQueries = [
-        `${cleanCalle} ${cleanAltura}, ${rawBarrio}, Buenos Aires, Argentina`,
-        `${cleanCalle} N° ${cleanAltura}, ${rawBarrio}, Buenos Aires, Argentina`,
-        `${cleanCalle}, ${rawBarrio}, Buenos Aires, Argentina`
-    ];
+    // 1. Probar con Esri ArcGIS Geocode (Motor de máxima precisión para números de calle en Argentina)
+    const queryEsri1 = `${calleFormatted} ${rawAltura}, ${rawBarrio}, Buenos Aires, Argentina`;
+    const queryEsri2 = `${rawCalle} ${rawAltura}, ${rawBarrio}, Buenos Aires, Argentina`;
 
     try {
-        let matchedResult = null;
-        let isApproximate = false;
+        let match = await geocodeEsri(queryEsri1);
+        if (!match) match = await geocodeEsri(queryEsri2);
 
-        for (let i = 0; i < candidateQueries.length; i++) {
-            const queryText = candidateQueries[i];
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryText)}`;
-            const response = await fetch(url);
-            const results = await response.json();
+        if (match) {
+            window.tempClientLat = match.lat;
+            window.tempClientLng = match.lng;
 
-            // Filtrar resultados válidos de calle/edificio
-            const streetMatches = results.filter(isStreetResult);
-
-            if (streetMatches.length > 0) {
-                matchedResult = streetMatches[0];
-                if (i === 2) isApproximate = true; // Se ubicó en la calle sin altura exacta
-                break;
-            }
-        }
-
-        // Si Nominatim no devolvió calle válida, probar con Photon API (Komoot / OpenStreetMap)
-        if (!matchedResult) {
-            const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanCalle + ' ' + cleanAltura + ' ' + rawBarrio + ' Buenos Aires')}`;
-            const pResp = await fetch(photonUrl);
-            const pData = await pResp.json();
-
-            if (pData && pData.features && pData.features.length > 0) {
-                const feat = pData.features[0];
-                const coords = feat.geometry.coordinates; // [lon, lat]
-                matchedResult = { lat: coords[1], lon: coords[0] };
-            }
-        }
-
-        if (matchedResult) {
-            const lat = parseFloat(matchedResult.lat);
-            const lng = parseFloat(matchedResult.lon);
-
-            window.tempClientLat = lat;
-            window.tempClientLng = lng;
-
-            mostrarMapaVerificacion(lat, lng);
-
-            if (isApproximate) {
-                alert(`📍 Se ubicó el pin en "${cleanCalle.toUpperCase()}". Podés arrastrar el marcador rojo en el mapa para posicionarlo en el número exacto (${cleanAltura}).`);
-            }
+            mostrarMapaVerificacion(match.lat, match.lng);
+            console.log(`📍 Geocodificado por Esri ArcGIS (${match.score}%):`, match.address, match.lat, match.lng);
             return;
         }
 
-        // Fallback final: Buscar el Barrio / Zona
+        // 2. Fallback a OpenStreetMap Nominatim descartando límites municipales genéricos
+        const isStreetResult = (r) => r && r.class !== 'boundary' && r.type !== 'administrative' && r.type !== 'city';
+        const candidateQueries = [
+            `${calleFormatted} ${rawAltura}, ${rawBarrio}, Buenos Aires, Argentina`,
+            `${calleFormatted}, ${rawBarrio}, Buenos Aires, Argentina`
+        ];
+
+        for (let i = 0; i < candidateQueries.length; i++) {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(candidateQueries[i])}`;
+            const resp = await fetch(url);
+            const results = await resp.json();
+            const streetMatches = results.filter(isStreetResult);
+
+            if (streetMatches.length > 0) {
+                const best = streetMatches[0];
+                const lat = parseFloat(best.lat);
+                const lng = parseFloat(best.lon);
+                window.tempClientLat = lat;
+                window.tempClientLng = lng;
+                mostrarMapaVerificacion(lat, lng);
+                if (i === 1) {
+                    alert(`📍 Se ubicó el pin en "${calleFormatted.toUpperCase()}". Podés arrastrar el marcador rojo en el mapa para posicionarlo en la altura exacta (#${rawAltura}).`);
+                }
+                return;
+            }
+        }
+
+        // 3. Fallback a Photon API (Komoot / OSM)
+        const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(calleFormatted + ' ' + rawAltura + ' ' + rawBarrio + ' Buenos Aires')}`;
+        const pResp = await fetch(photonUrl);
+        const pData = await pResp.json();
+        if (pData && pData.features && pData.features.length > 0) {
+            const coords = pData.features[0].geometry.coordinates;
+            const lat = coords[1];
+            const lng = coords[0];
+            window.tempClientLat = lat;
+            window.tempClientLng = lng;
+            mostrarMapaVerificacion(lat, lng);
+            return;
+        }
+
+        // 4. Fallback final al barrio
         const queryBarrio = `${rawBarrio}, Buenos Aires, Argentina`;
-        const urlBarrio = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryBarrio)}`;
-        const responseBarrio = await fetch(urlBarrio);
-        const resultsBarrio = await responseBarrio.json();
-
-        if (resultsBarrio && resultsBarrio.length > 0) {
-            const bestB = resultsBarrio[0];
-            const latB = parseFloat(bestB.lat);
-            const lngB = parseFloat(bestB.lon);
-
+        const respBarrio = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryBarrio)}`);
+        const resB = await respBarrio.json();
+        if (resB && resB.length > 0) {
+            const latB = parseFloat(resB[0].lat);
+            const lngB = parseFloat(resB[0].lon);
             window.tempClientLat = latB;
             window.tempClientLng = lngB;
-
             mostrarMapaVerificacion(latB, lngB);
-            alert(`⚠️ No se encontró la calle "${cleanCalle}". Se centró en el Barrio "${rawBarrio.toUpperCase()}". Podés arrastrar el pin rojo al punto exacto.`);
+            alert(`⚠️ Se centró en el Barrio "${rawBarrio.toUpperCase()}". Arrastrá el marcador rojo al punto exacto.`);
         } else {
-            alert('❌ No se encontró la dirección en el mapa. Revisa la calle y barrio, o arrastrá el pin en el mapa.');
+            alert('❌ No se encontró la dirección. Podés abrir Google Maps y arrastrar el pin rojo.');
         }
+
     } catch (err) {
-        console.error('Error buscando dirección:', err);
-        alert('Error de conexión al geolocalizar. Reintente.');
+        console.error('Error al geolocalizar:', err);
+        alert('Error de conexión al buscar dirección.');
     } finally {
         if (loader) loader.style.display = 'none';
     }
@@ -322,32 +336,34 @@ function mostrarMapaVerificacion(lat, lng) {
     if (mapDiv) mapDiv.style.display = 'block';
 
     if (!modalMapInstance) {
-        modalMapInstance = L.map('modal-map-container').setView([lat, lng], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        modalMapInstance = L.map('modal-map-container').setView([lat, lng], 17);
+
+        // Capa Esri World Street Map (Alta precisión y nitidez HD para Argentina)
+        const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Powered by Esri & OpenStreetMap'
+        });
+
+        // Capa Esri Satelital (Vista Aérea HD como Google Earth)
+        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Imagery &copy; Esri'
+        });
+
+        // Capa OpenStreetMap
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
+        });
+
+        esriStreet.addTo(modalMapInstance);
+
+        // Control de Capas (Callejero / Satelital)
+        L.control.layers({
+            "🗺️ Callejero HD (Esri)": esriStreet,
+            "🛰️ Satelital HD (Satelital)": esriSat,
+            "🌐 OpenStreetMap": osm
         }).addTo(modalMapInstance);
 
-        if (L.Control.Geocoder) {
-            modalMapGeocoder = L.Control.geocoder({
-                defaultMarkGeocode: false,
-                placeholder: 'Buscar dirección manual...',
-                errorMessage: 'No encontrado.'
-            })
-            .on('markgeocode', function(e) {
-                const center = e.geocode.center;
-                modalMapInstance.setView(center, 15);
-                
-                if (modalMapMarker) {
-                    modalMapMarker.setLatLng(center);
-                }
-                window.tempClientLat = center.lat;
-                window.tempClientLng = center.lng;
-                console.log('Búsqueda manual, marcador a:', center.lat, center.lng);
-            })
-            .addTo(modalMapInstance);
-        }
     } else {
-        modalMapInstance.setView([lat, lng], 15);
+        modalMapInstance.setView([lat, lng], 17);
     }
 
     if (modalMapMarker) {
