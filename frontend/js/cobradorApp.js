@@ -264,12 +264,41 @@ function openCobroModal(id_cuota, nro_cuota, monto, estadoActual, producto) {
     document.getElementById('cobro-modal-subtitle').innerText = `${producto} — Valor: $${Number(monto).toLocaleString('es-AR')}`;
     document.getElementById('cobro-medio-select').value = 'EFECTIVO';
     document.getElementById('cobro-transf-url').value = '';
+    
+    const fileInput = document.getElementById('input-foto-comprobante');
+    if (fileInput) fileInput.value = '';
+    
+    const previewContainer = document.getElementById('container-foto-preview');
+    if (previewContainer) previewContainer.style.display = 'none';
+
     document.getElementById('cobro-rechazo-select').value = '';
     document.getElementById('cobro-promesa-fecha').value = '';
     document.getElementById('cobro-notas').value = '';
 
     toggleCobroFields();
     document.getElementById('modal-registrar-cobro').classList.remove('hidden');
+}
+
+function procesarFotoComprobante(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            const base64Img = e.target.result;
+            document.getElementById('cobro-transf-url').value = base64Img;
+            
+            const previewImg = document.getElementById('img-foto-preview');
+            const previewContainer = document.getElementById('container-foto-preview');
+            
+            if (previewImg && previewContainer) {
+                previewImg.src = base64Img;
+                previewContainer.style.display = 'block';
+            }
+        };
+
+        reader.readAsDataURL(file);
+    }
 }
 
 function toggleCobroFields() {

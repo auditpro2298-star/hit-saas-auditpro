@@ -884,12 +884,27 @@
                     </select>
                 </div>
 
-                <!-- Campo condicional para TRANSFERENCIA (Subir/pegar imagen del comprobante) -->
+                <!-- Campo condicional para TRANSFERENCIA (Subir/Sacar foto del comprobante) -->
                 <div id="div-transf-img" class="form-group hidden animate-fade" style="background: rgba(139,92,246,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple);">
-                    <label style="color: var(--saas-purple); font-weight: 700;">📸 Adjuntar URL / Foto de Captura Bancaria</label>
-                    <input type="text" id="cobro-transf-url" class="form-control" placeholder="Pegue URL o deje vacío para usar imagen simulada de recibo real">
-                    <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.35rem;">
-                        💡 Obligatorio para que la casa pueda conciliar con el banco antes de cerrar caja.
+                    <label style="color: var(--saas-purple); font-weight: 700; display: block; margin-bottom: 0.5rem;">📸 Comprobante / Recibo de Transferencia</label>
+                    
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <label for="input-foto-comprobante" class="btn btn-purple" style="font-size: 0.82rem; padding: 0.5rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            📷 Sacar Foto / Adjuntar Comprobante
+                        </label>
+                        <input type="file" id="input-foto-comprobante" accept="image/*" capture="environment" style="display: none;" onchange="procesarFotoComprobante(this)">
+                    </div>
+
+                    <!-- Previsualización de la foto capturada -->
+                    <div id="container-foto-preview" style="margin-top: 0.65rem; display: none; text-align: center;">
+                        <img id="img-foto-preview" src="" alt="Vista previa del comprobante" style="max-height: 140px; border-radius: var(--radius-sm); border: 2px solid var(--saas-purple); box-shadow: var(--shadow-sm); display: block; margin: 0 auto;">
+                        <span style="font-size: 0.72rem; color: #059669; font-weight: 700; display: block; margin-top: 0.25rem;">✅ Foto capturada correctamente</span>
+                    </div>
+
+                    <input type="hidden" id="cobro-transf-url">
+
+                    <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.4rem;">
+                        💡 Sacá la foto del comprobante bancario para conciliar con la casa central antes del cierre de caja.
                     </span>
                 </div>
 
@@ -985,12 +1000,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->
-    <script src="js/api.js?v=2.0.3"></script>
-    <script src="js/superadmin.js?v=2.0.3"></script>
-    <script src="js/adminEmpresa.js?v=2.0.3"></script>
-    <script src="js/cobradorApp.js?v=2.0.3"></script>
-    <script src="js/cartillaCliente.js?v=2.0.3"></script>
-    <script src="js/app.js?v=2.0.3"></script>
+    <script src="js/api.js?v=2.0.4"></script>
+    <script src="js/superadmin.js?v=2.0.4"></script>
+    <script src="js/adminEmpresa.js?v=2.0.4"></script>
+    <script src="js/cobradorApp.js?v=2.0.4"></script>
+    <script src="js/cartillaCliente.js?v=2.0.4"></script>
+    <script src="js/app.js?v=2.0.4"></script>
 
 </body>
 </html>
