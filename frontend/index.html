@@ -87,33 +87,6 @@
                         🔐 Iniciar Sesión Segura
                     </button>
                 </form>
-
-                <!-- Buscador de Cartilla Pública del Cliente (Acceso Libre Sin Clave) -->
-                <div style="margin-top: 1.5rem; background: rgba(59, 130, 246, 0.08); padding: 1rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.3);">
-                    <div style="font-size: 0.78rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.4rem;">💳 ¿SOS CLIENTE? CONSULTÁ TU LIBRETA DE CUOTAS SIN CLAVE:</div>
-                    <div class="flex gap-2">
-                        <input type="text" id="public-qr-input" class="form-control" placeholder="Ingrese su código QR o DNI..." style="font-size: 0.8rem; padding: 0.45rem;">
-                        <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.45rem 0.75rem; white-space: nowrap;" onclick="consultarCartillaPublicaDirecta()">
-                            🔍 Ver Cartilla
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Accesos directos de prueba (Desplegable) -->
-                <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 0.75rem;">
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">⚡ ACCESOS RÁPIDOS DE PRUEBA (DEMO):</div>
-                    <div class="flex flex-col gap-1">
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('superadmin@hitsaas.com', 'admin123')">
-                            👑 Súper Admin (Propietario SaaS)
-                        </button>
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('admin@electrohogar.com', 'admin123')">
-                            🏢 Admin de Empresa (Casa de Cuotas)
-                        </button>
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem; text-align: left;" onclick="fillLoginFields('juan.cobrador@hit.local', 'cobrador123')">
-                            📱 Cobrador Móvil (Calle)
-                        </button>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -618,21 +591,6 @@
                             <div id="qr-reader-container" class="hidden" style="margin-top: 1rem;"></div>
                         </div>
 
-                        <!-- Botones de prueba instantánea de escaneo QR (Para testing rápido desde PC sin tarjeta física) -->
-                        <div style="background: rgba(139, 92, 246, 0.08); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed rgba(139,92,246,0.3);">
-                            <div style="font-size: 0.72rem; font-weight: 700; color: var(--saas-purple); margin-bottom: 0.5rem;">
-                                ⚡ SIMULADOR INSTANTÁNEO DE ESCANEO QR (DEMO PC - UUIDs Seguros):
-                            </div>
-                            <div class="flex gap-2">
-                                <button class="btn btn-purple" style="flex:1; font-size: 0.72rem; padding: 0.4rem;" onclick="simulateQrScan('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
-                                    📱 Escanear Marcelo Gómez (QR UUID)
-                                </button>
-                                <button class="btn btn-purple" style="flex:1; font-size: 0.72rem; padding: 0.4rem;" onclick="simulateQrScan('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
-                                    📱 Escanear Lucía Fernández (QR UUID)
-                                </button>
-                            </div>
-                        </div>
-
                         <!-- VISTA A: HOJA DE RUTA DEL DÍA -->
                         <div id="cobrador-vista-ruta">
                             <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0.5rem 0;">📋 Hoja de Ruta Priorizada por Zona</h4>
@@ -1027,12 +985,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->
-    <script src="js/api.js?v=2.0.2"></script>
-    <script src="js/superadmin.js?v=2.0.2"></script>
-    <script src="js/adminEmpresa.js?v=2.0.2"></script>
-    <script src="js/cobradorApp.js?v=2.0.2"></script>
-    <script src="js/cartillaCliente.js?v=2.0.2"></script>
-    <script src="js/app.js?v=2.0.2"></script>
+    <script src="js/api.js?v=2.0.3"></script>
+    <script src="js/superadmin.js?v=2.0.3"></script>
+    <script src="js/adminEmpresa.js?v=2.0.3"></script>
+    <script src="js/cobradorApp.js?v=2.0.3"></script>
+    <script src="js/cartillaCliente.js?v=2.0.3"></script>
+    <script src="js/app.js?v=2.0.3"></script>
 
 </body>
 </html>
