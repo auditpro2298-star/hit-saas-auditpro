@@ -331,6 +331,50 @@ function abrirBusquedaGoogleMaps() {
     window.open(gmapsUrl, '_blank');
 }
 
+function procesarEnlaceGoogleMaps() {
+    const input = document.getElementById('new-cli-gmaps-link');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) return;
+
+    let lat = null;
+    let lng = null;
+
+    const matchAt = val.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const matchQ = val.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const match3d = val.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    const matchDirect = val.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+
+    if (matchAt) {
+        lat = parseFloat(matchAt[1]);
+        lng = parseFloat(matchAt[2]);
+    } else if (matchQ) {
+        lat = parseFloat(matchQ[1]);
+        lng = parseFloat(matchQ[2]);
+    } else if (match3d) {
+        lat = parseFloat(match3d[1]);
+        lng = parseFloat(match3d[2]);
+    } else if (matchDirect) {
+        lat = parseFloat(matchDirect[1]);
+        lng = parseFloat(matchDirect[2]);
+    } else {
+        const matchAny = val.match(/(-?\d{2}\.\d+)\s*,\s*(-?\d{2}\.\d+)/);
+        if (matchAny) {
+            lat = parseFloat(matchAny[1]);
+            lng = parseFloat(matchAny[2]);
+        }
+    }
+
+    if (lat !== null && lng !== null) {
+        window.tempClientLat = lat;
+        window.tempClientLng = lng;
+        mostrarMapaVerificacion(lat, lng);
+        alert(`🎯 Marcador posicionado en las coordenadas exactas de Google Maps: (${lat.toFixed(6)}, ${lng.toFixed(6)})`);
+    } else {
+        alert('⚠️ No se pudieron extraer coordenadas. Podés pegar el enlace completo de Google Maps o las coordenadas (ej: -34.7646, -58.2495).');
+    }
+}
+
 function mostrarMapaVerificacion(lat, lng) {
     const mapDiv = document.getElementById('modal-map-container');
     if (mapDiv) mapDiv.style.display = 'block';

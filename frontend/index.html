@@ -779,14 +779,25 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-2" style="margin-bottom: 1rem; flex-wrap: wrap;">
+                <div class="flex items-center gap-2" style="margin-bottom: 0.75rem; flex-wrap: wrap;">
                     <button type="button" class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="verificarDireccionEnMapa()">
-                        🔍 Verificar en Mapa
+                        🔍 Buscar en Mapa
                     </button>
                     <button type="button" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="abrirBusquedaGoogleMaps()">
-                        🗺️ Ver en Google Maps
+                        🗺️ Abrir Google Maps
                     </button>
                     <span id="verificando-loader" style="font-size: 0.78rem; color: var(--text-secondary); display: none; font-weight: 500;">⌛ Geolocalizando dirección...</span>
+                </div>
+
+                <!-- Campo para Pegar Link de Google Maps o Coordenadas Directas -->
+                <div class="form-group" style="margin-bottom: 0.75rem; background: rgba(59,130,246,0.06); padding: 0.65rem; border-radius: var(--radius-md); border: 1px dashed rgba(59,130,246,0.3);">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #2563eb;">📌 Opción 2: Pegar Enlace de Google Maps o Coordenadas (ej: -34.7646, -58.2495)</label>
+                    <div class="flex gap-2" style="margin-top: 0.3rem;">
+                        <input type="text" id="new-cli-gmaps-link" class="form-control" placeholder="Pegue link de Google Maps o coords..." style="font-size: 0.78rem; padding: 0.35rem 0.5rem;" onchange="procesarEnlaceGoogleMaps()">
+                        <button type="button" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; white-space: nowrap;" onclick="procesarEnlaceGoogleMaps()">
+                            🎯 Ubicar Pin
+                        </button>
+                    </div>
                 </div>
 
                 <div id="modal-map-container" style="height: 180px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1rem; display: none; position: relative;"></div>
@@ -1015,12 +1026,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->
-    <script src="js/api.js"></script>
-    <script src="js/superadmin.js"></script>
-    <script src="js/adminEmpresa.js"></script>
-    <script src="js/cobradorApp.js"></script>
-    <script src="js/cartillaCliente.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/api.js?v=2.0.2"></script>
+    <script src="js/superadmin.js?v=2.0.2"></script>
+    <script src="js/adminEmpresa.js?v=2.0.2"></script>
+    <script src="js/cobradorApp.js?v=2.0.2"></script>
+    <script src="js/cartillaCliente.js?v=2.0.2"></script>
+    <script src="js/app.js?v=2.0.2"></script>
 
 </body>
 </html>
