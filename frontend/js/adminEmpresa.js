@@ -60,8 +60,36 @@ async function switchEmpresaTab(tabName) {
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
 async function loadClientesAndMap() {
     const clientes = await api.get('/empresa/clientes');
-    renderClientesTable(clientes);
-    initMap(clientes);
+    window.currentClientesCache = clientes;
+
+    // Poblar selector de barrios unicos en Solapa 1
+    const selectBarrio = document.getElementById('select-filter-barrio-map');
+    if (selectBarrio) {
+        const barrios = [...new Set(clientes.map(c => c.barrio).filter(Boolean))].sort();
+        selectBarrio.innerHTML = '<option value="ALL">📍 Todos los Barrios / Zonas</option>';
+        barrios.forEach(b => {
+            selectBarrio.innerHTML += `<option value="${b}">🏘️ ${b}</option>`;
+        });
+    }
+
+    filtrarClientesPorBarrioYTexto();
+}
+
+function filtrarClientesPorBarrioYTexto() {
+    if (!window.currentClientesCache) return;
+
+    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
+    const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
+
+    const filtered = window.currentClientesCache.filter(c => {
+        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
+        const matchText = !queryStr || fullText.includes(queryStr);
+        return matchBarrio && matchText;
+    });
+
+    renderClientesTable(filtered);
+    initMap(filtered);
 }
 
 function renderClientesTable(clientes) {
@@ -70,7 +98,7 @@ function renderClientesTable(clientes) {
     tbody.innerHTML = '';
 
     if (clientes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No hay clientes dados de alta.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
         return;
     }
 
@@ -117,10 +145,8 @@ function focusClientOnMap(id_cliente) {
     if (!mapInstance || !mapMarkers) return;
     const marker = mapMarkers.find(m => m.id_cliente === id_cliente);
     if (marker) {
-        mapInstance.setView(marker.getLatLng(), 15);
+        mapInstance.setView(marker.getLatLng(), 16);
         marker.openPopup();
-        
-        // Scroll suave al mapa en pantallas chicas
         document.getElementById('map-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
@@ -131,8 +157,24 @@ function initMap(clientes) {
 
     if (!mapInstance) {
         mapInstance = L.map('map-container').setView([-34.6250, -58.4550], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap - HIT SaaS'
+        
+        // Capa Esri World Street Map HD (Máxima nitidez con numeración y etiquetas de calles claras para Argentina)
+        const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Powered by Esri'
+        });
+        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Imagery &copy; Esri'
+        });
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        });
+
+        esriStreet.addTo(mapInstance);
+
+        L.control.layers({
+            "🗺️ Callejero HD (Esri)": esriStreet,
+            "🛰️ Satelital HD (Esri)": esriSat,
+            "🌐 OpenStreetMap": osm
         }).addTo(mapInstance);
     }
 
@@ -140,20 +182,33 @@ function initMap(clientes) {
     mapMarkers.forEach(m => mapInstance.removeLayer(m));
     mapMarkers = [];
 
+    const bounds = [];
+
     clientes.forEach(c => {
         if (c.latitud && c.longitud) {
-            const marker = L.marker([c.latitud, c.longitud]).addTo(mapInstance);
-            marker.id_cliente = c.id_cliente; // Asociar ID del cliente al marcador
+            const lat = parseFloat(c.latitud);
+            const lng = parseFloat(c.longitud);
+            const marker = L.marker([lat, lng]).addTo(mapInstance);
+            marker.id_cliente = c.id_cliente;
+            
+            const pisoStr = c.piso_dpto ? `<br><span>🏢 Piso/Dpto: ${c.piso_dpto}</span>` : '';
+            const refStr = c.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706;">🏠 Ref: ${c.referencia_domicilio}</span>` : '';
+
             marker.bindPopup(`
                 <div style="font-family: Inter, sans-serif;">
-                    <strong>${c.nombre_apellido}</strong><br>
-                    <span>📍 ${c.direccion} (${c.barrio})</span><br>
+                    <strong style="color:var(--primary); font-size:0.95rem;">${c.nombre_apellido}</strong><br>
+                    <span>📍 ${c.direccion}${pisoStr} (${c.barrio})</span>${refStr}<br>
                     <span style="font-size:0.75rem; color:#6366f1;">QR Token: ${c.qr_token}</span>
                 </div>
             `);
             mapMarkers.push(marker);
+            bounds.push([lat, lng]);
         }
     });
+
+    if (bounds.length > 0) {
+        mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+    }
 }
 
 function showQrModal(nombre, token) {
@@ -623,8 +678,9 @@ async function loadAsignacionRutas() {
     
     // Guardar en caché global para el trazador de mapas
     window.currentFicherosCache = ficheros;
+    window.currentCobradoresCache = cobradores;
 
-    // Poblar filtro del mapa
+    // Poblar filtro del mapa por cobrador
     const selectFilter = document.getElementById('select-filter-route-map');
     if (selectFilter) {
         selectFilter.innerHTML = '<option value="ALL">📍 Ver Todo el Personal</option>';
@@ -633,8 +689,34 @@ async function loadAsignacionRutas() {
         });
     }
 
-    renderAsignacionTable(ficheros, cobradores);
-    drawRouteMap();
+    // Poblar filtro por barrio en Solapa 4
+    const selectBarrio = document.getElementById('select-filter-route-barrio');
+    if (selectBarrio) {
+        const barrios = [...new Set(ficheros.map(f => f.barrio).filter(Boolean))].sort();
+        selectBarrio.innerHTML = '<option value="ALL">📍 Todas las Zonas / Barrios</option>';
+        barrios.forEach(b => {
+            selectBarrio.innerHTML += `<option value="${b}">🏘️ ${b}</option>`;
+        });
+    }
+
+    filtrarRutasPorBarrioYTexto();
+}
+
+function filtrarRutasPorBarrioYTexto() {
+    if (!window.currentFicherosCache || !window.currentCobradoresCache) return;
+
+    const queryStr = (document.getElementById('input-search-rutas')?.value || '').toLowerCase().trim();
+    const selectedBarrio = document.getElementById('select-filter-route-barrio')?.value || 'ALL';
+
+    const filtered = window.currentFicherosCache.filter(f => {
+        const matchBarrio = selectedBarrio === 'ALL' || (f.barrio && f.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+        const fullText = `${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.cobrador_nombre || ''}`.toLowerCase();
+        const matchText = !queryStr || fullText.includes(queryStr);
+        return matchBarrio && matchText;
+    });
+
+    renderAsignacionTable(filtered, window.currentCobradoresCache);
+    drawRouteMap(filtered);
 }
 
 function renderAsignacionTable(ficheros, cobradores) {
@@ -644,7 +726,7 @@ function renderAsignacionTable(ficheros, cobradores) {
 
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
     if (activos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay ficheros activos para asignar.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No se encontraron visitas para esta búsqueda o zona.</td></tr>`;
         return;
     }
 
@@ -704,27 +786,42 @@ async function updateFicheroOrden(id_fichero, nuevoOrden) {
         const res = await api.put(`/empresa/ficheros/${id_fichero}/orden`, { orden_visita: parseInt(nuevoOrden) || 0 });
         console.log('Orden guardado:', res.message);
         
-        // Actualizar caché local y redibujar el mapa de ruta sin recargar toda la tabla
         if (window.currentFicherosCache) {
             const fIdx = window.currentFicherosCache.findIndex(x => x.id_fichero === id_fichero);
             if (fIdx >= 0) {
                 window.currentFicherosCache[fIdx].orden_visita = parseInt(nuevoOrden) || 0;
             }
         }
-        drawRouteMap();
+        filtrarRutasPorBarrioYTexto();
     } catch (err) {
         alert('Error guardando prioridad de ruta: ' + err.message);
     }
 }
 
-function drawRouteMap() {
+function drawRouteMap(customFicherosList) {
     const container = document.getElementById('route-map-container');
-    if (!container) return;
+    if (!container || !window.L) return;
 
     if (!routeMapInstance) {
         routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        
+        // Capa Esri World Street Map HD para mapa secuencial de rutas
+        const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Powered by Esri'
+        });
+        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Imagery &copy; Esri'
+        });
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
+        });
+
+        esriStreet.addTo(routeMapInstance);
+
+        L.control.layers({
+            "🗺️ Callejero HD (Esri)": esriStreet,
+            "🛰️ Satelital HD (Esri)": esriSat,
+            "🌐 OpenStreetMap": osm
         }).addTo(routeMapInstance);
     }
 
@@ -735,10 +832,11 @@ function drawRouteMap() {
     routeMapLines = [];
 
     const selectedCobId = document.getElementById('select-filter-route-map')?.value || 'ALL';
-    if (!window.currentFicherosCache) return;
+    const targetFicheros = customFicherosList || window.currentFicherosCache;
+    if (!targetFicheros) return;
 
     const coordsMap = {};
-    window.currentFicherosCache.forEach(f => {
+    targetFicheros.forEach(f => {
         if (f.estado !== 'ACTIVO') return;
         if (f.latitud && f.longitud) {
             const cobId = f.id_cobrador_asignado || 0;

@@ -230,9 +230,23 @@
 
             <!-- SOLAPA 1: Clientes y Mapa -->
             <div id="tab-content-clientes" class="empresa-tab-content animate-fade">
+                <!-- Barra de Búsqueda y Filtro por Zona / Barrio -->
+                <div class="flex gap-2 items-center flex-wrap" style="margin-bottom: 1.25rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="flex: 1; min-width: 220px;">
+                        <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🔍 Buscador en Mapa y Lista</label>
+                        <input type="text" id="input-search-clientes-map" class="form-control" placeholder="Buscar por nombre, calle (ej: 121), DNI..." style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarClientesPorBarrioYTexto()">
+                    </div>
+                    <div style="min-width: 200px;">
+                        <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🏘️ Agrupar por Zona / Barrio</label>
+                        <select id="select-filter-barrio-map" class="form-control" style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarClientesPorBarrioYTexto()">
+                            <option value="ALL">📍 Todos los Barrios / Zonas</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de Clientes en Mapa</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de Clientes en Mapa HD</h3>
                         <div id="map-container"></div>
                     </div>
                     <div class="glass-card">
@@ -380,6 +394,20 @@
 
             <!-- SOLAPA 4: Asignación de Rutas -->
             <div id="tab-content-rutas" class="empresa-tab-content hidden animate-fade">
+                <!-- Barra de Búsqueda y Filtro de Zona / Barrio para Rutas -->
+                <div class="flex gap-2 items-center flex-wrap" style="margin-bottom: 1.25rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="flex: 1; min-width: 220px;">
+                        <label style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🔍 Buscador de Visitas / Dirección</label>
+                        <input type="text" id="input-search-rutas" class="form-control" placeholder="Buscar por cliente, calle (ej: 121), producto..." style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarRutasPorBarrioYTexto()">
+                    </div>
+                    <div style="min-width: 200px;">
+                        <label style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🏘️ Filtrar por Zona / Barrio</label>
+                        <select id="select-filter-route-barrio" class="form-control" style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarRutasPorBarrioYTexto()">
+                            <option value="ALL">📍 Todas las Zonas / Barrios</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
                     <div class="glass-card">
                         <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y Priorización de Rutas</h3>
@@ -404,7 +432,7 @@
                     <div class="glass-card">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
                             <h3 style="font-size: 1.15rem; font-weight: 800;">🗺️ Mapa Secuencial de Hojas de Ruta</h3>
-                            <select id="select-filter-route-map" class="form-control" style="max-width: 190px; padding: 0.35rem; font-size: 0.82rem;" onchange="drawRouteMap()">
+                            <select id="select-filter-route-map" class="form-control" style="max-width: 190px; padding: 0.35rem; font-size: 0.82rem;" onchange="filtrarRutasPorBarrioYTexto()">
                                 <option value="ALL">📍 Ver Todo el Personal</option>
                             </select>
                         </div>
@@ -1011,12 +1039,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->
-    <script src="js/api.js?v=2.0.5"></script>
-    <script src="js/superadmin.js?v=2.0.5"></script>
-    <script src="js/adminEmpresa.js?v=2.0.5"></script>
-    <script src="js/cobradorApp.js?v=2.0.5"></script>
-    <script src="js/cartillaCliente.js?v=2.0.5"></script>
-    <script src="js/app.js?v=2.0.5"></script>
+    <script src="js/api.js?v=2.0.6"></script>
+    <script src="js/superadmin.js?v=2.0.6"></script>
+    <script src="js/adminEmpresa.js?v=2.0.6"></script>
+    <script src="js/cobradorApp.js?v=2.0.6"></script>
+    <script src="js/cartillaCliente.js?v=2.0.6"></script>
+    <script src="js/app.js?v=2.0.6"></script>
 
 </body>
 </html>
