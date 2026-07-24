@@ -159,13 +159,12 @@ router.get('/clientes', async (req, res) => {
 // POST /api/empresa/clientes - Alta de cliente con coordenadas y token QR (UUID v4 de seguridad)
 router.post('/clientes', async (req, res) => {
     const id_empresa = getEmpresaId(req);
-    const { nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud } = req.body;
+    const { nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud } = req.body;
     if (!nombre_apellido || !dni || !direccion || !barrio) {
         return res.status(400).json({ error: 'Nombre, DNI, dirección y barrio son obligatorios.' });
     }
 
     try {
-        // Corrección Crítica 1: Generar un UUID v4 alfanumérico largo e imposible de adivinar
         const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
         
         let lat = latitud;
@@ -183,8 +182,8 @@ router.post('/clientes', async (req, res) => {
         }
 
         const result = await run(
-            'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
-            [id_empresa, nombre_apellido, dni, telefono, direccion, barrio, lat, lng, qr_token]
+            'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
+            [id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto || '', referencia_domicilio || '', lat, lng, qr_token]
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);
@@ -199,7 +198,7 @@ router.post('/clientes', async (req, res) => {
 router.put('/clientes/:id', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { direccion, barrio, telefono, latitud, longitud, calificacion } = req.body;
+    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion } = req.body;
 
     if (!direccion || !barrio) {
         return res.status(400).json({ error: 'Dirección y barrio son obligatorios.' });
@@ -214,7 +213,6 @@ router.put('/clientes/:id', async (req, res) => {
         let lat = latitud;
         let lng = longitud;
 
-        // Si no se pasaron coordenadas específicas y cambió la dirección o barrio, recalculamos coordenadas para mover el pin en el mapa
         if (!lat && !lng) {
             if (direccion.toLowerCase().trim() !== cliente.direccion.toLowerCase().trim() || barrio.toLowerCase().trim() !== cliente.barrio.toLowerCase().trim()) {
                 const geocoded = await geocodeAddress(direccion, barrio);
@@ -236,12 +234,14 @@ router.put('/clientes/:id', async (req, res) => {
             UPDATE clientes SET 
                 direccion = ?,
                 barrio = ?,
+                piso_dpto = ?,
+                referencia_domicilio = ?,
                 telefono = ?,
                 latitud = ?,
                 longitud = ?,
                 calificacion = ?
             WHERE id_cliente = ? AND id_empresa = ?
-        `, [direccion, barrio, telefono || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
+        `, [direccion, barrio, piso_dpto !== undefined ? piso_dpto : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio : cliente.referencia_domicilio, telefono || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
         res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });

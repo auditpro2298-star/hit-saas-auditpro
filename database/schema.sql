@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefono VARCHAR(50),
     direccion VARCHAR(200) NOT NULL,
     barrio VARCHAR(100) NOT NULL,
+    piso_dpto VARCHAR(50) NULL,
+    referencia_domicilio VARCHAR(255) NULL,
     latitud DECIMAL(10,8) NULL,
     longitud DECIMAL(11,8) NULL,
     qr_token VARCHAR(100) NOT NULL UNIQUE, -- UUID v4 aleatorio e irrepetible para máxima seguridad

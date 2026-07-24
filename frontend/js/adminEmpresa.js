@@ -76,6 +76,9 @@ function renderClientesTable(clientes) {
 
     clientes.forEach(c => {
         const tr = document.createElement('tr');
+        const pisoStr = c.piso_dpto ? `<span style="color:#8b5cf6; font-weight:700;"> [🏢 ${c.piso_dpto}]</span>` : '';
+        const refStr = c.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${c.referencia_domicilio}</div>` : '';
+
         tr.innerHTML = `
             <td>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
@@ -85,7 +88,7 @@ function renderClientesTable(clientes) {
                 </strong>
                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">DNI: ${c.dni}</div>
             </td>
-            <td>📍 ${c.direccion} (${c.barrio})</td>
+            <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>
             <td><span class="badge badge-purple" style="font-family: monospace;">${c.qr_token}</span></td>
             <td><span class="badge badge-success">${c.calificacion}</span></td>
@@ -438,7 +441,9 @@ async function submitNewClienteForm(event) {
         dni: document.getElementById('new-cli-dni').value,
         telefono: document.getElementById('new-cli-tel').value,
         direccion: `${document.getElementById('new-cli-calle').value} ${document.getElementById('new-cli-altura').value}`.trim(),
-        barrio: document.getElementById('new-cli-barrio').value
+        barrio: document.getElementById('new-cli-barrio').value,
+        piso_dpto: document.getElementById('new-cli-piso')?.value?.trim() || '',
+        referencia_domicilio: document.getElementById('new-cli-ref')?.value?.trim() || ''
     };
 
     if (window.tempClientLat && window.tempClientLng) {

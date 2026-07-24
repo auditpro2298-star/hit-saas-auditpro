@@ -22,12 +22,10 @@ if (!isPostgres) {
                 console.log('⚙️ Inicializando esquema y datos semilla por primera vez...');
                 initDatabase();
             } else {
-                // Asegurar columna orden_visita en caliente para desarrollo
-                db.run("ALTER TABLE ficheros ADD COLUMN orden_visita INTEGER DEFAULT 0", (err) => {
-                    if (err && !err.message.includes('duplicate column') && !err.message.includes('already exists')) {
-                        console.log('ℹ️ Columna orden_visita ya presente o no pudo crearse:', err.message);
-                    }
-                });
+                // Asegurar columnas nuevas en caliente para desarrollo
+                db.run("ALTER TABLE ficheros ADD COLUMN orden_visita INTEGER DEFAULT 0", (err) => {});
+                db.run("ALTER TABLE clientes ADD COLUMN piso_dpto TEXT", (err) => {});
+                db.run("ALTER TABLE clientes ADD COLUMN referencia_domicilio TEXT", (err) => {});
             }
         }
     });

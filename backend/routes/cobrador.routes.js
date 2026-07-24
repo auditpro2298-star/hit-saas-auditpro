@@ -14,7 +14,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
     try {
         const ruta = await query(`
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
-                   c.id_cliente, c.nombre_apellido, c.direccion, c.barrio, c.telefono, c.latitud, c.longitud, c.qr_token,
+                   c.id_cliente, c.nombre_apellido, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento

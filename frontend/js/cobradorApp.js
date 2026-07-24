@@ -70,6 +70,9 @@ async function syncHojaDeRuta() {
             card.style.padding = '1.1rem';
             card.style.marginBottom = '0.85rem';
             card.style.borderLeft = '4px solid var(--primary)';
+            
+            const pisoInfo = item.piso_dpto ? ` <span style="color:#8b5cf6; font-weight:700;">[🏢 ${item.piso_dpto}]</span>` : '';
+            const refInfo = item.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:700; margin-top:0.2rem;">🏠 Ref: ${item.referencia_domicilio}</div>` : '';
 
             card.innerHTML = `
                 <div class="flex justify-between items-center" style="margin-bottom:0.4rem;">
@@ -77,7 +80,8 @@ async function syncHojaDeRuta() {
                     <span class="badge badge-purple" style="font-size:0.7rem;">${item.barrio}</span>
                 </div>
                 <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.6rem;">
-                    📍 ${item.direccion} — 📞 ${item.telefono || 'Sin tel'}
+                    📍 ${item.direccion}${pisoInfo} — 📞 ${item.telefono || 'Sin tel'}
+                    ${refInfo}
                 </div>
                 <div style="font-size:0.82rem; background:rgba(0,0,0,0.05); padding:0.5rem; border-radius:6px; margin-bottom:0.75rem;">
                     📦 ${item.producto_nombre}<br>
@@ -188,8 +192,10 @@ async function buscarClientePorDni() {
 
 function renderPlanillaDigital(data) {
     const { cliente, ficheros, cuotas } = data;
+    const pisoStr = cliente.piso_dpto ? ` <span style="color:#8b5cf6; font-weight:700;">[🏢 ${cliente.piso_dpto}]</span>` : '';
+    const refStr = cliente.referencia_domicilio ? `<br><span style="font-size:0.8rem; color:#d97706; font-weight:700;">🏠 Ref: ${cliente.referencia_domicilio}</span>` : '';
     document.getElementById('planilla-client-name').innerText = cliente.nombre_apellido;
-    document.getElementById('planilla-client-dir').innerHTML = `📍 <strong>${cliente.direccion}</strong> (${cliente.barrio})<br><span style="font-size:0.8rem; color:var(--text-secondary);">🪪 DNI: ${cliente.dni || 'Sin reg'} | 📞 Tel: ${cliente.telefono || 'Sin tel'}</span>`;
+    document.getElementById('planilla-client-dir').innerHTML = `📍 <strong>${cliente.direccion}${pisoStr}</strong> (${cliente.barrio})${refStr}<br><span style="font-size:0.8rem; color:var(--text-secondary);">🪪 DNI: ${cliente.dni || 'Sin reg'} | 📞 Tel: ${cliente.telefono || 'Sin tel'}</span>`;
     document.getElementById('planilla-qr-badge').innerText = cliente.qr_token;
 
     const container = document.getElementById('ficheros-planilla-container');
