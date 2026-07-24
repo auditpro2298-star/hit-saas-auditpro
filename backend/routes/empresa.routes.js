@@ -702,6 +702,34 @@ router.put('/usuarios/:id/reset-password', async (req, res) => {
     }
 });
 
+// DELETE /api/empresa/usuarios/:id - Eliminar empleado (Vendedor o Cobrador)
+router.delete('/usuarios/:id', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+
+    try {
+        const usuario = await get('SELECT * FROM usuarios WHERE id_usuario = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!usuario) {
+            return res.status(404).json({ error: 'Empleado no encontrado.' });
+        }
+
+        // Si es cobrador, desasignar de ficheros activos
+        if (usuario.rol === 'COBRADOR') {
+            await run('UPDATE ficheros SET id_cobrador_asignado = NULL WHERE id_cobrador_asignado = ? AND id_empresa = ?', [id, id_empresa]);
+        }
+
+        await run('DELETE FROM usuarios WHERE id_usuario = ? AND id_empresa = ?', [id, id_empresa]);
+
+        res.json({
+            success: true,
+            message: `🗑️ ${usuario.rol === 'VENDEDOR' ? 'Vendedor' : 'Cobrador'} "${usuario.nombre}" fue eliminado correctamente.`
+        });
+    } catch (err) {
+        console.error('Error al eliminar empleado:', err);
+        res.status(500).json({ error: 'Error al eliminar empleado.' });
+    }
+});
+
 // DELETE /api/empresa/clientes/:id - Eliminar cliente y sus ficheros/cuotas asociadas
 router.delete('/clientes/:id', async (req, res) => {
     const id_empresa = getEmpresaId(req);

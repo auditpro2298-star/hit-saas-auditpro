@@ -999,6 +999,10 @@ async function loadVendedoresRanking() {
                 ? `<button class="btn ${v.activo ? 'btn-danger' : 'btn-success'}" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="toggleActivoEmpleado(${v.id_usuario}, '${v.nombre}')">${v.activo ? '🛑 Bloquear App' : '🟢 Desbloquear'}</button>`
                 : `<span style="font-size:0.75rem; color:var(--text-muted);">Ventas Calle</span>`;
 
+            const btnBorrarVend = v.id_usuario 
+                ? `<button class="btn btn-danger" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="eliminarEmpleadoConfirmado(${v.id_usuario}, '${v.nombre}', 'VENDEDOR')" title="Eliminar Vendedor">🗑️ Eliminar</button>`
+                : '';
+
             tr.innerHTML = `
                 <td>
                     <strong>${medalla} ${v.nombre}</strong> ${badgeEstado}
@@ -1014,7 +1018,10 @@ async function loadVendedoresRanking() {
                 <td>
                     <div class="flex justify-between items-center gap-2">
                         <span style="font-size:1rem; font-weight:800; color:#34d399;">$${Number(v.monto_total_vendido).toLocaleString('es-AR')}</span>
-                        ${btnBloqueo}
+                        <div class="flex gap-1 items-center">
+                            ${btnBloqueo}
+                            ${btnBorrarVend}
+                        </div>
                     </div>
                 </td>
             `;
@@ -1085,6 +1092,9 @@ async function loadCobradoresCalle() {
                             <button class="btn btn-warning" style="padding:0.35rem 0.6rem; font-size:0.78rem;" onclick="resetPasswordEmpleado(${cb.id_usuario}, '${cb.nombre}')" title="Resetear Clave por pérdida/robo de celular">
                                 🔑 Reset Clave
                             </button>
+                            <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:0.78rem;" onclick="eliminarEmpleadoConfirmado(${cb.id_usuario}, '${cb.nombre}', 'COBRADOR')" title="Eliminar Cobrador de la plantilla">
+                                🗑️ Eliminar
+                            </button>
                         </div>
                     </div>
                 </td>
@@ -1094,6 +1104,24 @@ async function loadCobradoresCalle() {
     } catch (err) {
         console.error('Error cargando cobradores calle:', err);
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error al cargar cobradores.</td></tr>';
+    }
+}
+
+async function eliminarEmpleadoConfirmado(id_usuario, nombre, tipo) {
+    const rolTexto = tipo === 'VENDEDOR' ? 'al vendedor' : 'al cobrador';
+    if (!confirm(`⚠️ ¿Está seguro que desea eliminar ${rolTexto} "${nombre}"?\n\nEl empleado perderá su acceso a la plataforma.`)) {
+        return;
+    }
+
+    try {
+        const res = await api.delete(`/empresa/usuarios/${id_usuario}`);
+        if (res.success) {
+            alert(`✅ ${res.message}`);
+            await loadPersonal();
+            initEmpresaPanel();
+        }
+    } catch (err) {
+        alert('❌ Error al eliminar empleado: ' + err.message);
     }
 }
 
