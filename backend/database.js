@@ -81,9 +81,16 @@ function executeSqlFile(filePath, callback) {
 
 function initDatabase() {
     executeSqlFile(SCHEMA_PATH, () => {
-        console.log('✅ Esquema DDL creado con éxito.');
-        executeSqlFile(SEED_PATH, () => {
-            console.log('✅ Datos iniciales (Seed Data) cargados con éxito.');
+        console.log('✅ Esquema DDL verificado con éxito.');
+        db.get("SELECT COUNT(*) as count FROM empresas", (err, row) => {
+            if (!err && row && row.count === 0) {
+                console.log('🌱 Base de datos nueva detectada. Cargando datos semilla iniciales...');
+                executeSqlFile(SEED_PATH, () => {
+                    console.log('✅ Datos iniciales cargados con éxito.');
+                });
+            } else {
+                console.log('💾 Base de datos con información real conservada. No se modifican ventas ni usuarios existentes.');
+            }
         });
     });
 }
