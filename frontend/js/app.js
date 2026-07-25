@@ -102,6 +102,9 @@ async function submitLoginForm(event) {
 function fillLoginFields(email, pass) {
     document.getElementById('login-email').value = email;
     document.getElementById('login-pass').value = pass;
+    // Autoclick the submit button to login immediately
+    const submitBtn = document.querySelector('#form-login button[type="submit"]');
+    if (submitBtn) submitBtn.click();
 }
 
 function logout() {
