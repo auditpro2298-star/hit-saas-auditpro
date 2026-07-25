@@ -9,9 +9,9 @@ router.use(authenticateToken, requireRole(['SUPER_ADMIN']));
 // GET /api/superadmin/metrics - Métricas Globales SaaS
 router.get('/metrics', async (req, res) => {
     try {
-        const tenantsCount = await get('SELECT COUNT(*) as total, SUM(CASE WHEN estado_suscripcion = "ACTIVA" THEN 1 ELSE 0 END) as activas, SUM(CASE WHEN estado_suscripcion = "BLOQUEADA" THEN 1 ELSE 0 END) as bloqueadas FROM empresas');
-        const mrrResult = await get('SELECT SUM(monto_abono_mensual) as mrr FROM empresas WHERE estado_suscripcion = "ACTIVA"');
-        const totalCobrado = await get('SELECT SUM(monto) as total_recaudado, COUNT(*) as cuotas_cobradas FROM cuotas WHERE estado = "PAGADO"');
+        const tenantsCount = await get("SELECT COUNT(*) as total, SUM(CASE WHEN estado_suscripcion = 'ACTIVA' THEN 1 ELSE 0 END) as activas, SUM(CASE WHEN estado_suscripcion = 'BLOQUEADA' THEN 1 ELSE 0 END) as bloqueadas FROM empresas");
+        const mrrResult = await get("SELECT SUM(monto_abono_mensual) as mrr FROM empresas WHERE estado_suscripcion = 'ACTIVA'");
+        const totalCobrado = await get("SELECT SUM(monto) as total_recaudado, COUNT(*) as cuotas_cobradas FROM cuotas WHERE estado = 'PAGADO'");
         const usuariosCount = await get('SELECT COUNT(*) as total_usuarios FROM usuarios');
 
         res.json({

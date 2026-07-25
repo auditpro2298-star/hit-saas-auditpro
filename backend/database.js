@@ -111,9 +111,7 @@ function executeSqlFile(filePath, callback) {
                         .replace(/AUTOINCREMENT/gi, '')
                         .replace(/DATETIME/gi, 'TIMESTAMP')
                         .replace(/BOOLEAN DEFAULT 1/gi, 'BOOLEAN DEFAULT true')
-                        .replace(/BOOLEAN DEFAULT 0/gi, 'BOOLEAN DEFAULT false')
-                        .replace(/,\s*1\s*\)/g, ', true)')
-                        .replace(/,\s*1\s*,/g, ', true,');
+                        .replace(/BOOLEAN DEFAULT 0/gi, 'BOOLEAN DEFAULT false');
                     
                     if (pgStmt.trim().toUpperCase().startsWith('INSERT INTO') && !pgStmt.toUpperCase().includes('ON CONFLICT')) {
                         pgStmt += ' ON CONFLICT DO NOTHING';

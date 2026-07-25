@@ -114,10 +114,10 @@ router.get('/dashboard', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
-        const ficherosCount = await get('SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = "ACTIVO"', [id_empresa]);
-        const cobradoHoy = await get('SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = "PAGADO" AND date(fecha_pago) = date("now")', [id_empresa]);
-        const pendientesTotal = await get('SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = "PENDIENTE"', [id_empresa]);
-        const promesasCount = await get('SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = "NO_COBRADO"', [id_empresa]);
+        const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
+        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = date('now')", [id_empresa]);
+        const pendientesTotal = await get("SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'", [id_empresa]);
+        const promesasCount = await get("SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = 'NO_COBRADO'", [id_empresa]);
         const whatsappHoy = await get('SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date("now")', [id_empresa]);
 
         res.json({
@@ -351,7 +351,7 @@ router.put('/ficheros/:id/asignar', async (req, res) => {
 
     try {
         await run('UPDATE ficheros SET id_cobrador_asignado = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, id, id_empresa]);
-        await run('UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = "PENDIENTE"', [id_cobrador_asignado || null, id, id_empresa]);
+        await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
         res.json({ success: true, message: `Fichero asignado al cobrador ID: ${id_cobrador_asignado || 'Sin asignar'}` });
     } catch (err) {
         console.error('Error al asignar fichero:', err);

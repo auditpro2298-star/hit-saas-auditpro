@@ -126,7 +126,7 @@ router.post('/cobrar', async (req, res) => {
             }
 
             // CONTROL DE SEGURIDAD: Prevenir cobros de cuotas adelantadas sin autorización previa del Admin
-            const proximaPendiente = await get('SELECT MIN(nro_cuota) as min_nro FROM cuotas WHERE id_fichero = ? AND estado = "PENDIENTE"', [cuota.id_fichero]);
+            const proximaPendiente = await get("SELECT MIN(nro_cuota) as min_nro FROM cuotas WHERE id_fichero = ? AND estado = 'PENDIENTE'", [cuota.id_fichero]);
             if (proximaPendiente && cuota.nro_cuota > proximaPendiente.min_nro && !req.body.autorizacion_admin_codigo) {
                 return res.status(403).json({
                     error: 'REQUIERE_AUTORIZACION_ADELANTO',
@@ -149,14 +149,14 @@ router.post('/cobrar', async (req, res) => {
             `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, notas || null, id_cuota, id_empresa]);
 
             // Verificar si el fichero completó todas sus cuotas para pasarlo a FINALIZADO
-            const pendientes = await get('SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND estado = "PENDIENTE"', [cuota.id_fichero]);
+            const pendientes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND estado = 'PENDIENTE'", [cuota.id_fichero]);
             if (pendientes && pendientes.restantes === 0) {
-                await run('UPDATE ficheros SET estado = "FINALIZADO" WHERE id_fichero = ?', [cuota.id_fichero]);
+                await run("UPDATE ficheros SET estado = 'FINALIZADO' WHERE id_fichero = ?", [cuota.id_fichero]);
             }
 
             // Función 1: Alerta Automática por WhatsApp y cálculo de saldo
             const fichero = await get('SELECT f.*, c.id_cliente, c.nombre_apellido, c.telefono, c.qr_token FROM ficheros f JOIN clientes c ON f.id_cliente = c.id_cliente WHERE f.id_fichero = ?', [cuota.id_fichero]);
-            const pagadas = await get('SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = "PAGADO"', [cuota.id_fichero]);
+            const pagadas = await get("SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = 'PAGADO'", [cuota.id_fichero]);
             const saldoRestante = Math.max(0, (fichero ? fichero.monto_total : cuota.monto) - (pagadas ? pagadas.total_pagado : 0));
             
             const whatsappMsg = `Hola ${fichero?.nombre_apellido || 'Cliente'}, HIT detectó tu pago de la cuota #${cuota.nro_cuota} por $${cuota.monto} en ${medio_pago}. Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Mirá tu cartilla acá: http://localhost:3000/?qr_cartilla=${fichero?.qr_token || 'TOKEN'}`;
@@ -238,7 +238,7 @@ router.post('/sync-offline', async (req, res) => {
 
                 // Generar WhatsApp de sincronización
                 const fichero = await get('SELECT f.*, c.id_cliente, c.nombre_apellido, c.telefono, c.qr_token FROM ficheros f JOIN clientes c ON f.id_cliente = c.id_cliente WHERE f.id_fichero = ?', [cuota.id_fichero]);
-                const pagadas = await get('SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = "PAGADO"', [cuota.id_fichero]);
+                const pagadas = await get("SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = 'PAGADO'", [cuota.id_fichero]);
                 const saldoRestante = Math.max(0, (fichero ? fichero.monto_total : cuota.monto) - (pagadas ? pagadas.total_pagado : 0));
                 
                 if (fichero) {

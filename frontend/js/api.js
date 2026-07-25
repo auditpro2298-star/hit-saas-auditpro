@@ -152,6 +152,38 @@ class APIClient {
             return { user: this.user || db.usuarios[0] };
         }
 
+        // 1.5. SUPER ADMIN
+        if (endpoint === '/superadmin/metrics' && method === 'GET') {
+            const mrrValue = db.empresas.filter(e => e.estado_suscripcion === 'ACTIVA').reduce((acc, e) => acc + (e.monto_abono_mensual || 0), 0);
+            return {
+                tenants: {
+                    total: db.empresas.length,
+                    activas: db.empresas.filter(e => e.estado_suscripcion === 'ACTIVA').length,
+                    bloqueadas: db.empresas.filter(e => e.estado_suscripcion === 'BLOQUEADA').length
+                },
+                mrr: mrrValue,
+                operaciones: {
+                    total_recaudado: db.cuotas.filter(q => q.estado === 'PAGADO').reduce((acc, q) => acc + (q.monto || 0), 0),
+                    cuotas_cobradas: db.cuotas.filter(q => q.estado === 'PAGADO').length
+                },
+                usuarios_total: db.usuarios.length
+            };
+        }
+
+        if (endpoint === '/superadmin/tenants' && method === 'GET') {
+            return db.empresas.map(e => {
+                const totalClientes = db.clientes.filter(c => c.id_empresa === e.id_empresa).length;
+                const totalFicheros = db.ficheros.filter(f => f.id_empresa === e.id_empresa).length;
+                const totalCobradores = db.usuarios.filter(u => u.id_empresa === e.id_empresa && u.rol === 'COBRADOR').length;
+                return {
+                    ...e,
+                    total_clientes: totalClientes,
+                    total_ficheros: totalFicheros,
+                    total_cobradores: totalCobradores
+                };
+            }).sort((a, b) => b.id_empresa - a.id_empresa);
+        }
+
         // 2. DASHBOARD EMPRESA
         if (endpoint === '/empresa/dashboard' && method === 'GET') {
             const activosCount = db.ficheros.filter(f => f.estado === 'ACTIVO').length;

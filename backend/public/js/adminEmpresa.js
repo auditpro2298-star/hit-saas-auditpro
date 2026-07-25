@@ -18,6 +18,17 @@ async function loadEmpresaDashboard() {
 
 async function initEmpresaPanel() {
     console.log('🏢 Inicializando Panel Admin de Empresa...');
+    
+    // --- Restricciones UI para el rol VENDEDOR ---
+    if (window.currentUser && window.currentUser.rol === 'VENDEDOR') {
+        const tabPersonal = document.querySelector('button[data-tab="personal"]');
+        if (tabPersonal) tabPersonal.style.display = 'none';
+
+        const btnBackup = document.getElementById('btn-backup-db');
+        if (btnBackup) btnBackup.style.display = 'none';
+    }
+    // ---------------------------------------------
+
     await loadEmpresaDashboard();
     // Por defecto cargar la solapa de clientes y mapa
     switchEmpresaTab('clientes');
@@ -134,9 +145,11 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${c.nombre_apellido}')" title="Regenerar por pérdida o robo">
                         🔄 Revocar QR
                     </button>
+                    ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
                     <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${c.nombre_apellido}')" title="Eliminar cliente por error o cuando termina de pagar todo">
                         🗑️ Eliminar
                     </button>
+                    ` : ''}
                 </div>
             </td>
         `;
@@ -617,9 +630,11 @@ function renderFicherosTable(ficheros) {
             <td>🛵 <strong>${f.cobrador_nombre || 'Sin asignar'}</strong></td>
             <td><span class="badge ${badgeStatus}">${f.estado}</span></td>
             <td>
+                ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
                 <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero}, '${f.producto_nombre}')" title="Eliminar fichero por equivocación o cancelación">
                     🗑️ Eliminar
                 </button>
+                ` : ''}
             </td>
         `;
         tbody.appendChild(tr);
