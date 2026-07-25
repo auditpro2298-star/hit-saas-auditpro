@@ -118,7 +118,7 @@ router.get('/dashboard', async (req, res) => {
         const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = date('now')", [id_empresa]);
         const pendientesTotal = await get("SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'", [id_empresa]);
         const promesasCount = await get("SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = 'NO_COBRADO'", [id_empresa]);
-        const whatsappHoy = await get('SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date("now")', [id_empresa]);
+        const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date('now')", [id_empresa]);
 
         res.json({
             clientes_total: clientesCount.total || 0,
@@ -202,7 +202,7 @@ router.post('/clientes', async (req, res) => {
         }
 
         const result = await run(
-            'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
+            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO')",
             [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token]
         );
 
@@ -311,7 +311,7 @@ router.post('/ficheros', async (req, res) => {
         const monto_total = parseFloat(valor_cuota) * parseInt(cantidad_cuotas);
         const freq = (frecuencia_pago || 'SEMANAL').toUpperCase();
         const result = await run(
-            'INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "ACTIVO")',
+            "INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO')",
             [id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, freq, monto_total, vendedor || 'General', encargado_zona || 'Admin', id_cobrador_asignado || null, fecha_entrega]
         );
 
@@ -330,7 +330,7 @@ router.post('/ficheros', async (req, res) => {
             }
             const fechaVenc = fechaActual.toISOString().split('T')[0];
             await run(
-                'INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, id_cobrador) VALUES (?, ?, ?, ?, "PENDIENTE", ?, ?)',
+                "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, id_cobrador) VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)",
                 [id_fichero, id_empresa, i, valor_cuota, fechaVenc, id_cobrador_asignado || null]
             );
         }
@@ -414,7 +414,7 @@ router.post('/cobradores', requireAdmin, async (req, res) => {
     try {
         const passHash = await bcrypt.hash(password, 10);
         const result = await run(
-            'INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada) VALUES (?, ?, ?, ?, "COBRADOR", ?, ?)',
+            "INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada) VALUES (?, ?, ?, ?, 'COBRADOR', ?, ?)",
             [id_empresa, nombre, email, passHash, telefono || '', zona_asignada || 'Zona Centro']
         );
         res.status(201).json({ success: true, id_cobrador: result.lastID, message: `Cobrador "${nombre}" dado de alta.` });
@@ -497,7 +497,7 @@ router.post('/vendedores', requireAdmin, async (req, res) => {
         const emailFinal = email || `vend_${Date.now()}@hit.local`;
         const passHash = await bcrypt.hash('vendedor123', 10);
         const result = await run(
-            'INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada) VALUES (?, ?, ?, ?, "VENDEDOR", ?, ?)',
+            "INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada) VALUES (?, ?, ?, ?, 'VENDEDOR', ?, ?)",
             [id_empresa, nombre, emailFinal, passHash, telefono || '', zona_asignada || 'Ventas General']
         );
         res.status(201).json({ success: true, id_vendedor: result.lastID, message: `Vendedor "${nombre}" dado de alta exitosamente.` });

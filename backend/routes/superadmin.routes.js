@@ -61,7 +61,7 @@ router.post('/tenants', async (req, res) => {
     try {
         // Insertar empresa
         const resultEmpresa = await run(
-            'INSERT INTO empresas (nombre_comercial, cuit_rut, monto_abono_mensual, logo_url, estado_suscripcion) VALUES (?, ?, ?, ?, "ACTIVA")',
+            "INSERT INTO empresas (nombre_comercial, cuit_rut, monto_abono_mensual, logo_url, estado_suscripcion) VALUES (?, ?, ?, ?, 'ACTIVA')",
             [nombre_comercial, cuit_rut, monto_abono_mensual || 35000.00, logo_url || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150']
         );
         const id_empresa = resultEmpresa.lastID;
@@ -71,7 +71,7 @@ router.post('/tenants', async (req, res) => {
         const passHash = await bcrypt.hash(admin_password, 10);
 
         await run(
-            'INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, zona_asignada) VALUES (?, ?, ?, ?, "ADMIN_EMPRESA", "Central")',
+            "INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, zona_asignada) VALUES (?, ?, ?, ?, 'ADMIN_EMPRESA', 'Central')",
             [id_empresa, admin_nombre || 'Admin Empresa', admin_email, passHash]
         );
 
