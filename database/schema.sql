@@ -3,15 +3,6 @@
 -- Esquema de Base de Datos para PostgreSQL (Producción) & SQLite (Desarrollo)
 -- ============================================================================
 
--- Reinicio limpio en desarrollo / re-seed
-DROP TABLE IF EXISTS whatsapp_notifications;
-DROP TABLE IF EXISTS auditoria_caja;
-DROP TABLE IF EXISTS cuotas;
-DROP TABLE IF EXISTS ficheros;
-DROP TABLE IF EXISTS clientes;
-DROP TABLE IF EXISTS usuarios;
-DROP TABLE IF EXISTS empresas;
-
 -- ----------------------------------------------------------------------------
 -- 1. TABLA: empresas (Tenants - Inquilinos del SaaS)
 -- ----------------------------------------------------------------------------
@@ -38,7 +29,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol VARCHAR(30) NOT NULL, -- Valores: 'SUPER_ADMIN', 'ADMIN_EMPRESA', 'COBRADOR'
     telefono VARCHAR(50),
     zona_asignada VARCHAR(100) DEFAULT 'General',
-    activo BOOLEAN DEFAULT 1,
+    activo BOOLEAN DEFAULT true,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa) ON DELETE CASCADE
 );

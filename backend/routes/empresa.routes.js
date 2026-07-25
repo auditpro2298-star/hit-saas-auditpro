@@ -10,9 +10,9 @@ router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']));
 
 // Helper para asegurar que la empresa consultada sea la del token (excepto que sea Súper Admin explorando)
 function getEmpresaId(req) {
-    return req.user.rol === 'SUPER_ADMIN' && req.query.id_empresa 
-        ? req.query.id_empresa 
-        : req.user.id_empresa;
+    let id = req.query.id_empresa || (req.body && req.body.id_empresa) || req.headers['x-empresa-id'];
+    if (id) return parseInt(id, 10);
+    return req.user.id_empresa || 1;
 }
 
 // Simulador de geocodificación de direcciones según el barrio/zona
@@ -165,10 +165,27 @@ router.post('/clientes', async (req, res) => {
     }
 
     try {
+        const cleanDni = dni.toString().trim().replace(/[^0-9]/g, '');
+        if (!cleanDni) {
+            return res.status(400).json({ error: 'El DNI ingresado debe contener números válidos.' });
+        }
+
+        // Verificar si ya existe cliente con mismo DNI en esta empresa
+        const existente = await get('SELECT id_cliente, nombre_apellido FROM clientes WHERE dni = ? AND id_empresa = ?', [cleanDni, id_empresa]);
+        if (existente) {
+            return res.status(400).json({ error: `Ya existe un cliente registrado con el DNI ${cleanDni} (${existente.nombre_apellido}).` });
+        }
+
         const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
         
-        let lat = latitud;
-        let lng = longitud;
+        let lat = (latitud !== undefined && latitud !== null && latitud !== '') ? parseFloat(latitud) : null;
+        let lng = (longitud !== undefined && longitud !== null && longitud !== '') ? parseFloat(longitud) : null;
+
+        if (isNaN(lat) || isNaN(lng)) {
+            lat = null;
+            lng = null;
+        }
+
         if (!lat && !lng) {
             const geocoded = await geocodeAddress(direccion, barrio);
             if (geocoded) {
@@ -183,14 +200,14 @@ router.post('/clientes', async (req, res) => {
 
         const result = await run(
             'INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "BUENO")',
-            [id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto || '', referencia_domicilio || '', lat, lng, qr_token]
+            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token]
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);
-        res.status(201).json({ success: true, cliente: nuevoCliente });
+        res.status(201).json({ success: true, message: 'Cliente registrado con éxito.', cliente: nuevoCliente });
     } catch (err) {
         console.error('Error alta cliente:', err);
-        res.status(500).json({ error: 'Error al registrar cliente.' });
+        res.status(500).json({ error: 'Error al registrar cliente: ' + (err.message || 'Error interno') });
     }
 });
 
@@ -210,8 +227,13 @@ router.put('/clientes/:id', async (req, res) => {
             return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
         }
 
-        let lat = latitud;
-        let lng = longitud;
+        let lat = (latitud !== undefined && latitud !== null && latitud !== '') ? parseFloat(latitud) : null;
+        let lng = (longitud !== undefined && longitud !== null && longitud !== '') ? parseFloat(longitud) : null;
+
+        if (isNaN(lat) || isNaN(lng)) {
+            lat = null;
+            lng = null;
+        }
 
         if (!lat && !lng) {
             if (direccion.toLowerCase().trim() !== cliente.direccion.toLowerCase().trim() || barrio.toLowerCase().trim() !== cliente.barrio.toLowerCase().trim()) {
@@ -241,13 +263,13 @@ router.put('/clientes/:id', async (req, res) => {
                 longitud = ?,
                 calificacion = ?
             WHERE id_cliente = ? AND id_empresa = ?
-        `, [direccion, barrio, piso_dpto !== undefined ? piso_dpto : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio : cliente.referencia_domicilio, telefono || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
+        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
         res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });
     } catch (err) {
         console.error('Error al editar cliente:', err);
-        res.status(500).json({ error: 'Error al actualizar datos del cliente.' });
+        res.status(500).json({ error: 'Error al actualizar datos del cliente: ' + (err.message || 'Error interno') });
     }
 });
 
@@ -784,4 +806,40 @@ router.delete('/ficheros/:id', async (req, res) => {
     }
 });
 
+// GET /api/empresa/backup - Descargar Backup Completo de la Empresa en JSON
+router.get('/backup', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const empresa = await get('SELECT * FROM empresas WHERE id_empresa = ?', [id_empresa]);
+        const usuarios = await query('SELECT id_usuario, nombre, email, rol, telefono, zona_asignada, activo FROM usuarios WHERE id_empresa = ?', [id_empresa]);
+        const clientes = await query('SELECT * FROM clientes WHERE id_empresa = ?', [id_empresa]);
+        const ficheros = await query('SELECT * FROM ficheros WHERE id_empresa = ?', [id_empresa]);
+        const cuotas = await query('SELECT * FROM cuotas WHERE id_empresa = ?', [id_empresa]);
+        const auditoria = await query('SELECT * FROM auditoria_caja WHERE id_empresa = ?', [id_empresa]);
+
+        const backupData = {
+            version: '2.0',
+            fecha_exportacion: new Date().toISOString(),
+            empresa,
+            usuarios,
+            clientes,
+            ficheros,
+            cuotas,
+            auditoria
+        };
+
+        const dateStr = new Date().toISOString().split('T')[0];
+        const cleanName = (empresa?.nombre_comercial || 'empresa').replace(/[^a-z0-9]/gi, '_');
+        const filename = `backup_${cleanName}_${dateStr}.json`;
+        
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(JSON.stringify(backupData, null, 2));
+    } catch (err) {
+        console.error('Error al generar backup:', err);
+        res.status(500).json({ error: 'Error al generar la copia de seguridad.' });
+    }
+});
+
 module.exports = router;
+

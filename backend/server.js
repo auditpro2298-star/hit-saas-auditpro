@@ -20,11 +20,24 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const fs = require('fs');
 
+// Sincronizar frontend a backend/public para despliegue en Render / Nube
+const rootFrontendPath = path.join(__dirname, '..', 'frontend');
+const backendPublicPath = path.join(__dirname, 'public');
+if (fs.existsSync(path.join(rootFrontendPath, 'index.html'))) {
+    try {
+        fs.cpSync(rootFrontendPath, backendPublicPath, { recursive: true });
+    } catch (err) {
+        // Ignorar error si no hay permisos de escritura
+    }
+}
+
 // Encontrar dinámicamente la ruta del directorio frontend
 const possibleFrontendPaths = [
-    path.join(__dirname, '..', 'frontend'),
-    path.join(process.cwd(), 'frontend'),
+    backendPublicPath,
     path.join(__dirname, 'frontend'),
+    rootFrontendPath,
+    path.join(process.cwd(), 'public'),
+    path.join(process.cwd(), 'frontend'),
     path.join(process.cwd(), '..', 'frontend')
 ];
 
@@ -32,16 +45,13 @@ let frontendPath = possibleFrontendPaths.find(p => fs.existsSync(path.join(p, 'i
 
 if (!frontendPath) {
     console.error('⚠️ ALERTA: No se encontró index.html en las rutas frontend conocidas.');
-    frontendPath = path.join(__dirname, '..', 'frontend');
+    frontendPath = backendPublicPath;
 } else {
     console.log(`📁 Carpeta Frontend vinculada con éxito: ${frontendPath}`);
 }
 
 // Servir el Frontend Multi-Portal (Archivos estáticos CSS, JS, HTML y Assets)
 app.use(express.static(frontendPath));
-
-// Inicializar y verificar conexión a la base de datos (SQLite / PostgreSQL)
-initDatabase();
 
 // Montar Rutas API
 app.use('/api/auth', authRoutes);
@@ -60,12 +70,19 @@ app.get('*', (req, res) => {
     }
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-    console.log('\n======================================================');
-    console.log('🌟 HIT SaaS Multi-Tenant API & Web App en Ejecución');
-    console.log(`🌐 Servidor local: http://localhost:${PORT}`);
-    console.log('======================================================\n');
-});
+// Iniciar servidor tras asegurar inicialización de Base de Datos
+(async () => {
+    try {
+        await initDatabase();
+        app.listen(PORT, () => {
+            console.log('\n======================================================');
+            console.log('🌟 HIT SaaS Multi-Tenant API & Web App en Ejecución');
+            console.log(`🌐 Servidor: http://localhost:${PORT}`);
+            console.log('======================================================\n');
+        });
+    } catch (err) {
+        console.error('❌ Error crítico al iniciar servidor:', err);
+    }
+})();
 
 module.exports = app;

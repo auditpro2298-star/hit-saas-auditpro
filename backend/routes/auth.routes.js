@@ -13,7 +13,21 @@ router.post('/login', async (req, res) => {
     }
 
     try {
-        const usuario = await get('SELECT * FROM usuarios WHERE email = ?', [email]);
+        const cleanEmail = (email || '').trim().toLowerCase();
+        let usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
+        
+        // Auto-recuperación en la nube (Render): si la base de datos PostgreSQL se creó sin usuarios iniciales
+        if (!usuario) {
+            const countRow = await get('SELECT COUNT(*) as count FROM usuarios');
+            const totalUsers = parseInt(countRow?.count || 0, 10);
+            if (totalUsers === 0) {
+                console.log('🌱 Base de datos sin usuarios detectada durante el login. Ejecutando seeding inicial...');
+                const { initDatabase } = require('../database');
+                await initDatabase();
+                usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
+            }
+        }
+
         if (!usuario || !usuario.activo) {
             return res.status(401).json({ error: 'Usuario incorrecto o cuenta inactiva.' });
         }
@@ -22,8 +36,12 @@ router.post('/login', async (req, res) => {
         let validPass = false;
         if (password === 'admin123' || password === 'cobrador123') {
             validPass = true;
-        } else {
-            validPass = await bcrypt.compare(password, usuario.password_hash);
+        } else if (usuario.password_hash) {
+            try {
+                validPass = await bcrypt.compare(password, usuario.password_hash);
+            } catch (e) {
+                validPass = false;
+            }
         }
 
         if (!validPass) {

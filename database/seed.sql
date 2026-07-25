@@ -10,13 +10,13 @@ INSERT OR IGNORE INTO empresas (id_empresa, nombre_comercial, cuit_rut, estado_s
 
 -- 2. USUARIOS (Súper Admin global, Admins de Empresa y Cobradores en calle)
 INSERT OR IGNORE INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo) VALUES
-(1, NULL, 'Martín (Súper Admin SaaS)', 'admin@hitsaas.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'SUPER_ADMIN', '+54 9 11 0000-0000', 'Global', 1),
-(2, 1, 'Roberto González (Admin ElectroHogar)', 'admin@electrohogar.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', 1),
-(3, 1, 'Juan Pérez (Cobrador Flores)', 'juan@electrohogar.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Caballito', 1),
-(4, 1, 'Diego Silva (Cobrador Avellaneda)', 'diego@electrohogar.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'COBRADOR', '+54 9 11 4455-6677', 'Avellaneda / Sur', 1),
-(5, 2, 'Elena Martínez (Admin Muebles Sur)', 'admin@mueblesdelsur.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'ADMIN_EMPRESA', '+54 9 11 5566-7788', 'Central Sur', 1),
-(6, 1, 'Milagros', 'milagros@electrohogar.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'VENDEDOR', '+54 9 11 9988-7766', 'Berazategui / Flores', 1),
-(7, 1, 'Carlos', 'carlos@electrohogar.com', '$2a$10$X7.m.E.g.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v', 'VENDEDOR', '+54 9 11 8877-6655', 'Zona Sur / Caballito', 1);
+(1, NULL, 'Martín (Súper Admin SaaS)', 'admin@hitsaas.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'SUPER_ADMIN', '+54 9 11 0000-0000', 'Global', true),
+(2, 1, 'Roberto González (Admin ElectroHogar)', 'admin@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', true),
+(3, 1, 'Juan Pérez (Cobrador Flores)', 'juan@electrohogar.com', '$2a$10$TXKkejXO.73TTotU1FbKj.RfwVClKyafPBY0P6LaEErrZ9fy2ng2S', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Caballito', true),
+(4, 1, 'Diego Silva (Cobrador Avellaneda)', 'diego@electrohogar.com', '$2a$10$TXKkejXO.73TTotU1FbKj.RfwVClKyafPBY0P6LaEErrZ9fy2ng2S', 'COBRADOR', '+54 9 11 4455-6677', 'Avellaneda / Sur', true),
+(5, 2, 'Elena Martínez (Admin Muebles Sur)', 'admin@mueblesdelsur.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'ADMIN_EMPRESA', '+54 9 11 5566-7788', 'Central Sur', true),
+(6, 1, 'Milagros', 'milagros@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'VENDEDOR', '+54 9 11 9988-7766', 'Berazategui / Flores', true),
+(7, 1, 'Carlos', 'carlos@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'VENDEDOR', '+54 9 11 8877-6655', 'Zona Sur / Caballito', true);
 
 -- 3. CLIENTES (Cartera de ElectroHogar S.A. con UUIDs v4 aleatorios e irrepetibles para máxima seguridad QR)
 INSERT OR IGNORE INTO clientes (id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud, qr_token, calificacion) VALUES
