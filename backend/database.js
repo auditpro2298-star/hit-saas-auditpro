@@ -186,6 +186,20 @@ async function updateInitialUserHashes() {
     }
 }
 
+async function syncPostgresSequences() {
+    if (!isPostgres || !pgPool) return;
+    try {
+        console.log('⚙️ Sincronizando secuencias de PostgreSQL...');
+        await pgPool.query("SELECT setval('empresas_id_empresa_seq', COALESCE((SELECT MAX(id_empresa) FROM empresas), 1))");
+        await pgPool.query("SELECT setval('usuarios_id_usuario_seq', COALESCE((SELECT MAX(id_usuario) FROM usuarios), 1))");
+        await pgPool.query("SELECT setval('clientes_id_cliente_seq', COALESCE((SELECT MAX(id_cliente) FROM clientes), 1))");
+        await pgPool.query("SELECT setval('ficheros_id_fichero_seq', COALESCE((SELECT MAX(id_fichero) FROM ficheros), 1))");
+        console.log('✅ Secuencias sincronizadas con éxito.');
+    } catch (err) {
+        console.error('⚠️ Error al sincronizar secuencias PostgreSQL:', err.message);
+    }
+}
+
 async function initDatabase() {
     try {
         await executeSqlFile(SCHEMA_PATH);
@@ -202,10 +216,12 @@ async function initDatabase() {
             await executeSqlFile(SEED_PATH);
             await ensureSeedUsers();
             await updateInitialUserHashes();
+            await syncPostgresSequences();
             console.log('✅ Datos iniciales cargados con éxito.');
         } else {
             await ensureSeedUsers();
             await updateInitialUserHashes();
+            await syncPostgresSequences();
             console.log('💾 Base de datos conservada intacta.');
         }
     } catch (err) {
@@ -279,6 +295,7 @@ function resetAndSeed() {
                 await pgPool.query("TRUNCATE TABLE whatsapp_notifications, auditoria_caja, cuotas, ficheros, clientes, usuarios, empresas RESTART IDENTITY CASCADE");
                 await executeSqlFile(SEED_PATH);
                 await updateInitialUserHashes();
+                await syncPostgresSequences();
                 return resolve({ success: true, message: 'Base de datos PostgreSQL restablecida con datos semilla.' });
             } catch (err) {
                 console.error('Error al resetear PostgreSQL:', err.message);
