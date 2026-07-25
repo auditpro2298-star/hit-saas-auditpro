@@ -69,15 +69,27 @@ async function syncHojaDeRuta() {
             card.className = 'glass-card animate-fade';
             card.style.padding = '1.1rem';
             card.style.marginBottom = '0.85rem';
-            card.style.borderLeft = '4px solid var(--primary)';
+            
+            const yaCobrado = (item.cobrado_hoy || 0) > 0;
+            if (yaCobrado) {
+                card.style.borderLeft = '4px solid #10b981';
+                card.style.background = 'rgba(16, 185, 129, 0.06)';
+            } else {
+                card.style.borderLeft = '4px solid var(--primary)';
+            }
             
             const pisoInfo = item.piso_dpto ? ` <span style="color:#8b5cf6; font-weight:700;">[🏢 ${item.piso_dpto}]</span>` : '';
             const refInfo = item.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:700; margin-top:0.2rem;">🏠 Ref: ${item.referencia_domicilio}</div>` : '';
+            const btnText = yaCobrado ? '🔄 Re-escanear' : '⚡ Escanear QR';
+            const btnClass = yaCobrado ? 'btn-outline' : 'btn-primary';
 
             card.innerHTML = `
                 <div class="flex justify-between items-center" style="margin-bottom:0.4rem;">
                     <strong>${item.nombre_apellido}</strong>
-                    <span class="badge badge-purple" style="font-size:0.7rem;">${item.barrio}</span>
+                    <div class="flex items-center gap-1">
+                        <span class="badge badge-purple" style="font-size:0.7rem;">${item.barrio}</span>
+                        ${yaCobrado ? `<span class="badge" style="font-size:0.7rem; background:#10b981; color:#fff; font-weight:700; border-radius:4px; padding:0.15rem 0.35rem;">✅ COBRADO</span>` : ''}
+                    </div>
                 </div>
                 <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.6rem;">
                     📍 ${item.direccion}${pisoInfo} — 📞 ${item.telefono || 'Sin tel'}
@@ -89,8 +101,8 @@ async function syncHojaDeRuta() {
                     (${item.cuotas_saldadas} / ${item.cantidad_cuotas} pagadas)
                 </div>
                 <div class="flex gap-2">
-                    <button class="btn btn-primary" style="flex:1; font-size:0.82rem; padding:0.5rem;" onclick="simulateQrScan('${item.qr_token}')">
-                        ⚡ Escanear QR
+                    <button class="btn ${btnClass}" style="flex:1; font-size:0.82rem; padding:0.5rem;" onclick="simulateQrScan('${item.qr_token}')">
+                        ${btnText}
                     </button>
                     <button class="btn btn-outline" style="font-size:0.82rem; padding:0.5rem;" onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(item.direccion + ', ' + item.barrio)}', '_blank')">
                         🗺️ Mapa
