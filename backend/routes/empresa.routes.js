@@ -5,8 +5,11 @@ const crypto = require('crypto');
 const { query, run, get } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
-// Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA o SUPER_ADMIN
-router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']));
+// Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
+router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR']));
+
+// Middleware específico para rutas destructivas (solo admins)
+const requireAdmin = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']);
 
 // Helper para asegurar que la empresa consultada sea la del token (excepto que sea Súper Admin explorando)
 function getEmpresaId(req) {
@@ -401,7 +404,7 @@ router.get('/cobradores', async (req, res) => {
 });
 
 // POST /api/empresa/cobradores - Alta de nuevo cobrador
-router.post('/cobradores', async (req, res) => {
+router.post('/cobradores', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { nombre, email, password, telefono, zona_asignada } = req.body;
     if (!nombre || !email || !password) {
@@ -484,7 +487,7 @@ router.get('/vendedores', async (req, res) => {
 });
 
 // POST /api/empresa/vendedores - Alta de nuevo vendedor
-router.post('/vendedores', async (req, res) => {
+router.post('/vendedores', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { nombre, email, telefono, zona_asignada } = req.body;
     if (!nombre) {
@@ -505,7 +508,7 @@ router.post('/vendedores', async (req, res) => {
 });
 
 // PUT /api/empresa/usuarios/:id/toggle-activo - Bloquear o desbloquear vendedor/cobrador instantáneamente
-router.put('/usuarios/:id/toggle-activo', async (req, res) => {
+router.put('/usuarios/:id/toggle-activo', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
     try {
@@ -671,7 +674,7 @@ router.get('/whatsapp-log', async (req, res) => {
 });
 
 // PUT /api/empresa/usuarios/:id/toggle-activo - Bloquear/Desbloquear empleado instantáneamente
-router.put('/usuarios/:id/toggle-activo', async (req, res) => {
+router.put('/usuarios/:id/toggle-activo', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
 
@@ -696,7 +699,7 @@ router.put('/usuarios/:id/toggle-activo', async (req, res) => {
 });
 
 // PUT /api/empresa/usuarios/:id/reset-password - Cambiar contraseña y desvalidar sesiones en celulares extraviados
-router.put('/usuarios/:id/reset-password', async (req, res) => {
+router.put('/usuarios/:id/reset-password', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
     const { nueva_password } = req.body;
@@ -725,7 +728,7 @@ router.put('/usuarios/:id/reset-password', async (req, res) => {
 });
 
 // DELETE /api/empresa/usuarios/:id - Eliminar empleado (Vendedor o Cobrador)
-router.delete('/usuarios/:id', async (req, res) => {
+router.delete('/usuarios/:id', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
 
@@ -753,7 +756,7 @@ router.delete('/usuarios/:id', async (req, res) => {
 });
 
 // DELETE /api/empresa/clientes/:id - Eliminar cliente y sus ficheros/cuotas asociadas
-router.delete('/clientes/:id', async (req, res) => {
+router.delete('/clientes/:id', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
 
@@ -783,7 +786,7 @@ router.delete('/clientes/:id', async (req, res) => {
 });
 
 // DELETE /api/empresa/ficheros/:id - Eliminar fichero/venta por equivocación
-router.delete('/ficheros/:id', async (req, res) => {
+router.delete('/ficheros/:id', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
 
@@ -807,7 +810,7 @@ router.delete('/ficheros/:id', async (req, res) => {
 });
 
 // GET /api/empresa/backup - Descargar Backup Completo de la Empresa en JSON
-router.get('/backup', async (req, res) => {
+router.get('/backup', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const empresa = await get('SELECT * FROM empresas WHERE id_empresa = ?', [id_empresa]);
