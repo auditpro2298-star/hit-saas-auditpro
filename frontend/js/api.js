@@ -103,7 +103,10 @@ class APIClient {
             return data;
         } catch (err) {
             // Si falla la red (servidor backend caído o alojado estáticamente en GitHub Pages)
-            if (err.name === 'TypeError' || err.message.includes('404') || err.message.includes('Failed to fetch')) {
+            const msg = (err.message || '').toLowerCase();
+            const isNetworkError = err.name === 'TypeError' || err.name === 'DOMException' || msg.includes('fetch') || msg.includes('network') || msg.includes('404');
+            
+            if (isNetworkError) {
                 console.warn(`🌐 Entorno demo estático detectado. Ejecutando endpoint local (${endpoint})`);
                 return this.handleMockRequest(endpoint, options);
             }
