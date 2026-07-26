@@ -57,6 +57,8 @@ function translateSqlToPg(sql) {
     pgSql = pgSql.replace(/date\('now'\)/gi, 'CURRENT_DATE');
     pgSql = pgSql.replace(/date\(fecha_pago\) = date\('now'\)/gi, 'DATE(fecha_pago) = CURRENT_DATE');
     pgSql = pgSql.replace(/date\(fecha_envio\) = date\('now'\)/gi, 'DATE(fecha_envio) = CURRENT_DATE');
+    pgSql = pgSql.replace(/datetime\(['"]now['"],\s*['"]localtime['"]\)/gi, 'CURRENT_TIMESTAMP');
+    pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, 'CURRENT_TIMESTAMP');
 
     return pgSql;
 }
