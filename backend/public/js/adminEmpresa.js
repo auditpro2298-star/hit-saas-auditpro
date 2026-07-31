@@ -598,7 +598,8 @@ async function submitNewClienteForm(event) {
         direccion: direccionCompleta,
         barrio: barrioVal,
         piso_dpto: (document.getElementById('new-cli-piso')?.value || '').trim(),
-        referencia_domicilio: (document.getElementById('new-cli-ref')?.value || '').trim()
+        referencia_domicilio: (document.getElementById('new-cli-ref')?.value || '').trim(),
+        encargado_zona: document.getElementById('new-cli-encargado')?.value || ''
     };
 
     if (window.tempClientLat && window.tempClientLng) {
@@ -660,15 +661,6 @@ async function loadFicheros() {
             selectVend.innerHTML += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
         });
         selectVend.innerHTML += '<option value="Otro">Otro Vendedor</option>';
-    }
-
-    const encargados = await api.get('/empresa/encargados');
-    const selectEnc = document.getElementById('new-fich-encargado');
-    if (selectEnc) {
-        selectEnc.innerHTML = '<option value="">-- Sin Asignar (General) --</option>';
-        encargados.forEach(enc => {
-            selectEnc.innerHTML += `<option value="${enc.nombre}">${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
-        });
     }
 }
 

@@ -38,6 +38,7 @@ if (isPostgres) {
                 db.run("ALTER TABLE ficheros ADD COLUMN orden_visita INTEGER DEFAULT 0", () => {});
                 db.run("ALTER TABLE clientes ADD COLUMN piso_dpto TEXT", () => {});
                 db.run("ALTER TABLE clientes ADD COLUMN referencia_domicilio TEXT", () => {});
+                db.run("ALTER TABLE clientes ADD COLUMN encargado_zona TEXT", () => {});
             }
         }
     });

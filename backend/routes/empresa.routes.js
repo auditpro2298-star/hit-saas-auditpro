@@ -162,7 +162,7 @@ router.get('/clientes', async (req, res) => {
 // POST /api/empresa/clientes - Alta de cliente con coordenadas y token QR (UUID v4 de seguridad)
 router.post('/clientes', async (req, res) => {
     const id_empresa = getEmpresaId(req);
-    const { nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud } = req.body;
+    const { nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, encargado_zona } = req.body;
     if (!nombre_apellido || !dni || !direccion || !barrio) {
         return res.status(400).json({ error: 'Nombre, DNI, dirección y barrio son obligatorios.' });
     }
@@ -202,8 +202,8 @@ router.post('/clientes', async (req, res) => {
         }
 
         const result = await run(
-            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO')",
-            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token]
+            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO', ?)",
+            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token, encargado_zona || 'General']
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);
@@ -218,7 +218,7 @@ router.post('/clientes', async (req, res) => {
 router.put('/clientes/:id', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion } = req.body;
+    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion, encargado_zona } = req.body;
 
     if (!direccion || !barrio) {
         return res.status(400).json({ error: 'Dirección y barrio son obligatorios.' });
@@ -264,9 +264,10 @@ router.put('/clientes/:id', async (req, res) => {
                 telefono = ?,
                 latitud = ?,
                 longitud = ?,
-                calificacion = ?
+                calificacion = ?,
+                encargado_zona = ?
             WHERE id_cliente = ? AND id_empresa = ?
-        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
+        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, encargado_zona !== undefined ? encargado_zona : (cliente.encargado_zona || 'General'), id, id_empresa]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
         res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });
@@ -340,11 +341,14 @@ router.post('/ficheros', async (req, res) => {
     }
 
     try {
+        const clientObj = await get('SELECT encargado_zona FROM clientes WHERE id_cliente = ?', [id_cliente]);
+        const finalEncargado = encargado_zona || (clientObj ? clientObj.encargado_zona : 'General');
+
         const monto_total = parseFloat(valor_cuota) * parseInt(cantidad_cuotas);
         const freq = (frecuencia_pago || 'SEMANAL').toUpperCase();
         const result = await run(
             "INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO')",
-            [id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, freq, monto_total, vendedor || 'General', encargado_zona || 'Admin', id_cobrador_asignado || null, fecha_entrega]
+            [id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, freq, monto_total, vendedor || 'General', finalEncargado || 'General', id_cobrador_asignado || null, fecha_entrega]
         );
 
         const id_fichero = result.lastID;

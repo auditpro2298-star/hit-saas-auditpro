@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     longitud DECIMAL(11,8) NULL,
     qr_token VARCHAR(100) NOT NULL UNIQUE, -- UUID v4 aleatorio e irrepetible para máxima seguridad
     calificacion VARCHAR(20) DEFAULT 'BUENO', -- 'BUENO', 'REGULAR', 'MOROSO'
+    encargado_zona VARCHAR(120),
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa) ON DELETE CASCADE
 );

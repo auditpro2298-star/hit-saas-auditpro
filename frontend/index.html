@@ -833,10 +833,14 @@
                     </div>
                 </div>
 
-                <div class="grid" style="grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 0.5rem;">
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Piso / Depto (opcional)</label>
                         <input type="text" id="new-cli-piso" class="form-control" placeholder="Ej: Piso 9 B o Dpto 2">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label>Encargado de Zona</label>
+                        <select id="new-cli-encargado" class="form-control"></select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Detalles / Referencias (opcional)</label>
@@ -950,19 +954,13 @@
                         <input type="number" id="new-fich-valor" class="form-control" placeholder="5000" required>
                     </div>
                 </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label>Vendedor (Quien vendió el producto)</label>
+                        <label>Vendedor</label>
                         <select id="new-fich-vendedor" class="form-control"></select>
                     </div>
                     <div class="form-group">
-                        <label>Encargado de Zona</label>
-                        <select id="new-fich-encargado" class="form-control"></select>
-                    </div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label>Asignar a Cobrador en Calle</label>
+                        <label>Asignar a Cobrador</label>
                         <select id="new-fich-cobrador" class="form-control"></select>
                     </div>
                     <div class="form-group">

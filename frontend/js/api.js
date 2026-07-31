@@ -245,7 +245,8 @@ class APIClient {
                 latitud: body.latitud || -26.83,
                 longitud: body.longitud || -65.20,
                 qr_token: 'HIT-QR-' + Math.floor(1000 + Math.random() * 9000) + '-DEMO',
-                calificacion: 'BUENO'
+                calificacion: 'BUENO',
+                encargado_zona: body.encargado_zona || 'General'
             };
             db.clientes.push(newClient);
             saveMockDB(db);
