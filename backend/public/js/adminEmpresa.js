@@ -45,7 +45,7 @@ async function initEmpresaPanel() {
         if (btnBackup) btnBackup.style.display = 'none';
 
         await loadEmpresaDashboard();
-        switchEmpresaTab('rutas');
+        await switchEmpresaTab('rutas');
         return;
     }
 
@@ -60,7 +60,7 @@ async function initEmpresaPanel() {
 
     await loadEmpresaDashboard();
     // Por defecto cargar la solapa de clientes y mapa
-    switchEmpresaTab('clientes');
+    await switchEmpresaTab('clientes');
 }
 
 function renderEmpresaDashboard(d) {
@@ -83,20 +83,24 @@ async function switchEmpresaTab(tabName) {
     const targetDiv = document.getElementById(`tab-content-${tabName}`);
     if (targetDiv) targetDiv.classList.remove('hidden');
 
-    if (tabName === 'clientes') {
-        await loadClientesAndMap();
-    } else if (tabName === 'ficheros') {
-        await loadFicheros();
-    } else if (tabName === 'personal') {
-        await loadPersonal();
-    } else if (tabName === 'rutas') {
-        await loadAsignacionRutas();
-    } else if (tabName === 'auditoria') {
-        await loadAuditoriaCaja();
-    } else if (tabName === 'promesas') {
-        await loadPromesas();
-    } else if (tabName === 'whatsapp') {
-        await loadWhatsappLog();
+    try {
+        if (tabName === 'clientes') {
+            await loadClientesAndMap();
+        } else if (tabName === 'ficheros') {
+            await loadFicheros();
+        } else if (tabName === 'personal') {
+            await loadPersonal();
+        } else if (tabName === 'rutas') {
+            await loadAsignacionRutas();
+        } else if (tabName === 'auditoria') {
+            await loadAuditoriaCaja();
+        } else if (tabName === 'promesas') {
+            await loadPromesas();
+        } else if (tabName === 'whatsapp') {
+            await loadWhatsappLog();
+        }
+    } catch (err) {
+        console.error(`Error al cargar datos de solapa "${tabName}":`, err);
     }
 }
 
@@ -1029,9 +1033,15 @@ function drawRouteMap(customFicherosList) {
 
 // SOLAPA 4: AUDITORÍA DE CAJA EN VIVO & COMPROBANTES
 async function loadAuditoriaCaja() {
-    const audit = await api.get('/empresa/auditoria');
-    renderAuditSummary(audit.cierres_cobrador);
-    renderAuditDetails(audit.cobros_detallados);
+    try {
+        const audit = await api.get('/empresa/auditoria');
+        renderAuditSummary(audit && audit.cierres_cobrador ? audit.cierres_cobrador : []);
+        renderAuditDetails(audit && audit.cobros_detallados ? audit.cobros_detallados : []);
+    } catch (err) {
+        console.error('Error al cargar auditoría de caja:', err);
+        renderAuditSummary([]);
+        renderAuditDetails([]);
+    }
 }
 
 function renderAuditSummary(cierres) {
