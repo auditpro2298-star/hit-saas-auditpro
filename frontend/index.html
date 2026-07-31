@@ -406,6 +406,53 @@
                                 </thead>
                                 <tbody id="tbody-cobradores-calle"></tbody>
                             </table>
+                    <!-- Caja 3: Gestión de Encargados de Zona con Filtros de Privacidad -->
+                    <div class="glass-card" style="border-top: 4px solid var(--saas-purple); margin-top: 1.5rem; grid-column: span 2;">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--saas-purple);">🛡️ Sector Encargados de Zona & Filtros de Privacidad</h3>
+                            <span class="badge badge-purple">Seguridad de Datos</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Asignar supervisores para zonas específicas. Al ingresar, <strong>solo podrán ver las solapas 4, 5, 6 y 7</strong> y únicamente los clientes e información de su zona/barrio asignado.
+                        </p>
+
+                        <form id="form-new-encargado" onsubmit="submitNewEncargadoForm(event)" class="grid" style="grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(139,92,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Nombre Encargado</label>
+                                <input type="text" id="new-enc-nombre" class="form-control" placeholder="Ej: Carlos Gómez" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Email (App Login)</label>
+                                <input type="email" id="new-enc-email" class="form-control" placeholder="carlos@hit.com" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Contraseña</label>
+                                <input type="password" id="new-enc-pass" class="form-control" placeholder="••••••••" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
+                                <input type="text" id="new-enc-tel" class="form-control" placeholder="11-5566-7788" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size:0.75rem;">Zona / Barrio Asignado</label>
+                                <input type="text" id="new-enc-zona" class="form-control" placeholder="Berazategui" required style="padding:0.4rem; font-size:0.82rem;">
+                            </div>
+                            <button type="submit" class="btn btn-purple" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Encargado</button>
+                        </form>
+
+                        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+                            <table class="styled-table">
+                                <thead>
+                                    <tr>
+                                        <th>Encargado & Login</th>
+                                        <th>Zona Asignada</th>
+                                        <th>Teléfono / Contacto</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-encargados-zona"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

@@ -16,7 +16,9 @@ INSERT OR IGNORE INTO usuarios (id_usuario, id_empresa, nombre, email, password_
 (4, 1, 'Diego Silva (Cobrador Avellaneda)', 'diego@electrohogar.com', '$2a$10$TXKkejXO.73TTotU1FbKj.RfwVClKyafPBY0P6LaEErrZ9fy2ng2S', 'COBRADOR', '+54 9 11 4455-6677', 'Avellaneda / Sur', true),
 (5, 2, 'Elena Martínez (Admin Muebles Sur)', 'admin@mueblesdelsur.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'ADMIN_EMPRESA', '+54 9 11 5566-7788', 'Central Sur', true),
 (6, 1, 'Milagros', 'milagros@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'VENDEDOR', '+54 9 11 9988-7766', 'Berazategui / Flores', true),
-(7, 1, 'Carlos', 'carlos@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'VENDEDOR', '+54 9 11 8877-6655', 'Zona Sur / Caballito', true);
+(7, 1, 'Carlos', 'carlos@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'VENDEDOR', '+54 9 11 8877-6655', 'Zona Sur / Caballito', true),
+(8, 1, 'Carlos Gómez (Encargado Berazategui)', 'carlos_zona@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Berazategui', true),
+(9, 1, 'Quilmes Manager (Encargado Quilmes)', 'quilmes_mgr@electrohogar.com', '$2a$10$/m9u5kd9Nr7NvWBZ0C6KquFrrw.n4MDqjUzlnM3dX0JYu6vfJxh.O', 'ENCARGADO_ZONA', '+54 9 11 6677-8899', 'Quilmes', true);
 
 -- 3. CLIENTES (Cartera de ElectroHogar S.A. con UUIDs v4 aleatorios e irrepetibles para máxima seguridad QR)
 INSERT OR IGNORE INTO clientes (id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, latitud, longitud, qr_token, calificacion) VALUES

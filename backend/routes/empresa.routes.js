@@ -6,7 +6,7 @@ const { query, run, get } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
-router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR']));
+router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR', 'ENCARGADO_ZONA']));
 
 // Middleware específico para rutas destructivas (solo admins)
 const requireAdmin = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']);
@@ -305,7 +305,7 @@ router.patch('/clientes/:id/calificacion', async (req, res) => {
 router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
-        const ficheros = await query(`
+        let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
@@ -314,8 +314,15 @@ router.get('/ficheros', async (req, res) => {
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
-            ORDER BY f.id_fichero DESC
-        `, [id_empresa]);
+        `;
+        const params = [id_empresa];
+        if (req.user.rol === 'ENCARGADO_ZONA') {
+            sql += ` AND LOWER(c.barrio) LIKE ?`;
+            params.push(`%${req.user.zona_asignada.toLowerCase().trim()}%`);
+        }
+        sql += ` ORDER BY f.id_fichero DESC`;
+        
+        const ficheros = await query(sql, params);
         res.json(ficheros);
     } catch (err) {
         console.error('Error listando ficheros:', err);
@@ -532,7 +539,45 @@ router.post('/vendedores', requireAdmin, async (req, res) => {
     }
 });
 
-// PUT /api/empresa/usuarios/:id/toggle-activo - Bloquear o desbloquear vendedor/cobrador instantáneamente
+// GET /api/empresa/encargados - Listar encargados de zona
+router.get('/encargados', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const encargados = await query(`
+            SELECT id_usuario, nombre, email, telefono, zona_asignada, activo, fecha_creacion
+            FROM usuarios
+            WHERE id_empresa = ? AND rol = 'ENCARGADO_ZONA'
+            ORDER BY nombre ASC
+        `, [id_empresa]);
+        res.json(encargados);
+    } catch (err) {
+        console.error('Error listando encargados:', err);
+        res.status(500).json({ error: 'Error al obtener encargados de zona.' });
+    }
+});
+
+// POST /api/empresa/encargados - Alta de nuevo encargado de zona
+router.post('/encargados', requireAdmin, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { nombre, email, password, telefono, zona_asignada } = req.body;
+    if (!nombre || !email || !password || !zona_asignada) {
+        return res.status(400).json({ error: 'Nombre, email, contraseña y zona asignada son obligatorios.' });
+    }
+
+    try {
+        const passHash = await bcrypt.hash(password, 10);
+        const result = await run(
+            "INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada) VALUES (?, ?, ?, ?, 'ENCARGADO_ZONA', ?, ?)",
+            [id_empresa, nombre, email, passHash, telefono || '', zona_asignada]
+        );
+        res.status(201).json({ success: true, id_usuario: result.lastID, message: `Encargado de zona "${nombre}" dado de alta.` });
+    } catch (err) {
+        console.error('Error creando encargado de zona:', err);
+        res.status(500).json({ error: 'No se pudo crear el encargado de zona (verifique si el email ya existe).' });
+    }
+});
+
+// PUT /api/empresa/usuarios/:id/toggle-activo - Bloquear o desbloquear vendedor/cobrador/encargado instantáneamente
 router.put('/usuarios/:id/toggle-activo', requireAdmin, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
@@ -581,8 +626,11 @@ router.post('/clientes/:id/regenerar-qr', async (req, res) => {
 router.get('/auditoria', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+
         // Conciliación del día o histórico
-        const cierresCobrador = await query(`
+        let cierresSql = `
             SELECT u.id_usuario, u.nombre as cobrador_nombre, u.zona_asignada,
                    SUM(CASE WHEN q.medio_pago = 'EFECTIVO' AND q.estado = 'PAGADO' THEN q.monto ELSE 0 END) as recaudado_efectivo,
                    SUM(CASE WHEN q.medio_pago = 'TRANSFERENCIA' AND q.estado = 'PAGADO' THEN q.monto ELSE 0 END) as recaudado_transferencia,
@@ -590,12 +638,20 @@ router.get('/auditoria', async (req, res) => {
                    COUNT(CASE WHEN q.estado = 'NO_COBRADO' THEN 1 END) as visitas_no_cobradas
             FROM cuotas q
             JOIN usuarios u ON q.id_cobrador = u.id_usuario
+            JOIN ficheros f ON q.id_fichero = f.id_fichero
+            JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE q.id_empresa = ? AND date(q.fecha_pago) = date('now')
-            GROUP BY u.id_usuario
-        `, [id_empresa]);
+        `;
+        const cierresParams = [id_empresa];
+        if (isEncargado) {
+            cierresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cierresParams.push(zoneFilter);
+        }
+        cierresSql += ` GROUP BY u.id_usuario`;
+        const cierresCobrador = await query(cierresSql, cierresParams);
 
-        // Últimos cobros con o sin comprobante + cobrador histórico (Corrección Crítica 3)
-        const cobrosDetallados = await query(`
+        // Últimos cobros con o sin comprobante + cobrador histórico
+        let cobrosSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.estado,
                    c.nombre_apellido as cliente_nombre, c.direccion, c.barrio,
                    COALESCE(q.nombre_cobrador, u.nombre, 'Desconocido') as cobrador_nombre, f.id_fichero, f.producto_nombre
@@ -604,18 +660,29 @@ router.get('/auditoria', async (req, res) => {
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
             WHERE q.id_empresa = ? AND q.estado = 'PAGADO'
-            ORDER BY q.fecha_pago DESC, q.id_cuota DESC
-            LIMIT 50
-        `, [id_empresa]);
+        `;
+        const cobrosParams = [id_empresa];
+        if (isEncargado) {
+            cobrosSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cobrosParams.push(zoneFilter);
+        }
+        cobrosSql += ` ORDER BY q.fecha_pago DESC, q.id_cuota DESC LIMIT 50`;
+        const cobrosDetallados = await query(cobrosSql, cobrosParams);
 
-        const whatsappRecientes = await query(`
+        // WhatsApp recientes
+        let waSql = `
             SELECT w.*, c.nombre_apellido as cliente_nombre 
             FROM whatsapp_notifications w 
             JOIN clientes c ON w.id_cliente = c.id_cliente 
             WHERE w.id_empresa = ? 
-            ORDER BY w.id_notificacion DESC 
-            LIMIT 30
-        `, [id_empresa]);
+        `;
+        const waParams = [id_empresa];
+        if (isEncargado) {
+            waSql += ` AND LOWER(c.barrio) LIKE ?`;
+            waParams.push(zoneFilter);
+        }
+        waSql += ` ORDER BY w.id_notificacion DESC LIMIT 30`;
+        const whatsappRecientes = await query(waSql, waParams);
 
         res.json({
             cierres_cobrador: cierresCobrador,
@@ -632,7 +699,10 @@ router.get('/auditoria', async (req, res) => {
 router.get('/promesas', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
-        const promesasPendientes = await query(`
+        const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+
+        let promesasSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_vencimiento, q.fecha_pago, q.motivo_no_cobro, q.promesa_pago_fecha, q.notas,
                    c.id_cliente, c.nombre_apellido as cliente_nombre, c.telefono, c.direccion, c.barrio, c.calificacion,
                    f.id_fichero, f.producto_nombre,
@@ -642,29 +712,45 @@ router.get('/promesas', async (req, res) => {
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
             WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
-            ORDER BY q.promesa_pago_fecha ASC
-        `, [id_empresa]);
+        `;
+        const promesasParams = [id_empresa];
+        if (isEncargado) {
+            promesasSql += ` AND LOWER(c.barrio) LIKE ?`;
+            promesasParams.push(zoneFilter);
+        }
+        promesasSql += ` ORDER BY q.promesa_pago_fecha ASC`;
+        const promesasPendientes = await query(promesasSql, promesasParams);
 
-        const clientesPostergadores = await query(`
+        let postergadoresSql = `
             SELECT c.id_cliente, c.nombre_apellido, c.telefono, c.barrio, c.calificacion, COUNT(*) as total_postergaciones
             FROM cuotas q
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE q.id_empresa = ? AND q.estado = 'NO_COBRADO'
-            GROUP BY c.id_cliente
-            ORDER BY total_postergaciones DESC
-            LIMIT 10
-        `, [id_empresa]);
+        `;
+        const postergadoresParams = [id_empresa];
+        if (isEncargado) {
+            postergadoresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            postergadoresParams.push(zoneFilter);
+        }
+        postergadoresSql += ` GROUP BY c.id_cliente ORDER BY total_postergaciones DESC LIMIT 10`;
+        const clientesPostergadores = await query(postergadoresSql, postergadoresParams);
 
-        const cobradoresPromesas = await query(`
+        let cobradoresSql = `
             SELECT COALESCE(q.nombre_cobrador, u.nombre, 'Cobrador General') as cobrador_nombre, COUNT(*) as promesas_tomadas
             FROM cuotas q
+            JOIN ficheros f ON q.id_fichero = f.id_fichero
+            JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
             WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
-            GROUP BY COALESCE(q.nombre_cobrador, u.nombre)
-            ORDER BY promesas_tomadas DESC
-            LIMIT 10
-        `, [id_empresa]);
+        `;
+        const cobradoresParams = [id_empresa];
+        if (isEncargado) {
+            cobradoresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cobradoresParams.push(zoneFilter);
+        }
+        cobradoresSql += ` GROUP BY COALESCE(q.nombre_cobrador, u.nombre) ORDER BY promesas_tomadas DESC LIMIT 10`;
+        const cobradoresPromesas = await query(cobradoresSql, cobradoresParams);
 
         res.json({
             promesas: promesasPendientes,
@@ -681,16 +767,25 @@ router.get('/promesas', async (req, res) => {
 router.get('/whatsapp-log', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
-        const notificaciones = await query(`
+        const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+
+        let sql = `
             SELECT w.*, c.nombre_apellido as cliente_nombre, f.producto_nombre, q.nro_cuota, q.monto
             FROM whatsapp_notifications w
             JOIN clientes c ON w.id_cliente = c.id_cliente
             JOIN cuotas q ON w.id_cuota = q.id_cuota
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             WHERE w.id_empresa = ?
-            ORDER BY w.fecha_envio DESC
-            LIMIT 100
-        `, [id_empresa]);
+        `;
+        const params = [id_empresa];
+        if (isEncargado) {
+            sql += ` AND LOWER(c.barrio) LIKE ?`;
+            params.push(zoneFilter);
+        }
+        sql += ` ORDER BY w.fecha_envio DESC LIMIT 100`;
+
+        const notificaciones = await query(sql, params);
         res.json(notificaciones);
     } catch (err) {
         console.error('Error cargando log de WhatsApp:', err);

@@ -13,7 +13,8 @@ function getInitialMockDB() {
             { id_usuario: 1, id_empresa: null, nombre: "Martín (Súper Admin SaaS)", email: "admin@hitsaas.com", rol: "SUPER_ADMIN", activo: 1, zona_asignada: "Global" },
             { id_usuario: 2, id_empresa: 1, nombre: "Roberto González (Admin ElectroHogar)", email: "admin@electrohogar.com", rol: "ADMIN_EMPRESA", activo: 1, zona_asignada: "Oficina Central" },
             { id_usuario: 3, id_empresa: 1, nombre: "Juan Pérez (Cobrador Flores)", email: "juan@electrohogar.com", rol: "COBRADOR", activo: 1, zona_asignada: "Flores / Caballito", telefono: "+54 9 11 3344-5566" },
-            { id_usuario: 4, id_empresa: 1, nombre: "Diego Silva (Cobrador Avellaneda)", email: "diego@electrohogar.com", rol: "COBRADOR", activo: 1, zona_asignada: "Avellaneda / Sur", telefono: "+54 9 11 4455-6677" }
+            { id_usuario: 4, id_empresa: 1, nombre: "Diego Silva (Cobrador Avellaneda)", email: "diego@electrohogar.com", rol: "COBRADOR", activo: 1, zona_asignada: "Avellaneda / Sur", telefono: "+54 9 11 4455-6677" },
+            { id_usuario: 5, id_empresa: 1, nombre: "Carlos Gómez (Encargado Berazategui)", email: "carlos_zona@electrohogar.com", rol: "ENCARGADO_ZONA", activo: 1, zona_asignada: "Berazategui", telefono: "+54 9 11 5566-7788" }
         ],
         vendedores: [
             { id_vendedor: 1, id_empresa: 1, nombre: "Natasha Vendedora", zona_asignada: "Zona Centro", telefono: "3815001122" }
@@ -129,6 +130,8 @@ class APIClient {
                     matchedUser = db.usuarios.find(u => u.rol === 'SUPER_ADMIN');
                 } else if (email.includes('juan') || email.includes('diego') || email.includes('cobrador')) {
                     matchedUser = db.usuarios.find(u => u.rol === 'COBRADOR');
+                } else if (email.includes('carlos') || email.includes('encargado') || email.includes('zona')) {
+                    matchedUser = db.usuarios.find(u => u.rol === 'ENCARGADO_ZONA') || db.usuarios[4];
                 } else {
                     matchedUser = db.usuarios.find(u => u.rol === 'ADMIN_EMPRESA') || db.usuarios[0];
                 }
@@ -275,7 +278,7 @@ class APIClient {
 
         // 4. FICHEROS (VENTAS)
         if (endpoint === '/empresa/ficheros' && method === 'GET') {
-            return db.ficheros.map(f => {
+            let list = db.ficheros.map(f => {
                 const cli = db.clientes.find(c => c.id_cliente === f.id_cliente) || {};
                 const cob = db.usuarios.find(u => u.id_usuario === f.id_cobrador_asignado) || {};
                 const pagadas = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO').length;
@@ -290,7 +293,12 @@ class APIClient {
                     cobrador_nombre: cob.nombre || 'Sin asignar',
                     cuotas_pagadas: pagadas
                 };
-            }).sort((a, b) => b.id_fichero - a.id_fichero);
+            });
+            if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
+                const zone = (this.user.zona_asignada || '').toLowerCase().trim();
+                list = list.filter(item => (item.barrio || '').toLowerCase().includes(zone));
+            }
+            return list.sort((a, b) => b.id_fichero - a.id_fichero);
         }
 
         if (endpoint === '/empresa/ficheros' && method === 'POST') {
@@ -374,6 +382,26 @@ class APIClient {
             db.vendedores.push(newVend);
             saveMockDB(db);
             return { success: true, message: `✅ Vendedor "${newVend.nombre}" registrado exitosamente.` };
+        }
+
+        if (endpoint === '/empresa/encargados' && method === 'GET') {
+            return db.usuarios.filter(u => u.rol === 'ENCARGADO_ZONA');
+        }
+
+        if (endpoint === '/empresa/encargados' && method === 'POST') {
+            const newEnc = {
+                id_usuario: Date.now(),
+                id_empresa: 1,
+                nombre: body.nombre,
+                email: body.email,
+                rol: 'ENCARGADO_ZONA',
+                telefono: body.telefono || '',
+                zona_asignada: body.zona_asignada || 'General',
+                activo: 1
+            };
+            db.usuarios.push(newEnc);
+            saveMockDB(db);
+            return { success: true, message: `✅ Encargado de zona "${newEnc.nombre}" registrado exitosamente.` };
         }
 
         if (endpoint.startsWith('/empresa/usuarios/') && method === 'DELETE') {

@@ -71,7 +71,7 @@ function routeUserByRole(user) {
     } else {
         if (switcher) switcher.classList.add('hidden'); // Ocultar por completo a otros usuarios
         
-        if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR') {
+        if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR' || user.rol === 'ENCARGADO_ZONA') {
             showPanel('panel-empresa');
             if (window.initEmpresaPanel) window.initEmpresaPanel();
         } else if (user.rol === 'COBRADOR') {

@@ -19,12 +19,41 @@ async function loadEmpresaDashboard() {
 async function initEmpresaPanel() {
     console.log('🏢 Inicializando Panel Admin de Empresa...');
     
+    // Resetear visibilidad por defecto
+    const tabs = ['clientes', 'ficheros', 'personal', 'rutas', 'auditoria', 'promesas', 'whatsapp'];
+    tabs.forEach(t => {
+        const el = document.querySelector(`button[data-tab="${t}"]`);
+        if (el) el.style.display = '';
+    });
+    const btnNuevoCliente = document.querySelector('button[onclick="openNewClienteModal()"]');
+    const btnNuevoFichero = document.querySelector('button[onclick="openNewFicheroModal()"]');
+    const btnBackup = document.getElementById('btn-backup-db') || document.querySelector('button[onclick="descargarBackupEmpresa()"]');
+    if (btnNuevoCliente) btnNuevoCliente.style.display = '';
+    if (btnNuevoFichero) btnNuevoFichero.style.display = '';
+    if (btnBackup) btnBackup.style.display = '';
+
+    // --- Restricciones UI para el rol ENCARGADO_ZONA ---
+    if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
+        const hideTabs = ['clientes', 'ficheros', 'personal'];
+        hideTabs.forEach(t => {
+            const el = document.querySelector(`button[data-tab="${t}"]`);
+            if (el) el.style.display = 'none';
+        });
+
+        if (btnNuevoCliente) btnNuevoCliente.style.display = 'none';
+        if (btnNuevoFichero) btnNuevoFichero.style.display = 'none';
+        if (btnBackup) btnBackup.style.display = 'none';
+
+        await loadEmpresaDashboard();
+        switchEmpresaTab('rutas');
+        return;
+    }
+
     // --- Restricciones UI para el rol VENDEDOR ---
     if (window.currentUser && window.currentUser.rol === 'VENDEDOR') {
         const tabPersonal = document.querySelector('button[data-tab="personal"]');
         if (tabPersonal) tabPersonal.style.display = 'none';
 
-        const btnBackup = document.getElementById('btn-backup-db');
         if (btnBackup) btnBackup.style.display = 'none';
     }
     // ---------------------------------------------
@@ -1153,7 +1182,7 @@ async function loadWhatsappLog() {
 // SOLAPA 3: PERSONAL (VENDEDORES & COBRADORES EN CALLE)
 // ============================================================================
 async function loadPersonal() {
-    await Promise.all([loadVendedoresRanking(), loadCobradoresCalle()]);
+    await Promise.all([loadVendedoresRanking(), loadCobradoresCalle(), loadEncargadosZona()]);
 }
 
 async function loadVendedoresRanking() {
@@ -1290,7 +1319,7 @@ async function loadCobradoresCalle() {
 }
 
 async function eliminarEmpleadoConfirmado(id_usuario, nombre, tipo) {
-    const rolTexto = tipo === 'VENDEDOR' ? 'al vendedor' : 'al cobrador';
+    const rolTexto = tipo === 'VENDEDOR' ? 'al vendedor' : (tipo === 'COBRADOR' ? 'al cobrador' : 'al encargado');
     if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar ${rolTexto} "${nombre}"?\n\nEl empleado perderá su acceso a la plataforma.`)) {
         return;
     }
@@ -1304,6 +1333,76 @@ async function eliminarEmpleadoConfirmado(id_usuario, nombre, tipo) {
         }
     } catch (err) {
         await showAlert('❌ Error al eliminar empleado: ' + err.message);
+    }
+}
+
+async function loadEncargadosZona() {
+    const tbody = document.getElementById('tbody-encargados-zona');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando encargados...</td></tr>';
+
+    try {
+        const encargados = await api.get('/empresa/encargados');
+        tbody.innerHTML = '';
+        if (encargados.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay encargados registrados.</td></tr>';
+            return;
+        }
+
+        encargados.forEach(enc => {
+            const tr = document.createElement('tr');
+            const badgeEstado = enc.activo ? '<span class="badge badge-success" style="font-size:0.7rem;">🟢 Activo</span>' : '<span class="badge badge-danger" style="font-size:0.7rem;">🔴 Bloqueado</span>';
+            const btnBloqueo = `<button class="btn ${enc.activo ? 'btn-danger' : 'btn-success'}" style="padding:0.35rem 0.65rem; font-size:0.78rem;" onclick="toggleActivoEmpleado(${enc.id_usuario}, '${enc.nombre}')">${enc.activo ? '🛑 Bloquear' : '🟢 Desbloquear'}</button>`;
+
+            tr.innerHTML = `
+                <td>
+                    <strong>👤 ${enc.nombre}</strong> ${badgeEstado}
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${enc.email}</div>
+                </td>
+                <td>
+                    <strong>📍 ${enc.zona_asignada || 'General'}</strong>
+                </td>
+                <td>
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">📞 ${enc.telefono || '-'}</div>
+                </td>
+                <td>
+                    ${enc.activo ? '<span style="color:#10b981; font-weight:700;">Habilitado</span>' : '<span style="color:#ef4444; font-weight:700;">Inactivo</span>'}
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        ${btnBloqueo}
+                        <button class="btn btn-warning" style="padding:0.35rem 0.65rem; font-size:0.78rem;" onclick="resetPasswordEmpleado(${enc.id_usuario}, '${enc.nombre}')" title="Resetear contraseña">
+                            🔑 Reset Clave
+                        </button>
+                        <button class="btn btn-danger" style="padding:0.35rem 0.65rem; font-size:0.78rem;" onclick="eliminarEmpleadoConfirmado(${enc.id_usuario}, '${enc.nombre}', 'ENCARGADO_ZONA')" title="Eliminar encargado">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error cargando encargados zona:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar encargados.</td></tr>';
+    }
+}
+
+async function submitNewEncargadoForm(event) {
+    event.preventDefault();
+    const nombre = document.getElementById('new-enc-nombre').value;
+    const email = document.getElementById('new-enc-email').value;
+    const password = document.getElementById('new-enc-pass').value;
+    const telefono = document.getElementById('new-enc-tel').value;
+    const zona_asignada = document.getElementById('new-enc-zona').value;
+
+    try {
+        const res = await api.post('/empresa/encargados', { nombre, email, password, telefono, zona_asignada });
+        await showAlert(res.message || 'Encargado de zona registrado exitosamente.');
+        document.getElementById('form-new-encargado').reset();
+        loadEncargadosZona();
+    } catch (err) {
+        await showAlert('Error al crear encargado: ' + err.message);
     }
 }
 
@@ -1500,6 +1599,8 @@ window.loadWhatsappLog = loadWhatsappLog;
 window.loadPersonal = loadPersonal;
 window.submitNewVendedorForm = submitNewVendedorForm;
 window.submitNewCobradorForm = submitNewCobradorForm;
+window.submitNewEncargadoForm = submitNewEncargadoForm;
+window.loadEncargadosZona = loadEncargadosZona;
 window.enviarLugaresCobroWhatsapp = enviarLugaresCobroWhatsapp;
 window.regenerarQrCliente = regenerarQrCliente;
 window.toggleActivoEmpleado = toggleActivoEmpleado;
