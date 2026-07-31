@@ -120,13 +120,9 @@ function renderClientesTable(clientes) {
         const tr = document.createElement('tr');
         const pisoStr = c.piso_dpto ? `<span style="color:#8b5cf6; font-weight:700;"> [🏢 ${c.piso_dpto}]</span>` : '';
         const refStr = c.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${c.referencia_domicilio}</div>` : '';
-        const isEmpresa = (c.tipo_cliente === 'empresa');
-        const badgeTipo = isEmpresa 
-            ? `<span class="badge" style="font-size: 0.68rem; background:#fef3c7; color:#92400e; border:1px solid #f59e0b; margin-bottom:0.25rem; display:inline-block;">🏢 EMPRESA / COMERCIO</span>`
-            : `<span class="badge" style="font-size: 0.68rem; background:#e0e7ff; color:#3730a3; border:1px solid #6366f1; margin-bottom:0.25rem; display:inline-block;">👤 PARTICULAR</span>`;
-        const docLabel = isEmpresa ? 'CUIT' : 'DNI';
-        const docValue = isEmpresa ? (c.cuit || c.dni) : c.dni;
-        const nombreDisplay = isEmpresa ? (c.razon_social || c.nombre_apellido) : c.nombre_apellido;
+        const docLabel = 'DNI';
+        const docValue = c.dni;
+        const nombreDisplay = c.nombre_apellido;
 
         const clientJsonStr = JSON.stringify(c).replace(/'/g, "&apos;");
 
@@ -152,7 +148,6 @@ function renderClientesTable(clientes) {
         tr.innerHTML = `
             <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong></td>
             <td>
-                <div>${badgeTipo}</div>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
                     onclick="focusClientOnMap(${c.id_cliente})" 
                     title="Hacer clic para ubicar en el mapa">
@@ -257,52 +252,18 @@ function initMap(clientes) {
     }
 }
 
-function toggleTipoClienteForm() {
-    const tipo = document.getElementById('new-cli-tipo')?.value || 'particular';
-    const labelNombre = document.getElementById('label-cli-nombre');
-    const inputNombre = document.getElementById('new-cli-nombre');
-    const labelDni = document.getElementById('label-cli-dni');
-    const inputDni = document.getElementById('new-cli-dni');
-
-    if (tipo === 'empresa') {
-        if (labelNombre) labelNombre.innerText = 'Razón Social / Nombre Comercial';
-        if (inputNombre) inputNombre.placeholder = 'Ej: Distribuidora San Martín S.R.L.';
-        if (labelDni) labelDni.innerText = 'CUIT';
-        if (inputDni) inputDni.placeholder = 'Ej: 30-71234567-8';
-    } else {
-        if (labelNombre) labelNombre.innerText = 'Nombre y Apellido del Cliente';
-        if (inputNombre) inputNombre.placeholder = 'Ej: Carlos Tevez';
-        if (labelDni) labelDni.innerText = 'DNI / Documento';
-        if (inputDni) inputDni.placeholder = 'Ej: 30123456';
-    }
-}
-
-function showQrModal(nombreOrCliente, tokenArg, tipoArg, docValArg) {
+function showQrModal(nombreOrCliente, tokenArg) {
     let nombre = nombreOrCliente;
     let token = tokenArg;
-    let tipo = tipoArg || 'particular';
     let docText = '';
 
     if (typeof nombreOrCliente === 'object' && nombreOrCliente !== null) {
         const c = nombreOrCliente;
-        nombre = c.razon_social || c.nombre_apellido;
+        nombre = c.nombre_apellido;
         token = c.qr_token;
-        tipo = c.tipo_cliente || 'particular';
-        docText = (tipo === 'empresa') 
-            ? `CUIT: ${c.cuit || c.dni}` 
-            : `DNI: ${c.dni}`;
+        docText = `DNI: ${c.dni}`;
     } else {
-        docText = (tipo === 'empresa') 
-            ? `CUIT: ${docValArg || tokenArg || ''}` 
-            : `DNI: ${tokenArg || ''}`;
-    }
-    
-    const isEmpresa = (tipo === 'empresa');
-    const typeBadge = document.getElementById('modal-qr-client-type-badge');
-    if (typeBadge) {
-        typeBadge.innerHTML = isEmpresa ? '🏢 EMPRESA / COMERCIO' : '👤 CLIENTE PARTICULAR';
-        typeBadge.style.background = isEmpresa ? '#fef3c7' : '#e0e7ff';
-        typeBadge.style.color = isEmpresa ? '#92400e' : '#3730a3';
+        docText = `DNI: ${tokenArg || ''}`;
     }
 
     const nameElem = document.getElementById('modal-qr-client-name');
@@ -351,7 +312,6 @@ let modalMapGeocoder = null;
 
 function openNewClienteModal() {
     document.getElementById('form-new-cliente').reset();
-    toggleTipoClienteForm();
     window.tempClientLat = null;
     window.tempClientLng = null;
     const mapDiv = document.getElementById('modal-map-container');
@@ -592,7 +552,6 @@ function mostrarMapaVerificacion(lat, lng) {
 async function submitNewClienteForm(event) {
     event.preventDefault();
 
-    const tipoVal = document.getElementById('new-cli-tipo')?.value || 'particular';
     const calleVal = (document.getElementById('new-cli-calle')?.value || '').trim();
     const alturaVal = (document.getElementById('new-cli-altura')?.value || '').trim();
     const nombreVal = (document.getElementById('new-cli-nombre')?.value || '').trim();
@@ -600,21 +559,15 @@ async function submitNewClienteForm(event) {
     const barrioVal = (document.getElementById('new-cli-barrio')?.value || '').trim();
 
     if (!nombreVal || !dniVal || !calleVal || !barrioVal) {
-        const msg = (tipoVal === 'empresa') 
-            ? '⚠️ Por favor complete los campos obligatorios: Razón Social, CUIT, Calle y Barrio.' 
-            : '⚠️ Por favor complete los campos obligatorios: Nombre, DNI, Calle y Barrio.';
-        await showAlert(msg);
+        await showAlert('⚠️ Por favor complete los campos obligatorios: Nombre, DNI, Calle y Barrio.');
         return;
     }
 
     const direccionCompleta = alturaVal ? `${calleVal} ${alturaVal}` : calleVal;
 
     const payload = {
-        tipo_cliente: tipoVal,
         nombre_apellido: nombreVal,
         dni: dniVal,
-        razon_social: tipoVal === 'empresa' ? nombreVal : null,
-        cuit: tipoVal === 'empresa' ? dniVal : null,
         telefono: (document.getElementById('new-cli-tel')?.value || '').trim(),
         direccion: direccionCompleta,
         barrio: barrioVal,
@@ -632,7 +585,6 @@ async function submitNewClienteForm(event) {
         await showAlert('✅ Cliente registrado e indexado geográficamente con éxito.');
         document.getElementById('modal-new-cliente').classList.add('hidden');
         document.getElementById('form-new-cliente').reset();
-        toggleTipoClienteForm();
         
         // Limpiar temporales
         window.tempClientLat = null;
@@ -643,7 +595,7 @@ async function submitNewClienteForm(event) {
         loadClientesAndMap();
 
         if (res && res.cliente && res.cliente.qr_token) {
-            showQrModal(res.cliente);
+            showQrModal(res.cliente.nombre_apellido, res.cliente.qr_token);
         }
     } catch (err) {
         await showAlert('❌ Error al crear cliente: ' + err.message);
@@ -1556,6 +1508,5 @@ window.resetPasswordEmpleado = resetPasswordEmpleado;
 window.updateFicheroOrden = updateFicheroOrden;
 window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
-window.toggleTipoClienteForm = toggleTipoClienteForm;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;
 window.focusClientOnMap = focusClientOnMap;

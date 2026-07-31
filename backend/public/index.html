@@ -758,13 +758,7 @@
                 <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">✖</button>
             </div>
             <form id="form-new-cliente" onsubmit="submitNewClienteForm(event)">
-                <div class="form-group">
-                    <label style="font-weight: 700;">🏷️ Tipo de Cliente</label>
-                    <select id="new-cli-tipo" class="form-control" onchange="toggleTipoClienteForm()" style="font-weight: 600;">
-                        <option value="particular">👤 Particular / Consumidor Final</option>
-                        <option value="empresa">🏢 Empresa / Comercio</option>
-                    </select>
-                </div>
+
                 <div class="form-group">
                     <label id="label-cli-nombre">Nombre y Apellido del Cliente</label>
                     <input type="text" id="new-cli-nombre" class="form-control" placeholder="Ej: Carlos Tevez" required>
@@ -845,9 +839,7 @@
                 <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-client-qr').classList.add('hidden')">✖</button>
             </div>
             <div class="glass-card" style="padding: 1.5rem; border: 2px solid var(--primary); background: #ffffff; color: #0f172a; margin-bottom: 1.25rem;">
-                <div id="modal-qr-client-type-badge" style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; background: #e0e7ff; color: #3730a3; margin-bottom: 0.6rem;">
-                    👤 CLIENTE PARTICULAR
-                </div>
+
                 <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.2rem;">Cliente Nombre</h4>
                 <div id="modal-qr-client-doc" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">DNI: 30123456</div>
                 <div style="font-family: monospace; font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;" id="modal-qr-token-text">HIT-QR-TOKEN</div>
