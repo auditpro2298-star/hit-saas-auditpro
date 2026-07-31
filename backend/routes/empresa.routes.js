@@ -276,6 +276,31 @@ router.put('/clientes/:id', async (req, res) => {
     }
 });
 
+// PATCH /api/empresa/clientes/:id/calificacion - Actualizar la calificación del cliente
+router.patch('/clientes/:id/calificacion', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { calificacion } = req.body;
+
+    if (!['BUENO', 'REGULAR', 'MOROSO'].includes(calificacion)) {
+        return res.status(400).json({ error: 'Calificación no válida.' });
+    }
+
+    try {
+        const cliente = await get('SELECT * FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
+        }
+
+        await run('UPDATE clientes SET calificacion = ? WHERE id_cliente = ? AND id_empresa = ?', [calificacion, id, id_empresa]);
+        res.json({ success: true, message: `Calificación de "${cliente.nombre_apellido}" actualizada a ${calificacion}.` });
+    } catch (err) {
+        console.error('Error al actualizar calificación:', err);
+        res.status(500).json({ error: 'Error al actualizar calificación: ' + err.message });
+    }
+});
+
+
 // GET /api/empresa/ficheros - Listado completo de ficheros
 router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
@@ -578,7 +603,7 @@ router.get('/auditoria', async (req, res) => {
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
-            WHERE q.id_empresa = ? AND (q.estado = 'PAGADO' OR q.estado = 'NO_COBRADO')
+            WHERE q.id_empresa = ? AND q.estado = 'PAGADO'
             ORDER BY q.fecha_pago DESC, q.id_cuota DESC
             LIMIT 50
         `, [id_empresa]);
@@ -766,6 +791,12 @@ router.delete('/clientes/:id', requireAdmin, async (req, res) => {
             return res.status(404).json({ error: 'Cliente no encontrado.' });
         }
 
+        // Verificar si posee ficheros activos o morosos (créditos vigentes)
+        const ficherosVigentes = await get("SELECT COUNT(*) as count FROM ficheros WHERE id_cliente = ? AND id_empresa = ? AND estado IN ('ACTIVO', 'MOROSO')", [id, id_empresa]);
+        if (ficherosVigentes && parseInt(ficherosVigentes.count || 0, 10) > 0) {
+            return res.status(400).json({ error: 'No se puede eliminar un cliente con créditos activos o morosos vigentes.' });
+        }
+
         const ficheros = await query('SELECT id_fichero FROM ficheros WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
         for (const f of ficheros) {
             await run('DELETE FROM cuotas WHERE id_fichero = ? AND id_empresa = ?', [f.id_fichero, id_empresa]);
@@ -844,5 +875,87 @@ router.get('/backup', requireAdmin, async (req, res) => {
     }
 });
 
+// GET /api/empresa/promesas - Obtener promesas de pago pendientes y ranking de morosidad
+router.get('/promesas', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const promesas = await query(`
+            SELECT 
+                c.id_cuota,
+                c.id_fichero,
+                c.nro_cuota,
+                c.monto,
+                c.motivo_no_cobro,
+                c.promesa_pago_fecha,
+                c.nombre_cobrador,
+                cl.nombre_apellido,
+                cl.barrio,
+                cl.telefono
+            FROM cuotas c
+            JOIN ficheros f ON c.id_fichero = f.id_fichero
+            JOIN clientes cl ON f.id_cliente = cl.id_cliente
+            WHERE c.id_empresa = ? 
+              AND (c.promesa_pago_fecha IS NOT NULL OR c.estado = 'NO_COBRADO')
+            ORDER BY c.promesa_pago_fecha DESC, c.id_cuota DESC
+            LIMIT 50
+        `, [id_empresa]);
+
+        const ranking_morosidad = await query(`
+            SELECT 
+                cl.id_cliente,
+                cl.nombre_apellido,
+                cl.telefono,
+                cl.barrio,
+                cl.calificacion,
+                COUNT(c.id_cuota) as postergaciones
+            FROM cuotas c
+            JOIN ficheros f ON c.id_fichero = f.id_fichero
+            JOIN clientes cl ON f.id_cliente = cl.id_cliente
+            WHERE c.id_empresa = ? AND (c.estado = 'NO_COBRADO' OR c.motivo_no_cobro IS NOT NULL OR c.promesa_pago_fecha IS NOT NULL)
+            GROUP BY cl.id_cliente, cl.nombre_apellido, cl.telefono, cl.barrio, cl.calificacion
+            ORDER BY postergaciones DESC
+            LIMIT 20
+        `, [id_empresa]);
+
+        res.json({
+            promesas: promesas || [],
+            ranking_morosidad: ranking_morosidad || []
+        });
+    } catch (err) {
+        console.error('Error al obtener promesas y morosidad:', err);
+        res.status(500).json({ error: 'Error al obtener promesas y morosidad.' });
+    }
+});
+
+// GET /api/empresa/whatsapp-log - Obtener registro de notificaciones de WhatsApp
+router.get('/whatsapp-log', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const notifs = await query(`
+            SELECT 
+                w.id_notificacion,
+                w.telefono_cliente,
+                w.mensaje,
+                w.estado,
+                w.fecha_envio as fecha,
+                cl.nombre_apellido as cliente_nombre,
+                c.nro_cuota,
+                c.monto
+            FROM whatsapp_notifications w
+            LEFT JOIN clientes cl ON w.id_cliente = cl.id_cliente
+            LEFT JOIN cuotas c ON w.id_cuota = c.id_cuota
+            WHERE w.id_empresa = ?
+            ORDER BY w.fecha_envio DESC
+            LIMIT 50
+        `, [id_empresa]);
+
+        res.json(notifs || []);
+    } catch (err) {
+        console.error('Error al obtener log de whatsapp:', err);
+        res.status(500).json({ error: 'Error al obtener log de whatsapp.' });
+    }
+});
+
 module.exports = router;
+
 

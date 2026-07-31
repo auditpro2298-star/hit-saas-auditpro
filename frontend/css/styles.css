@@ -442,3 +442,62 @@ body {
 .animate-fade {
   animation: fadeIn 0.3s ease forwards;
 }
+
+/* Custom dialog styles */
+.custom-dialog-box {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: var(--glass-border) !important;
+  box-shadow: var(--shadow-xl), 0 0 30px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .custom-dialog-box {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+.custom-dialog-icon-container {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: iconPulse 2s infinite ease-in-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.custom-dialog-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Reglas de impresión para Tarjeta QR y Documentos */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #modal-client-qr, #modal-client-qr * {
+    visibility: visible;
+  }
+  #modal-client-qr {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background: #ffffff !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  #modal-client-qr .modal-box {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 480px !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

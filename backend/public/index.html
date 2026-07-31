@@ -758,11 +758,18 @@
             </div>
             <form id="form-new-cliente" onsubmit="submitNewClienteForm(event)">
                 <div class="form-group">
-                    <label>Nombre y Apellido del Cliente</label>
+                    <label style="font-weight: 700;">🏷️ Tipo de Cliente</label>
+                    <select id="new-cli-tipo" class="form-control" onchange="toggleTipoClienteForm()" style="font-weight: 600;">
+                        <option value="particular">👤 Particular / Consumidor Final</option>
+                        <option value="empresa">🏢 Empresa / Comercio</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="label-cli-nombre">Nombre y Apellido del Cliente</label>
                     <input type="text" id="new-cli-nombre" class="form-control" placeholder="Ej: Carlos Tevez" required>
                 </div>
                 <div class="form-group">
-                    <label>DNI / Documento</label>
+                    <label id="label-cli-dni">DNI / Documento</label>
                     <input type="text" id="new-cli-dni" class="form-control" placeholder="Ej: 30123456" required>
                 </div>
                 <div class="form-group">
@@ -837,7 +844,11 @@
                 <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-client-qr').classList.add('hidden')">✖</button>
             </div>
             <div class="glass-card" style="padding: 1.5rem; border: 2px solid var(--primary); background: #ffffff; color: #0f172a; margin-bottom: 1.25rem;">
-                <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem;">Cliente Nombre</h4>
+                <div id="modal-qr-client-type-badge" style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; background: #e0e7ff; color: #3730a3; margin-bottom: 0.6rem;">
+                    👤 CLIENTE PARTICULAR
+                </div>
+                <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.2rem;">Cliente Nombre</h4>
+                <div id="modal-qr-client-doc" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">DNI: 30123456</div>
                 <div style="font-family: monospace; font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;" id="modal-qr-token-text">HIT-QR-TOKEN</div>
                 <div style="display: flex; justify-content: center; margin: 1rem 0;">
                     <img id="modal-qr-image" src="" alt="QR" style="width: 200px; height: 200px; border-radius: 8px;">
@@ -845,7 +856,7 @@
                 <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem;">
                     Esta tarjeta es escaneada por el cobrador al presentarse en el domicilio o por el cliente para ver su cartilla en línea.
                 </p>
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-2 no-print">
                     <input type="text" id="modal-qr-public-link" class="form-control" readonly style="font-size: 0.72rem; background: #f1f5f9; color: #334155;">
                     <div class="flex gap-2">
                         <button class="btn btn-outline" style="flex:1; font-size: 0.75rem; padding: 0.4rem;" onclick="copiarLinkCartillaCliente()">📋 Copiar Link</button>
@@ -853,7 +864,7 @@
                     </div>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta QR</button>
+            <button class="btn btn-primary no-print" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta QR</button>
         </div>
     </div>
 
@@ -865,6 +876,14 @@
                 <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">✖</button>
             </div>
             <form id="form-new-fichero" onsubmit="submitNewFicheroForm(event)">
+                <div class="form-group" style="background: rgba(139,92,246,0.06); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple); margin-bottom: 1rem;">
+                    <label style="color: var(--saas-purple); font-weight: 700;">🔎 Cargar Cliente por ID / DNI (Evita volver a crearlo)</label>
+                    <div class="flex gap-2" style="margin-top: 0.3rem;">
+                        <input type="text" id="new-fich-buscar-cliente-id" class="form-control" placeholder="Ingrese ID o DNI del cliente..." style="font-size: 0.85rem; padding: 0.4rem;">
+                        <button type="button" class="btn btn-purple" style="font-size: 0.8rem; padding: 0.4rem 1rem; white-space: nowrap;" onclick="buscarClientePorIdODni()">🔍 Cargar</button>
+                    </div>
+                    <div id="new-fich-cliente-info-preview" style="font-size: 0.78rem; margin-top: 0.4rem; font-weight: 600; color: var(--text-secondary);"></div>
+                </div>
                 <div class="form-group">
                     <label>Seleccionar Cliente</label>
                     <select id="new-fich-cliente" class="form-control" required></select>
@@ -1057,6 +1076,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <!-- Scripts de la Aplicación -->
+    <script src="js/modals.js?v=2.0.6"></script>
     <script src="js/api.js?v=2.0.6"></script>
     <script src="js/superadmin.js?v=2.0.6"></script>
     <script src="js/adminEmpresa.js?v=2.0.6"></script>

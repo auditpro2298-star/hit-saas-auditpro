@@ -120,33 +120,62 @@ function renderClientesTable(clientes) {
         const tr = document.createElement('tr');
         const pisoStr = c.piso_dpto ? `<span style="color:#8b5cf6; font-weight:700;"> [🏢 ${c.piso_dpto}]</span>` : '';
         const refStr = c.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${c.referencia_domicilio}</div>` : '';
+        const isEmpresa = (c.tipo_cliente === 'empresa');
+        const badgeTipo = isEmpresa 
+            ? `<span class="badge" style="font-size: 0.68rem; background:#fef3c7; color:#92400e; border:1px solid #f59e0b; margin-bottom:0.25rem; display:inline-block;">🏢 EMPRESA / COMERCIO</span>`
+            : `<span class="badge" style="font-size: 0.68rem; background:#e0e7ff; color:#3730a3; border:1px solid #6366f1; margin-bottom:0.25rem; display:inline-block;">👤 PARTICULAR</span>`;
+        const docLabel = isEmpresa ? 'CUIT' : 'DNI';
+        const docValue = isEmpresa ? (c.cuit || c.dni) : c.dni;
+        const nombreDisplay = isEmpresa ? (c.razon_social || c.nombre_apellido) : c.nombre_apellido;
+
+        const clientJsonStr = JSON.stringify(c).replace(/'/g, "&apos;");
+
+        let selectBgColor = '#10b981'; // green-500
+        let selectTextColor = '#ffffff';
+        if (c.calificacion === 'REGULAR') {
+            selectBgColor = '#f59e0b'; // yellow-500
+            selectTextColor = '#ffffff';
+        } else if (c.calificacion === 'MOROSO') {
+            selectBgColor = '#ef4444'; // red-500
+            selectTextColor = '#ffffff';
+        }
+
+        const selectCalificacion = `
+            <select onchange="cambiarCalificacionCliente(${c.id_cliente}, this.value)" 
+                style="font-size: 0.78rem; padding: 0.25rem 0.5rem; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background-color: ${selectBgColor}; color: ${selectTextColor}; cursor: pointer; outline: none; transition: background-color 0.2s;">
+                <option value="BUENO" ${c.calificacion === 'BUENO' ? 'selected' : ''}>🟢 Buen Cliente</option>
+                <option value="REGULAR" ${c.calificacion === 'REGULAR' ? 'selected' : ''}>🟡 No paga a tiempo</option>
+                <option value="MOROSO" ${c.calificacion === 'MOROSO' ? 'selected' : ''}>🔴 No paga</option>
+            </select>
+        `;
 
         tr.innerHTML = `
             <td>
+                <div>${badgeTipo}</div>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
                     onclick="focusClientOnMap(${c.id_cliente})" 
                     title="Hacer clic para ubicar en el mapa">
-                    📍 ${c.nombre_apellido}
+                    📍 ${nombreDisplay}
                 </strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">DNI: ${c.dni}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">ID: <strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong> &nbsp;|&nbsp; ${docLabel}: ${docValue}</div>
             </td>
             <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>
             <td><span class="badge badge-purple" style="font-family: monospace;">${c.qr_token}</span></td>
-            <td><span class="badge badge-success">${c.calificacion}</span></td>
+            <td>${selectCalificacion}</td>
             <td>
                 <div class="flex gap-1 items-center flex-wrap">
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="showQrModal('${c.nombre_apellido}', '${c.qr_token}')">
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick='showQrModal(${clientJsonStr})'>
                         📱 Ver QR
                     </button>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${c.nombre_apellido}', '${c.direccion}', '${c.barrio}', '${c.telefono || ''}')" title="Actualizar dirección por mudanza">
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}')" title="Actualizar dirección por mudanza">
                         ✏️ Mudanza
                     </button>
-                    <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${c.nombre_apellido}')" title="Regenerar por pérdida o robo">
+                    <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Regenerar por pérdida o robo">
                         🔄 Revocar QR
                     </button>
                     ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
-                    <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${c.nombre_apellido}')" title="Eliminar cliente por error o cuando termina de pagar todo">
+                    <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Eliminar cliente por error o cuando termina de pagar todo">
                         🗑️ Eliminar
                     </button>
                     ` : ''}
@@ -227,15 +256,68 @@ function initMap(clientes) {
     }
 }
 
-function showQrModal(nombre, token) {
-    document.getElementById('modal-qr-client-name').innerText = nombre;
-    document.getElementById('modal-qr-token-text').innerText = token;
+function toggleTipoClienteForm() {
+    const tipo = document.getElementById('new-cli-tipo')?.value || 'particular';
+    const labelNombre = document.getElementById('label-cli-nombre');
+    const inputNombre = document.getElementById('new-cli-nombre');
+    const labelDni = document.getElementById('label-cli-dni');
+    const inputDni = document.getElementById('new-cli-dni');
+
+    if (tipo === 'empresa') {
+        if (labelNombre) labelNombre.innerText = 'Razón Social / Nombre Comercial';
+        if (inputNombre) inputNombre.placeholder = 'Ej: Distribuidora San Martín S.R.L.';
+        if (labelDni) labelDni.innerText = 'CUIT';
+        if (inputDni) inputDni.placeholder = 'Ej: 30-71234567-8';
+    } else {
+        if (labelNombre) labelNombre.innerText = 'Nombre y Apellido del Cliente';
+        if (inputNombre) inputNombre.placeholder = 'Ej: Carlos Tevez';
+        if (labelDni) labelDni.innerText = 'DNI / Documento';
+        if (inputDni) inputDni.placeholder = 'Ej: 30123456';
+    }
+}
+
+function showQrModal(nombreOrCliente, tokenArg, tipoArg, docValArg) {
+    let nombre = nombreOrCliente;
+    let token = tokenArg;
+    let tipo = tipoArg || 'particular';
+    let docText = '';
+
+    if (typeof nombreOrCliente === 'object' && nombreOrCliente !== null) {
+        const c = nombreOrCliente;
+        nombre = c.razon_social || c.nombre_apellido;
+        token = c.qr_token;
+        tipo = c.tipo_cliente || 'particular';
+        docText = (tipo === 'empresa') 
+            ? `CUIT: ${c.cuit || c.dni}` 
+            : `DNI: ${c.dni}`;
+    } else {
+        docText = (tipo === 'empresa') 
+            ? `CUIT: ${docValArg || tokenArg || ''}` 
+            : `DNI: ${tokenArg || ''}`;
+    }
+    
+    const isEmpresa = (tipo === 'empresa');
+    const typeBadge = document.getElementById('modal-qr-client-type-badge');
+    if (typeBadge) {
+        typeBadge.innerHTML = isEmpresa ? '🏢 EMPRESA / COMERCIO' : '👤 CLIENTE PARTICULAR';
+        typeBadge.style.background = isEmpresa ? '#fef3c7' : '#e0e7ff';
+        typeBadge.style.color = isEmpresa ? '#92400e' : '#3730a3';
+    }
+
+    const nameElem = document.getElementById('modal-qr-client-name');
+    if (nameElem) nameElem.innerText = nombre;
+
+    const docElem = document.getElementById('modal-qr-client-doc');
+    if (docElem) docElem.innerText = docText;
+
+    const tokenElem = document.getElementById('modal-qr-token-text');
+    if (tokenElem) tokenElem.innerText = token;
     
     // Generar código QR apuntando a la URL pública de la Cartilla del Cliente
     const fullPublicUrl = `${window.location.origin}/?qr_cartilla=${token}`;
     const qrImage = document.getElementById('modal-qr-image');
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullPublicUrl)}&color=0f172a&bgcolor=ffffff`;
-    qrImage.src = qrUrl;
+    if (qrImage) qrImage.src = qrUrl;
 
     // Configurar botones de enlace público
     const linkInput = document.getElementById('modal-qr-public-link');
@@ -244,11 +326,11 @@ function showQrModal(nombre, token) {
     document.getElementById('modal-client-qr').classList.remove('hidden');
 }
 
-function copiarLinkCartillaCliente() {
+async function copiarLinkCartillaCliente() {
     const linkInput = document.getElementById('modal-qr-public-link');
     if (linkInput && linkInput.value) {
         navigator.clipboard.writeText(linkInput.value);
-        alert('📋 ¡Enlace público de la Cartilla copiado al portapapeles! Podés pegarlo y mandarlo a cualquier cliente.');
+        await showAlert('📋 ¡Enlace público de la Cartilla copiado al portapapeles! Podés pegarlo y mandarlo a cualquier cliente.');
     }
 }
 
@@ -268,6 +350,7 @@ let modalMapGeocoder = null;
 
 function openNewClienteModal() {
     document.getElementById('form-new-cliente').reset();
+    toggleTipoClienteForm();
     window.tempClientLat = null;
     window.tempClientLng = null;
     const mapDiv = document.getElementById('modal-map-container');
@@ -303,7 +386,7 @@ async function verificarDireccionEnMapa() {
     const rawBarrio = document.getElementById('new-cli-barrio').value.trim();
     
     if (!rawCalle || !rawAltura || !rawBarrio) {
-        alert('Por favor, complete primero la calle, la altura y el barrio.');
+        await showAlert('Por favor, complete primero la calle, la altura y el barrio.');
         return;
     }
 
@@ -353,7 +436,7 @@ async function verificarDireccionEnMapa() {
                 window.tempClientLng = lng;
                 mostrarMapaVerificacion(lat, lng);
                 if (i === 1) {
-                    alert(`📍 Se ubicó el pin en "${calleFormatted.toUpperCase()}". Podés arrastrar el marcador rojo en el mapa para posicionarlo en la altura exacta (#${rawAltura}).`);
+                    await showAlert(`📍 Se ubicó el pin en "${calleFormatted.toUpperCase()}". Podés arrastrar el marcador rojo en el mapa para posicionarlo en la altura exacta (#${rawAltura}).`);
                 }
                 return;
             }
@@ -383,14 +466,14 @@ async function verificarDireccionEnMapa() {
             window.tempClientLat = latB;
             window.tempClientLng = lngB;
             mostrarMapaVerificacion(latB, lngB);
-            alert(`⚠️ Se centró en el Barrio "${rawBarrio.toUpperCase()}". Arrastrá el marcador rojo al punto exacto.`);
+            await showAlert(`⚠️ Se centró en el Barrio "${rawBarrio.toUpperCase()}". Arrastrá el marcador rojo al punto exacto.`);
         } else {
-            alert('❌ No se encontró la dirección. Podés abrir Google Maps y arrastrar el pin rojo.');
+            await showAlert('❌ No se encontró la dirección. Podés abrir Google Maps y arrastrar el pin rojo.');
         }
 
     } catch (err) {
         console.error('Error al geolocalizar:', err);
-        alert('Error de conexión al buscar dirección.');
+        await showAlert('Error de conexión al buscar dirección.');
     } finally {
         if (loader) loader.style.display = 'none';
     }
@@ -408,7 +491,7 @@ function abrirBusquedaGoogleMaps() {
     window.open(gmapsUrl, '_blank');
 }
 
-function procesarEnlaceGoogleMaps() {
+async function procesarEnlaceGoogleMaps() {
     const input = document.getElementById('new-cli-gmaps-link');
     if (!input) return;
     const val = input.value.trim();
@@ -446,9 +529,9 @@ function procesarEnlaceGoogleMaps() {
         window.tempClientLat = lat;
         window.tempClientLng = lng;
         mostrarMapaVerificacion(lat, lng);
-        alert(`🎯 Marcador posicionado en las coordenadas exactas de Google Maps: (${lat.toFixed(6)}, ${lng.toFixed(6)})`);
+        await showAlert(`🎯 Marcador posicionado en las coordenadas exactas de Google Maps: (${lat.toFixed(6)}, ${lng.toFixed(6)})`);
     } else {
-        alert('⚠️ No se pudieron extraer coordenadas. Podés pegar el enlace completo de Google Maps o las coordenadas (ej: -34.7646, -58.2495).');
+        await showAlert('⚠️ No se pudieron extraer coordenadas. Podés pegar el enlace completo de Google Maps o las coordenadas (ej: -34.7646, -58.2495).');
     }
 }
 
@@ -508,6 +591,7 @@ function mostrarMapaVerificacion(lat, lng) {
 async function submitNewClienteForm(event) {
     event.preventDefault();
 
+    const tipoVal = document.getElementById('new-cli-tipo')?.value || 'particular';
     const calleVal = (document.getElementById('new-cli-calle')?.value || '').trim();
     const alturaVal = (document.getElementById('new-cli-altura')?.value || '').trim();
     const nombreVal = (document.getElementById('new-cli-nombre')?.value || '').trim();
@@ -515,15 +599,21 @@ async function submitNewClienteForm(event) {
     const barrioVal = (document.getElementById('new-cli-barrio')?.value || '').trim();
 
     if (!nombreVal || !dniVal || !calleVal || !barrioVal) {
-        alert('⚠️ Por favor complete los campos obligatorios: Nombre, DNI, Calle y Barrio.');
+        const msg = (tipoVal === 'empresa') 
+            ? '⚠️ Por favor complete los campos obligatorios: Razón Social, CUIT, Calle y Barrio.' 
+            : '⚠️ Por favor complete los campos obligatorios: Nombre, DNI, Calle y Barrio.';
+        await showAlert(msg);
         return;
     }
 
     const direccionCompleta = alturaVal ? `${calleVal} ${alturaVal}` : calleVal;
 
     const payload = {
+        tipo_cliente: tipoVal,
         nombre_apellido: nombreVal,
         dni: dniVal,
+        razon_social: tipoVal === 'empresa' ? nombreVal : null,
+        cuit: tipoVal === 'empresa' ? dniVal : null,
         telefono: (document.getElementById('new-cli-tel')?.value || '').trim(),
         direccion: direccionCompleta,
         barrio: barrioVal,
@@ -538,9 +628,10 @@ async function submitNewClienteForm(event) {
 
     try {
         const res = await api.post('/empresa/clientes', payload);
-        alert('✅ Cliente registrado e indexado geográficamente con éxito.');
+        await showAlert('✅ Cliente registrado e indexado geográficamente con éxito.');
         document.getElementById('modal-new-cliente').classList.add('hidden');
         document.getElementById('form-new-cliente').reset();
+        toggleTipoClienteForm();
         
         // Limpiar temporales
         window.tempClientLat = null;
@@ -551,10 +642,10 @@ async function submitNewClienteForm(event) {
         loadClientesAndMap();
 
         if (res && res.cliente && res.cliente.qr_token) {
-            showQrModal(res.cliente.nombre_apellido, res.cliente.qr_token);
+            showQrModal(res.cliente);
         }
     } catch (err) {
-        alert('❌ Error al crear cliente: ' + err.message);
+        await showAlert('❌ Error al crear cliente: ' + err.message);
     }
 }
 
@@ -642,36 +733,36 @@ function renderFicherosTable(ficheros) {
 }
 
 async function eliminarClienteConfirmado(id_cliente, nombre_apellido) {
-    if (!confirm(`⚠️ ¿Está seguro que desea eliminar al cliente "${nombre_apellido}"?\n\nEsta acción eliminará al cliente, sus ficheros de venta y su historial de cuotas asociadas.`)) {
+    if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar al cliente "${nombre_apellido}"?\n\nEsta acción eliminará al cliente, sus ficheros de venta y su historial de cuotas asociadas.`)) {
         return;
     }
 
     try {
         const res = await api.delete(`/empresa/clientes/${id_cliente}`);
         if (res.success) {
-            alert(`✅ ${res.message}`);
+            await showAlert(`✅ ${res.message}`);
             await loadClientesAndMap();
             await loadEmpresaDashboard();
         }
     } catch (err) {
-        alert('❌ Error al eliminar cliente: ' + err.message);
+        await showAlert('❌ Error al eliminar cliente: ' + err.message);
     }
 }
 
 async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
-    if (!confirm(`⚠️ ¿Está seguro que desea eliminar el Fichero #${id_fichero} ("${producto_nombre}")?\n\nEsta acción borrará la venta y su historial de casilleros.`)) {
+    if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar el Fichero #${id_fichero} ("${producto_nombre}")?\n\nEsta acción borrará la venta y su historial de casilleros.`)) {
         return;
     }
 
     try {
         const res = await api.delete(`/empresa/ficheros/${id_fichero}`);
         if (res.success) {
-            alert(`✅ ${res.message}`);
+            await showAlert(`✅ ${res.message}`);
             await loadFicheros();
             await loadEmpresaDashboard();
         }
     } catch (err) {
-        alert('❌ Error al eliminar fichero: ' + err.message);
+        await showAlert('❌ Error al eliminar fichero: ' + err.message);
     }
 }
 
@@ -691,14 +782,14 @@ async function submitNewFicheroForm(event) {
 
     try {
         const res = await api.post('/empresa/ficheros', payload);
-        alert(res.message);
+        await showAlert(res.message);
         document.getElementById('modal-new-fichero').classList.add('hidden');
         document.getElementById('form-new-fichero').reset();
         await loadFicheros();
         await loadEmpresaDashboard();
         switchEmpresaTab('ficheros');
     } catch (err) {
-        alert('Error al crear fichero: ' + err.message);
+        await showAlert('Error al crear fichero: ' + err.message);
     }
 }
 
@@ -809,10 +900,10 @@ async function asignarFichero(id_fichero) {
 
     try {
         const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, { id_cobrador_asignado: id_cobrador });
-        alert(res.message);
+        await showAlert(res.message);
         loadAsignacionRutas();
     } catch (err) {
-        alert('Error asignando cobrador: ' + err.message);
+        await showAlert('Error asignando cobrador: ' + err.message);
     }
 }
 
@@ -829,7 +920,7 @@ async function updateFicheroOrden(id_fichero, nuevoOrden) {
         }
         filtrarRutasPorBarrioYTexto();
     } catch (err) {
-        alert('Error guardando prioridad de ruta: ' + err.message);
+        await showAlert('Error guardando prioridad de ruta: ' + err.message);
     }
 }
 
@@ -1179,12 +1270,12 @@ async function submitNewVendedorForm(event) {
 
     try {
         const res = await api.post('/empresa/vendedores', { nombre, telefono, zona_asignada });
-        alert(res.message || 'Vendedor dado de alta exitosamente');
+        await showAlert(res.message || 'Vendedor dado de alta exitosamente');
         document.getElementById('form-new-vendedor').reset();
         loadVendedoresRanking();
         loadFicheros();
     } catch (err) {
-        alert('Error al crear vendedor: ' + err.message);
+        await showAlert('Error al crear vendedor: ' + err.message);
     }
 }
 
@@ -1247,19 +1338,19 @@ async function loadCobradoresCalle() {
 
 async function eliminarEmpleadoConfirmado(id_usuario, nombre, tipo) {
     const rolTexto = tipo === 'VENDEDOR' ? 'al vendedor' : 'al cobrador';
-    if (!confirm(`⚠️ ¿Está seguro que desea eliminar ${rolTexto} "${nombre}"?\n\nEl empleado perderá su acceso a la plataforma.`)) {
+    if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar ${rolTexto} "${nombre}"?\n\nEl empleado perderá su acceso a la plataforma.`)) {
         return;
     }
 
     try {
         const res = await api.delete(`/empresa/usuarios/${id_usuario}`);
         if (res.success) {
-            alert(`✅ ${res.message}`);
+            await showAlert(`✅ ${res.message}`);
             await loadPersonal();
             await loadEmpresaDashboard();
         }
     } catch (err) {
-        alert('❌ Error al eliminar empleado: ' + err.message);
+        await showAlert('❌ Error al eliminar empleado: ' + err.message);
     }
 }
 
@@ -1272,11 +1363,11 @@ async function submitNewCobradorForm(event) {
 
     try {
         const res = await api.post('/empresa/cobradores', { nombre, email, password, telefono, zona_asignada: 'Zona Centro' });
-        alert(res.message || 'Cobrador dado de alta exitosamente');
+        await showAlert(res.message || 'Cobrador dado de alta exitosamente');
         document.getElementById('form-new-cobrador').reset();
         loadCobradoresCalle();
     } catch (err) {
-        alert('Error al crear cobrador: ' + err.message);
+        await showAlert('Error al crear cobrador: ' + err.message);
     }
 }
 
@@ -1307,28 +1398,28 @@ function enviarLugaresCobroWhatsapp(nombreCobrador, telCobrador, zona, encodedLu
 }
 
 async function regenerarQrCliente(id_cliente, nombre) {
-    if (!confirm(`⚠️ ¿Estás seguro de regenerar la tarjeta QR de "${nombre}"?\n\nEl código QR viejo quedará REVOCADO e INVALIDADO inmediatamente (ante extravío o robo). Se generará uno nuevo seguro.`)) {
+    if (!await showConfirm(`⚠️ ¿Estás seguro de regenerar la tarjeta QR de "${nombre}"?\n\nEl código QR viejo quedará REVOCADO e INVALIDADO inmediatamente (ante extravío o robo). Se generará uno nuevo seguro.`)) {
         return;
     }
     try {
         const res = await api.post(`/empresa/clientes/${id_cliente}/regenerar-qr`);
-        alert(res.message);
+        await showAlert(res.message);
         loadClientesAndMap();
     } catch (err) {
-        alert('Error al regenerar QR: ' + err.message);
+        await showAlert('Error al regenerar QR: ' + err.message);
     }
 }
 
 async function toggleActivoEmpleado(id_usuario, nombre) {
-    if (!confirm(`⚠️ ¿Deseas cambiar el estado de acceso y bloqueo en calle para "${nombre}"?\n\nSi bloqueas a este empleado (por despido o renuncia), su sesión en la App Móvil se terminará instantáneamente y NO PODRÁ COBRAR NI UN PESO ni acceder a carteras de clientes.`)) {
+    if (!await showConfirm(`⚠️ ¿Deseas cambiar el estado de acceso y bloqueo en calle para "${nombre}"?\n\nSi bloqueas a este empleado (por despido o renuncia), su sesión en la App Móvil se terminará instantáneamente y NO PODRÁ COBRAR NI UN PESO ni acceder a carteras de clientes.`)) {
         return;
     }
     try {
         const res = await api.put(`/empresa/usuarios/${id_usuario}/toggle-activo`);
-        alert(res.message);
+        await showAlert(res.message);
         loadPersonal();
     } catch (err) {
-        alert('Error al cambiar estado de empleado: ' + err.message);
+        await showAlert('Error al cambiar estado de empleado: ' + err.message);
     }
 }
 
@@ -1347,10 +1438,10 @@ async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual,
             barrio: nuevoBarrio.trim(),
             telefono: nuevoTel ? nuevoTel.trim() : telActual
         });
-        alert(res.message);
+        await showAlert(res.message);
         loadClientesAndMap();
     } catch (err) {
-        alert('Error al actualizar domicilio: ' + err.message);
+        await showAlert('Error al actualizar domicilio: ' + err.message);
     }
 }
 
@@ -1360,9 +1451,9 @@ async function resetPasswordEmpleado(id_usuario, nombre) {
 
     try {
         const res = await api.put(`/empresa/usuarios/${id_usuario}/reset-password`, { nueva_password: nueva.trim() });
-        alert(res.message);
+        await showAlert(res.message);
     } catch (err) {
-        alert('Error al cambiar contraseña: ' + err.message);
+        await showAlert('Error al cambiar contraseña: ' + err.message);
     }
 }
 
@@ -1384,10 +1475,63 @@ async function descargarBackupEmpresa() {
         a.remove();
         window.URL.revokeObjectURL(url);
     } catch (err) {
-        alert('❌ Error descargando copia de seguridad: ' + err.message);
+        await showAlert('❌ Error descargando copia de seguridad: ' + err.message);
     }
 }
 
+async function cambiarCalificacionCliente(idCliente, nuevaCalificacion) {
+    try {
+        const res = await api.patch(`/empresa/clientes/${idCliente}/calificacion`, { calificacion: nuevaCalificacion });
+        if (res.success) {
+            // Actualizar en la caché local para no tener que recargar toda la base de datos
+            if (window.currentClientesCache) {
+                const cli = window.currentClientesCache.find(c => c.id_cliente === idCliente);
+                if (cli) cli.calificacion = nuevaCalificacion;
+            }
+            await showAlert(`✅ Calificación actualizada con éxito a ${nuevaCalificacion}.`);
+            // Recargar para aplicar los estilos de color
+            if (window.currentClientesCache) {
+                renderClientesTable(window.currentClientesCache);
+            }
+        }
+    } catch (err) {
+        await showAlert('❌ Error al actualizar calificación: ' + err.message);
+        // Recargar la tabla para restaurar el valor anterior
+        if (window.currentClientesCache) {
+            renderClientesTable(window.currentClientesCache);
+        }
+    }
+}
+
+async function buscarClientePorIdODni() {
+    const searchVal = document.getElementById('new-fich-buscar-cliente-id').value.trim();
+    const infoPreview = document.getElementById('new-fich-cliente-info-preview');
+    const selectCliente = document.getElementById('new-fich-cliente');
+    
+    if (!searchVal) {
+        if (infoPreview) infoPreview.innerHTML = '<span style="color:#ef4444;">Por favor, ingrese un ID o DNI.</span>';
+        return;
+    }
+
+    // Buscar en la caché de clientes
+    const clientes = window.currentClientesCache || [];
+    const clienteEncontrado = clientes.find(c => c.id_cliente.toString() === searchVal || c.dni.toString().trim() === searchVal);
+
+    if (clienteEncontrado) {
+        selectCliente.value = clienteEncontrado.id_cliente;
+        if (infoPreview) {
+            infoPreview.innerHTML = `✅ Cliente cargado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (ID: ${clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni})`;
+        }
+    } else {
+        if (infoPreview) {
+            infoPreview.innerHTML = '<span style="color:#ef4444;">❌ Cliente no encontrado. Verifique el ID o DNI en la tabla de clientes.</span>';
+        }
+        selectCliente.value = "";
+    }
+}
+
+window.cambiarCalificacionCliente = cambiarCalificacionCliente;
+window.buscarClientePorIdODni = buscarClientePorIdODni;
 window.initEmpresaPanel = initEmpresaPanel;
 window.descargarBackupEmpresa = descargarBackupEmpresa;
 
@@ -1411,5 +1555,6 @@ window.resetPasswordEmpleado = resetPasswordEmpleado;
 window.updateFicheroOrden = updateFicheroOrden;
 window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
+window.toggleTipoClienteForm = toggleTipoClienteForm;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;
 window.focusClientOnMap = focusClientOnMap;

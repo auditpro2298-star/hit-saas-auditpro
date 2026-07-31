@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function showLoginPanel() {
     currentUser = null;
+    window.currentUser = null;
     showPanel('panel-login');
     const badge = document.getElementById('user-status-badge');
     if (badge) badge.innerText = '👤 No conectado';
@@ -55,6 +56,7 @@ function showPanel(panelId) {
 
 function routeUserByRole(user) {
     currentUser = user;
+    window.currentUser = user;
     updateUserBadge(user);
 
     const logoutBtn = document.getElementById('btn-logout');
@@ -92,10 +94,10 @@ async function submitLoginForm(event) {
             api.setAuth(res.token, res.user);
             routeUserByRole(res.user);
         } else {
-            alert('⚠️ Error de autenticación: ' + (res.error || 'Credenciales no válidas'));
+            await showAlert('⚠️ Error de autenticación: ' + (res.error || 'Credenciales no válidas'));
         }
     } catch (err) {
-        alert('🚫 Error al iniciar sesión: ' + err.message);
+        await showAlert('🚫 Error al iniciar sesión: ' + err.message);
     }
 }
 
@@ -122,7 +124,7 @@ function updateUserBadge(user) {
 // Compatibilidad para cambio manual si sos Súper Admin
 async function switchRoleView(role, extraParam = null) {
     if (!currentUser || currentUser.rol !== 'SUPER_ADMIN') {
-        alert('🔒 Acción reservada únicamente al Súper Administrador.');
+        await showAlert('🔒 Acción reservada únicamente al Súper Administrador.');
         return;
     }
     if (role === 'superadmin') routeUserByRole({ ...currentUser, rol: 'SUPER_ADMIN' });
@@ -156,11 +158,11 @@ function updateThemeBtn(theme) {
     }
 }
 
-function consultarCartillaPublicaDirecta() {
+async function consultarCartillaPublicaDirecta() {
     const input = document.getElementById('public-qr-input');
     const val = input ? input.value.trim() : '';
     if (!val) {
-        alert('⚠️ Por favor ingrese su código QR o DNI para consultar su libreta de cuotas.');
+        await showAlert('⚠️ Por favor ingrese su código QR o DNI para consultar su libreta de cuotas.');
         return;
     }
     showPanel('panel-cliente');

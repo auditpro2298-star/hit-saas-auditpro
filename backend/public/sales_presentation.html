@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dossier Comercial — HIT SaaS Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --purple: #8b5cf6;
+            --bg-dark: #0f172a;
+            --text-main: #334155;
+            --text-dark: #0f172a;
+            --border-color: #e2e8f0;
+            --glass-card: rgba(255, 255, 255, 0.8);
+            --gradient: linear-gradient(135deg, var(--primary), var(--purple));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            background-color: #f8fafc;
+            line-height: 1.6;
+            padding-bottom: 50px;
+        }
+
+        /* Barra de Control Fija superior para el Vendedor */
+        .sales-bar {
+            background: var(--bg-dark);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .sales-bar h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .print-btn {
+            background: var(--gradient);
+            color: white;
+            padding: 0.6rem 1.25rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .print-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Contenedor del Dossier */
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Encabezado Principal */
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 40px;
+            margin-bottom: 40px;
+        }
+
+        .logo-container {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* Sección */
+        .section {
+            margin-bottom: 50px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .section-desc {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            color: #475569;
+        }
+
+        /* Características */
+        .feature-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .feature-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .feature-item strong {
+            color: var(--text-dark);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Captura de pantalla */
+        .screenshot-box {
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            background: #f1f5f9;
+            margin-top: 15px;
+        }
+
+        .screenshot-box img {
+            width: 100%;
+            display: block;
+            height: auto;
+            max-height: 900px;
+            object-fit: contain;
+            background: #ffffff;
+            margin: 0 auto;
+        }
+
+        .screenshot-caption {
+            background: #f8fafc;
+            padding: 10px 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        /* Pie de página */
+        .footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            border-top: 1px solid var(--border-color);
+            padding-top: 30px;
+            margin-top: 50px;
+        }
+
+        /* Estilos de Impresión */
+        @media print {
+            .sales-bar {
+                display: none !important;
+            }
+
+            body {
+                background-color: white;
+                color: black;
+                padding-bottom: 0;
+            }
+
+            .container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+                background: white;
+            }
+
+            .section {
+                page-break-after: always;
+            }
+
+            .section:last-of-type {
+                page-break-after: avoid;
+            }
+
+            .screenshot-box {
+                box-shadow: none;
+                border: 1px solid #94a3b8;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sales-bar">
+        <h1>⚡ HIT SaaS — Dossier de Venta Interactivo</h1>
+        <button class="print-btn" onclick="window.print()">📥 Imprimir / Guardar como PDF</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="header">
+            <div class="logo-container">⚡</div>
+            <h2>HIT SaaS Platform</h2>
+            <p>Dossier Comercial de la Solución de Automatización de Cobros y Ficheros Digitales</p>
+        </div>
+
+        <!-- SECCIÓN 1: INTRODUCCIÓN -->
+        <div class="section">
+            <div class="section-title">🚀 Presentación del Sistema</div>
+            <p class="section-desc">
+                **HIT** es una plataforma moderna tipo **SaaS (Software as a Service) Multi-Tenant** diseñada para empresas que venden en cuotas, otorgan micro-créditos o fiados. Digitaliza el tradicional fichero de papel de las casas de crédito, geolocaliza las carteras de cobro en calle y notifica automáticamente a los clientes.
+            </p>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>📱 App Móvil PWA</strong>
+                    Optimizada para celulares de cobradores. Funciona sin instalar apps pesadas y cuenta con soporte Offline.
+                </div>
+                <div class="feature-item">
+                    <strong>📍 Geolocalización Inteligente</strong>
+                    Ubica en mapas interactivos las direcciones exactas de los clientes y optimiza las rutas de los cobradores.
+                </div>
+                <div class="feature-item">
+                    <strong>💳 Cartilla Virtual QR</strong>
+                    El cliente escanea su tarjeta física y puede ver el saldo, historial de cuotas y fechas de pago en vivo.
+                </div>
+                <div class="feature-item">
+                    <strong>💬 Notificaciones WhatsApp</strong>
+                    Envía avisos de cobro y comprobantes directamente al WhatsApp del cliente reduciendo la morosidad.
+                </div>
+            </div>
+            <div class="screenshot-box">
+                <img src="screenshot_login.png" alt="Pantalla de Acceso">
+                <div class="screenshot-caption">Login Seguro con control de niveles de acceso</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: CONTROL DE EMPRESA (NIVEL 2) -->
+        <div class="section">
+            <div class="section-title">🏢 Panel de Control del Administrador</div>
+            <p class="section-desc">
+                El panel de control permite a los dueños y administradores de la empresa supervisar la cartera, ver recaudaciones en tiempo real, asignar rutas mediante geolocalización y auditar las cajas de los cobradores.
+            </p>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>🗺️ Mapa de Clientes en HD</strong>
+                    Visualización geográfica de los clientes deudores para planificar zonas de cobro.
+                </div>
+                <div class="feature-item">
+                    <strong>📊 Métricas y Auditoría Diaria</strong>
+                    Arqueo automático por cobrador (Efectivo vs. Transferencias) y conciliación de imágenes.
+                </div>
+                <div class="feature-item">
+                    <strong>✏️ Mudanzas y Ficheros Digitales</strong>
+                    Edición ágil de domicilios, prioridades de visitas e inicio de nuevos planes de cobros.
+                </div>
+                <div class="feature-item">
+                    <strong>🛡️ Auditoría Antirrobo</strong>
+                    Control de accesos y revocación instantánea de códigos QR en caso de extravío.
+                </div>
+            </div>
+            <div class="screenshot-box">
+                <img src="screenshot_admin.png" alt="Dashboard del Administrador">
+                <div class="screenshot-caption">Vista del mapa de geolocalización y tabla indexada de clientes</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: APP COBRADOR (NIVEL 3) -->
+        <div class="section">
+            <div class="section-title">🛵 App Móvil del Cobrador en Calle</div>
+            <p class="section-desc">
+                La herramienta ágil para el personal de calle. Ofrece una hoja de ruta con semáforos de morosidad, escáner QR de tarjetas en vivo y registro fotográfico de comprobantes de transferencias bancarias.
+            </p>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>📷 Escáner QR de Tarjeta</strong>
+                    Al apuntar la cámara a la cartilla del cliente, abre de inmediato su ficha digital.
+                </div>
+                <div class="feature-item">
+                    <strong>☁️ Sincronización Offline</strong>
+                    Si no hay señal en calle, guarda los cobros de forma local y los envía automáticamente al recuperar señal.
+                </div>
+                <div class="feature-item">
+                    <strong>📅 Promesas de Pago</strong>
+                    Posibilidad de agendar visitas fallidas cargando la fecha prometida por el deudor.
+                </div>
+                <div class="feature-item">
+                    <strong>💼 Conciliación Digital</strong>
+                    Subida obligatoria de fotos del comprobante si el pago fue por transferencia.
+                </div>
+            </div>
+            <div class="screenshot-box">
+                <img src="screenshot_cobrador.png" alt="App del Cobrador">
+                <div class="screenshot-caption">Módulo de visualización de la hoja de ruta y planilla digital de casilleros de pago</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 4: PORTAL DEL CLIENTE (NIVEL 4) -->
+        <div class="section">
+            <div class="section-title">💳 Cartilla Virtual del Cliente</div>
+            <p class="section-desc">
+                Acceso instantáneo para el cliente escaneando su código QR único, sin contraseñas ni aplicaciones que descargar. Aumenta la transparencia y la confianza.
+            </p>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <strong>🟢 Progreso de Cuotas</strong>
+                    Muestra los casilleros pagados (verde), pendientes (gris) y el progreso total del plan.
+                </div>
+                <div class="feature-item">
+                    <strong>📞 Contacto Directo</strong>
+                    Botón rápido para comunicarse con la casa central o el cobrador asignado.
+                </div>
+            </div>
+            <div class="screenshot-box">
+                <img src="screenshot_cliente.png" alt="Cartilla del Cliente">
+                <div class="screenshot-caption">Cartilla digital de cuotas en tiempo real que ve el cliente desde su celular</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 5: SUPER ADMIN (NIVEL 1) -->
+        <div class="section">
+            <div class="section-title">👑 Panel de Control Súper Admin (SaaS)</div>
+            <p class="section-desc">
+                El panel maestro desde el cual gestionas a tus clientes empresas. Puedes monitorear los cobros totales recaudados por el sistema, crear nuevas empresas clientes y bloquear el acceso con 1 solo clic en caso de mora en la suscripción.
+            </p>
+            <div class="screenshot-box">
+                <img src="screenshot_superadmin.png" alt="Panel de Súper Admin">
+                <div class="screenshot-caption">Consola de facturación recurrente, MRR e inquilinos (Tenants)</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>⚡ HIT SaaS Platform — © 2026. Todos los derechos reservados.</p>
+        </div>
+
+    </div>
+
+</body>
+</html>

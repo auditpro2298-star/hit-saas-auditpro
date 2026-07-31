@@ -15,7 +15,7 @@ async function initSuperAdminPanel() {
         renderTenantsTable(tenants);
     } catch (err) {
         if (!err.message.includes('SUSCRIPCION_BLOQUEADA')) {
-            alert('Error al cargar panel Súper Admin: ' + err.message);
+            await showAlert('Error al cargar panel Súper Admin: ' + err.message);
         }
     }
 }
@@ -41,14 +41,14 @@ function renderTenantsTable(tenants) {
     tenants.forEach(t => {
         const tr = document.createElement('tr');
         const badgeClass = t.estado_suscripcion === 'ACTIVA' ? 'badge-success' : 'badge-danger';
-        const actionBtnText = t.estado_suscripcion === 'ACTIVA' ? '🚫 Bloquear Cuenta' : '✅ Reactivar Cuenta';
+        const actionBtnText = t.estado_suscripcion === 'ACTIVA' ? '🚫 Bloquear' : '✅ Activar';
         const actionBtnClass = t.estado_suscripcion === 'ACTIVA' ? 'btn-danger' : 'btn-success';
         const nextStatus = t.estado_suscripcion === 'ACTIVA' ? 'BLOQUEADA' : 'ACTIVA';
 
         tr.innerHTML = `
             <td>
                 <div class="flex items-center gap-2">
-                    <img src="${t.logo_url}" alt="Logo" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover;">
+                    <img src="${t.logo_url}" alt="Logo" style="width: 32px; height: 32px; border-radius: 6px; object-fit: cover; cursor: pointer;" title="Click para cambiar logo" onclick="changeTenantLogo(${t.id_empresa}, '${t.nombre_comercial}', '${t.logo_url}')">
                     <div>
                         <strong>${t.nombre_comercial}</strong>
                         <div style="font-size: 0.75rem; color: var(--text-muted);">ID: #${t.id_empresa}</div>
@@ -66,9 +66,17 @@ function renderTenantsTable(tenants) {
             </td>
             <td><span class="badge ${badgeClass}">${t.estado_suscripcion}</span></td>
             <td>
-                <button class="btn ${actionBtnClass}" style="font-size: 0.78rem; padding: 0.35rem 0.75rem;" onclick="toggleTenantStatus(${t.id_empresa}, '${nextStatus}', '${t.nombre_comercial}')">
-                    ${actionBtnText}
-                </button>
+                <div class="flex gap-1" style="flex-wrap: wrap;">
+                    <button class="btn ${actionBtnClass}" style="font-size: 0.78rem; padding: 0.35rem 0.6rem;" onclick="toggleTenantStatus(${t.id_empresa}, '${nextStatus}', '${t.nombre_comercial}')">
+                        ${actionBtnText}
+                    </button>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.6rem;" title="Editar logo" onclick="changeTenantLogo(${t.id_empresa}, '${t.nombre_comercial}', '${t.logo_url}')">
+                        🖼️ Logo
+                    </button>
+                    <button class="btn" style="font-size: 0.78rem; padding: 0.35rem 0.6rem; background-color: #ef4444; color: white;" title="Eliminar empresa" onclick="deleteTenant(${t.id_empresa}, '${t.nombre_comercial}')">
+                        🗑️ Borrar
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -80,14 +88,48 @@ async function toggleTenantStatus(id_empresa, nuevoEstado, nombre) {
         ? `⚠️ ¿Estás seguro de BLOQUEAR a la empresa "${nombre}"?\nSus administradores y cobradores no podrán ingresar al sistema ni cobrar en calle.`
         : `✅ ¿Deseas REACTIVAR la suscripción del software para "${nombre}"?`;
 
-    if (!confirm(confirmMsg)) return;
+    if (!await showConfirm(confirmMsg)) return;
 
     try {
         const res = await api.put(`/superadmin/tenants/${id_empresa}/status`, { estado_suscripcion: nuevoEstado });
-        alert(res.message);
+        await showAlert(res.message);
         initSuperAdminPanel();
     } catch (err) {
-        alert('Error al cambiar estado: ' + err.message);
+        await showAlert('Error al cambiar estado: ' + err.message);
+    }
+}
+
+async function changeTenantLogo(id_empresa, nombre, currentLogoUrl) {
+    const newLogoUrl = prompt(`🖼️ Cambiar logotipo de "${nombre}":\n\nIngrese la URL de la nueva imagen para el logo:`, currentLogoUrl);
+    if (newLogoUrl === null) return; // Cancelado
+    if (newLogoUrl.trim() === '') {
+        await showAlert('Debe especificar una URL válida.');
+        return;
+    }
+
+    try {
+        const res = await api.put(`/superadmin/tenants/${id_empresa}/logo`, { logo_url: newLogoUrl.trim() });
+        await showAlert(res.message);
+        initSuperAdminPanel();
+    } catch (err) {
+        await showAlert('Error al cambiar logo: ' + err.message);
+    }
+}
+
+async function deleteTenant(id_empresa, nombre) {
+    const confirmMsg = `⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de ELIMINAR COMPLETAMENTE a la empresa "${nombre}"?\n\nEsta acción borrará irreversiblemente todos los clientes, cobradores, ficheros, cuotas y registros históricos asociados a esta empresa.\n\nEscriba la palabra "ELIMINAR" para confirmar:`;
+    const input = prompt(confirmMsg);
+    if (input !== 'ELIMINAR') {
+        if (input !== null) await showAlert('Eliminación cancelada. Confirmación incorrecta.');
+        return;
+    }
+
+    try {
+        const res = await api.delete(`/superadmin/tenants/${id_empresa}`);
+        await showAlert(res.message);
+        initSuperAdminPanel();
+    } catch (err) {
+        await showAlert('Error al eliminar empresa: ' + err.message);
     }
 }
 
@@ -104,12 +146,12 @@ async function submitNewTenantForm(event) {
 
     try {
         const res = await api.post('/superadmin/tenants', payload);
-        alert(res.message);
+        await showAlert(res.message);
         document.getElementById('modal-new-tenant').classList.add('hidden');
         document.getElementById('form-new-tenant').reset();
         initSuperAdminPanel();
     } catch (err) {
-        alert('Error al crear empresa: ' + err.message);
+        await showAlert('Error al crear empresa: ' + err.message);
     }
 }
 
@@ -140,4 +182,6 @@ function renderSaaSChart(metrics) {
 
 window.initSuperAdminPanel = initSuperAdminPanel;
 window.toggleTenantStatus = toggleTenantStatus;
+window.changeTenantLogo = changeTenantLogo;
+window.deleteTenant = deleteTenant;
 window.submitNewTenantForm = submitNewTenantForm;

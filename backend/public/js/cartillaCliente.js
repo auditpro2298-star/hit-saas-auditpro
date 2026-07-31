@@ -5,7 +5,7 @@
 async function loadCartillaPublica(qrTokenInput) {
     const token = qrTokenInput || document.getElementById('input-cliente-qr').value.trim();
     if (!token) {
-        alert('Por favor ingrese o escanee el código QR de su tarjeta o cartilla.');
+        await showAlert('Por favor ingrese o escanee el código QR de su tarjeta o cartilla.');
         return;
     }
 

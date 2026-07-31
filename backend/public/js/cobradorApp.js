@@ -117,7 +117,7 @@ async function syncHojaDeRuta() {
 }
 
 // Escáner de Cámara Real (HTML5 QR Scanner)
-function startCameraScanner() {
+async function startCameraScanner() {
     const container = document.getElementById('qr-reader-container');
     container.classList.remove('hidden');
 
@@ -139,7 +139,7 @@ function startCameraScanner() {
             }
         );
     } else {
-        alert('📷 Si la cámara no está disponible en su navegador, utilice los botones rápidos de prueba abajo.');
+        await showAlert('📷 Si la cámara no está disponible en su navegador, utilice los botones rápidos de prueba abajo.');
     }
 }
 
@@ -176,7 +176,7 @@ async function simulateQrScan(qrToken) {
         document.getElementById('cobrador-vista-ruta').classList.add('hidden');
         document.getElementById('cobrador-vista-planilla').classList.remove('hidden');
     } catch (err) {
-        alert('⚠️ Código QR no válido o el cliente no pertenece a esta empresa.\n\nDetalle: ' + err.message);
+        await showAlert('⚠️ Código QR no válido o el cliente no pertenece a esta empresa.\n\nDetalle: ' + err.message);
     }
 }
 
@@ -195,10 +195,10 @@ async function buscarClientePorDni() {
         document.getElementById('cobrador-vista-planilla').classList.remove('hidden');
         
         if (data.warning) {
-            alert(data.warning);
+            await showAlert(data.warning);
         }
     } catch (err) {
-        alert('⚠️ No se encontró cliente o su acceso como cobrador ha sido bloqueado.\n\nDetalle: ' + err.message);
+        await showAlert('⚠️ No se encontró cliente o su acceso como cobrador ha sido bloqueado.\n\nDetalle: ' + err.message);
     }
 }
 
@@ -270,9 +270,9 @@ function backToRuta() {
     initCobradorApp();
 }
 
-function openCobroModal(id_cuota, nro_cuota, monto, estadoActual, producto) {
+async function openCobroModal(id_cuota, nro_cuota, monto, estadoActual, producto) {
     if (estadoActual === 'PAGADO') {
-        if (!confirm(`El casillero #${nro_cuota} ya se encuentra PAGADO. ¿Deseas modificarlo o ver sus datos?`)) {
+        if (!await showConfirm(`El casillero #${nro_cuota} ya se encuentra PAGADO. ¿Deseas modificarlo o ver sus datos?`)) {
             return;
         }
     }
@@ -351,7 +351,7 @@ async function submitCobroForm(event) {
     const notas = document.getElementById('cobro-notas').value;
 
     if (medio === 'NO_COBRADO' && !promesaFecha) {
-        alert('⚠️ Para asentar una visita no cobrada es obligatorio agendar la fecha y hora de la promesa de pago del cliente.');
+        await showAlert('⚠️ Para asentar una visita no cobrada es obligatorio agendar la fecha y hora de la promesa de pago del cliente.');
         return;
     }
 
@@ -368,14 +368,14 @@ async function submitCobroForm(event) {
 
     // Si está offline, guardar directo en la cola local de sincronización
     if (!navigator.onLine) {
-        saveToOfflineQueue(payload, medio);
+        await saveToOfflineQueue(payload, medio);
         document.getElementById('modal-registrar-cobro').classList.add('hidden');
         return;
     }
 
     try {
         const res = await api.post('/cobrador/cobrar', payload);
-        alert('✅ ' + res.message);
+        await showAlert('✅ ' + res.message);
         document.getElementById('modal-registrar-cobro').classList.add('hidden');
 
         // Si el servidor generó comprobante automático por WhatsApp, disparar simulación visual en vivo
@@ -391,21 +391,21 @@ async function submitCobroForm(event) {
     } catch (err) {
         // Si falló por error de red / caída de conexión temporal, meter a la cola offline
         if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Network request failed'))) {
-            saveToOfflineQueue(payload, medio);
+            await saveToOfflineQueue(payload, medio);
             document.getElementById('modal-registrar-cobro').classList.add('hidden');
         } else {
-            alert('Error registrando cobro: ' + err.message);
+            await showAlert('Error registrando cobro: ' + err.message);
         }
     }
 }
 
-function saveToOfflineQueue(payload, medio) {
+async function saveToOfflineQueue(payload, medio) {
     const queue = JSON.parse(localStorage.getItem('HIT_OFFLINE_QUEUE') || '[]');
     queue.push(payload);
     localStorage.setItem('HIT_OFFLINE_QUEUE', JSON.stringify(queue));
     updateOnlineBadge();
 
-    alert(`☁️ MODO OFFLINE ACTIVADO\n\nSin conexión al servidor. El registro (${medio || payload.motivo_no_cobro}) fue encriptado y guardado en la memoria local del teléfono.\n\nSe sincronizará en cuanto recupere señal.`);
+    await showAlert(`☁️ MODO OFFLINE ACTIVADO\n\nSin conexión al servidor. El registro (${medio || payload.motivo_no_cobro}) fue encriptado y guardado en la memoria local del teléfono.\n\nSe sincronizará en cuanto recupere señal.`);
     
     // Actualizar visualmente el casillero actual en la planilla en memoria si está visible
     if (currentScannedData && currentScannedData.cliente) {
@@ -416,12 +416,12 @@ function saveToOfflineQueue(payload, medio) {
 async function syncOfflineQueue() {
     const queue = JSON.parse(localStorage.getItem('HIT_OFFLINE_QUEUE') || '[]');
     if (queue.length === 0) {
-        alert('La cola offline está vacía.');
+        await showAlert('La cola offline está vacía.');
         return;
     }
 
     if (!navigator.onLine) {
-        alert('⚠️ Sigue sin conexión a Internet. Conéctate a Wi-Fi o Datos para sincronizar la cola.');
+        await showAlert('⚠️ Sigue sin conexión a Internet. Conéctate a Wi-Fi o Datos para sincronizar la cola.');
         return;
     }
 
@@ -436,7 +436,7 @@ async function syncOfflineQueue() {
                 res.notificaciones.map(n => `• A ${n.cliente}: "${n.mensaje}"`).join('\n\n');
         }
 
-        alert('☁️ ' + res.message + notifTexto);
+        await showAlert('☁️ ' + res.message + notifTexto);
         
         if (res.notificaciones && res.notificaciones.length > 0) {
             showWhatsappLiveModal(res.notificaciones[0].mensaje);
@@ -444,7 +444,7 @@ async function syncOfflineQueue() {
 
         initCobradorApp();
     } catch (err) {
-        alert('Error intentando sincronizar la cola offline: ' + err.message);
+        await showAlert('Error intentando sincronizar la cola offline: ' + err.message);
     }
 }
 

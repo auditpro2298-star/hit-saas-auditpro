@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Comercial y Justificación Técnica - AuditPro SaaS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        @page {
+            size: A4;
+            margin: 10mm 12mm 10mm 12mm;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #1E293B;
+            background-color: #FFFFFF;
+            line-height: 1.45;
+            font-size: 12.5px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #E2E8F0;
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 18px;
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .logo-text h1 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text p {
+            font-size: 10.5px;
+            color: #64748B;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-meta {
+            text-align: right;
+            font-size: 10.5px;
+            color: #64748B;
+        }
+
+        .doc-meta strong {
+            color: #0F172A;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            background-color: #EFF6FF;
+            color: #1D4ED8;
+            border-radius: 20px;
+            font-size: 10.5px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border: 1px solid #BFDBFE;
+        }
+
+        /* Section Titles */
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 16px;
+            background: #2563EB;
+            border-radius: 2px;
+        }
+
+        p.description {
+            font-size: 12px;
+            color: #475569;
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+
+        /* Comparison Table */
+        .comparison-card {
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+        }
+
+        th {
+            background-color: #0F172A;
+            color: #FFFFFF;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 12px;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #E2E8F0;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #F1F5F9;
+        }
+
+        .col-feature {
+            font-weight: 600;
+            color: #334155;
+            width: 25%;
+        }
+
+        .col-small {
+            width: 37.5%;
+            color: #64748B;
+        }
+
+        .col-large {
+            width: 37.5%;
+            color: #0F172A;
+            font-weight: 500;
+            background-color: #EFF6FF !important;
+        }
+
+        /* Pricing Section */
+        .page-break-section {
+            page-break-before: always;
+            padding-top: 10px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 10px;
+            margin-bottom: 16px;
+        }
+
+        .price-card {
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #E2E8F0;
+            position: relative;
+        }
+
+        .price-card.setup {
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+            border-top: 4px solid #2563EB;
+        }
+
+        .price-card.maint {
+            background: linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%);
+            border-top: 4px solid #16A34A;
+        }
+
+        .price-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .price-card.setup .price-title { color: #1D4ED8; }
+        .price-card.maint .price-title { color: #15803D; }
+
+        .price-amount {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0F172A;
+            margin-bottom: 2px;
+        }
+
+        .price-period {
+            font-size: 10.5px;
+            color: #64748B;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .price-features {
+            list-style: none;
+            padding: 0;
+        }
+
+        .price-features li {
+            font-size: 11px;
+            color: #334155;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .price-features li::before {
+            content: '✓';
+            font-weight: 800;
+            color: #2563EB;
+        }
+
+        .price-card.maint .price-features li::before {
+            color: #16A34A;
+        }
+
+        /* Callout Box */
+        .callout {
+            background-color: #FEF3C7;
+            border-left: 4px solid #D97706;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 14px;
+        }
+
+        .callout-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #92400E;
+            margin-bottom: 2px;
+        }
+
+        .callout-text {
+            font-size: 11px;
+            color: #78350F;
+        }
+
+        /* ROI List */
+        .roi-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .roi-item {
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .roi-item h4 {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #1E293B;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .roi-item p {
+            font-size: 10.5px;
+            color: #64748B;
+        }
+
+        /* Footer */
+        .footer {
+            border-top: 1px solid #E2E8F0;
+            padding-top: 12px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #94A3B8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-area">
+                <div class="logo-icon">AP</div>
+                <div class="logo-text">
+                    <h1>AuditPro SaaS</h1>
+                    <p>Sistema de Gestión de Préstamos & Cobranzas</p>
+                </div>
+            </div>
+            <div class="doc-meta">
+                <p><strong>Documento:</strong> Propuesta & Justificación Económica</p>
+                <p><strong>Fecha:</strong> Julio 2026</p>
+                <p><strong>Estado:</strong> Cotización Oficial</p>
+            </div>
+        </div>
+
+        <span class="badge">DOCUMENTO TÉCNICO - COMERCIAL</span>
+
+        <!-- Introducción -->
+        <div class="section-title">1. Resumen de la Solución</div>
+        <p class="description">
+            El sistema <strong>AuditPro SaaS</strong> no es una simple planilla de cálculo ni una aplicación genérica de anotación. Es una plataforma web e infraestructura en la nube de alta disponibilidad diseñada específicamente para automatizar la operación completa de empresas de préstamos y cobranzas diarias/periódicas. Permite control en tiempo real de cobradores en calle mediante GPS, arqueos automatizados de caja anti-fraude, emisión de comprobantes QR/WhatsApp y gestión multi-sucursal.
+        </p>
+
+        <!-- Arquitectura y Comparativa -->
+        <div class="section-title">2. ¿Por qué varía el valor técnico del software? (300 vs 10.000 Clientes)</div>
+        <p class="description">
+            Un error frecuente en el desarrollo de software es comparar un sistema rudimentario diseñado para una cartera pequeña con un <strong>sistema de grado empresarial capaz de escalar a 10.000 clientes activos</strong> sin interrupciones, pérdidas de datos o lentitud en las calles. A continuación se detallan las exigencias de arquitectura:
+        </p>
+
+        <div class="comparison-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-feature">Criterio Técnico</th>
+                        <th class="col-small">Sistema Básico (300 Clientes)</th>
+                        <th class="col-large">AuditPro Enterprise (10.000 Clientes)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-feature">Concurrencia & Consultas</td>
+                        <td class="col-small">1-2 cobradores ocasionales. Bajo tráfico de datos.</td>
+                        <td class="col-large">Decenas de cobradores cobrando simultáneamente en horas pico (decenas de miles de peticiones/día).</td>
+                    </tr>
+                    <tr>
+                        <td class="col-feature">Base de Datos & Indexación</td>
+                        <td class="col-small">Archivos locales o tablas simples sin optimización avanzada.</td>
+                        <td class="col-large">Motor PostgreSQL / SQLite optimizado con indexación de alta velocidad, pool de conexiones y aislamiento de tenants.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-feature">Geolocalización & Rastreo</td>
+                        <td class="col-small">Registro manual de dirección.</td>
+                        <td class="col-large">Tracking GPS en tiempo real de cobradores, mapeo de rutas optimizadas y validación geográfica de cobranza.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-feature">Seguridad Anti-Fraude</td>
+                        <td class="col-small">Planillas editables o sistemas sin auditoría.</td>
+                        <td class="col-large">Tokens criptográficos (JWT), encriptación de contraseñas, auditoría inalterable de cada pago y cierre de caja ciego.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-feature">Servidores & Uptime</td>
+                        <td class="col-small">Servidor casero o PC local susceptible a fallas de luz/disco.</td>
+                        <td class="col-large">Nube (Cloud VPS) de alto rendimiento, disponible 24/7/365, con copias de respaldo (backups) diarias automatizadas.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout">
+            <div class="callout-title">⚠️ Clave de la Arquitectura Enterprise</div>
+            <div class="callout-text">
+                Cuando una cartera crece a 10.000 clientes y maneja millones de pesos diarios en la calle, la caída del sistema por 1 hora implica pérdidas operativas masivas. AuditPro garantiza disponibilidad constante, velocidad instantánea en el celular del cobrador y protección total contra duplicación o borrado de cobros.
+            </div>
+        </div>
+
+        <!-- Desglose de Precios (Pagina 2) -->
+        <div class="page-break-section">
+            <div class="section-title">3. Propuesta Económica & Desglose de Inversión</div>
+            <p class="description">
+                Para poner en marcha esta plataforma con todos sus módulos empresariales habilitados, se establece la siguiente estructura transparente de costos:
+            </p>
+
+            <div class="pricing-grid">
+                <div class="price-card setup">
+                    <div class="price-title">Costo Inicial de Configuración</div>
+                    <div class="price-amount">$1.000.000 ARS</div>
+                    <div class="price-period">Pago Único al inicio del proyecto</div>
+                    <ul class="price-features">
+                        <li>Despliegue y aprovisionamiento de infraestructura en servidor Nube.</li>
+                        <li>Personalización de marca (Logos, colores corporativos y plantilla de tickets).</li>
+                        <li>Carga / Migración inicial de datos (Carteras, Zonas, Cobradores y Clientes).</li>
+                        <li>Configuración de módulos de seguridad, roles (SuperAdmin, Empresa, Cobrador).</li>
+                        <li>Pruebas operativas de estrés y sincronización en terreno.</li>
+                        <li>Capacitación técnica al personal administrador y cobradores.</li>
+                    </ul>
+                </div>
+
+                <div class="price-card maint">
+                    <div class="price-title">Mantenimiento & Soporte Mensual</div>
+                    <div class="price-amount">$200.000 ARS</div>
+                    <div class="price-period">Abono mensual recurrente</div>
+                    <ul class="price-features">
+                        <li>Alquiler y mantenimiento del Servidor Cloud de alta disponibilidad 24/7.</li>
+                        <li>Copias de seguridad (Backups) automatizadas diarias de toda la base de datos.</li>
+                        <li>Soporte técnico directo ante incidencias o dudas operativas.</li>
+                        <li>Actualizaciones periódicas de seguridad y mejoras del sistema.</li>
+                        <li>Monitoreo de velocidad, rendimiento e infraestructura de red.</li>
+                        <li>Garantía de funcionamiento continuo del sistema en la calle.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Retorno de Inversión -->
+            <div class="section-title">4. Beneficios Directos & Retorno de Inversión (ROI)</div>
+            <div class="roi-list">
+                <div class="roi-item">
+                    <h4>🔒 Eliminación del Fraude y Fugas</h4>
+                    <p>El arqueo de caja automatizado y la auditoría de cobros mediante QR impiden el ocultamiento de dinero o modificaciones no autorizadas.</p>
+                </div>
+                <div class="roi-item">
+                    <h4>⚡ Cobranza 40% Más Rápida</h4>
+                    <p>Los cobradores cuentan con una app móvil optimizada con rutas directas, lo que aumenta la efectividad de cobro diario.</p>
+                </div>
+                <div class="roi-item">
+                    <h4>📊 Control Absoluto en Tiempo Real</h4>
+                    <p>La dirección puede ver desde cualquier pantalla el dinero recaudado al instante, los créditos morosos y el rendimiento por zona.</p>
+                </div>
+                <div class="roi-item">
+                    <h4>💾 Protección Total de la Cartera</h4>
+                    <p>Ante el extravío o robo del celular de un cobrador, los datos de la empresa quedan 100% resguardados en la nube de forma segura.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>AuditPro SaaS - Soluciones Tecnológicas de Alta Performance</p>
+                <p>Documento confidencial generado para evaluación comercial</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

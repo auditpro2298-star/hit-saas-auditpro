@@ -184,6 +184,28 @@ class APIClient {
             }).sort((a, b) => b.id_empresa - a.id_empresa);
         }
 
+        if (endpoint.startsWith('/superadmin/tenants/') && method === 'PUT' && endpoint.endsWith('/logo')) {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            const emp = db.empresas.find(e => e.id_empresa === id);
+            if (emp) {
+                emp.logo_url = body.logo_url;
+                saveMockDB(db);
+                return { success: true, message: `🖼️ Logo de "${emp.nombre_comercial}" actualizado con éxito (Modo Demo).` };
+            }
+            return { error: 'Empresa no encontrada.' };
+        }
+
+        if (endpoint.startsWith('/superadmin/tenants/') && method === 'DELETE') {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            db.empresas = db.empresas.filter(e => e.id_empresa !== id);
+            db.usuarios = db.usuarios.filter(u => u.id_empresa !== id);
+            db.clientes = db.clientes.filter(c => c.id_empresa !== id);
+            db.ficheros = db.ficheros.filter(f => f.id_empresa !== id);
+            db.cuotas = db.cuotas.filter(q => q.id_empresa !== id);
+            saveMockDB(db);
+            return { success: true, message: `🗑️ Empresa ID #${id} eliminada con éxito (Modo Demo).` };
+        }
+
         // 2. DASHBOARD EMPRESA
         if (endpoint === '/empresa/dashboard' && method === 'GET') {
             const activosCount = db.ficheros.filter(f => f.estado === 'ACTIVO').length;
@@ -203,9 +225,13 @@ class APIClient {
         }
 
         if (endpoint === '/empresa/clientes' && method === 'POST') {
+            const tipo = (body.tipo_cliente || 'particular').toLowerCase();
             const newClient = {
                 id_cliente: Date.now(),
                 id_empresa: 1,
+                tipo_cliente: tipo,
+                razon_social: tipo === 'empresa' ? (body.razon_social || body.nombre_apellido) : null,
+                cuit: tipo === 'empresa' ? (body.cuit || body.dni) : null,
                 nombre_apellido: body.nombre_apellido,
                 dni: body.dni,
                 telefono: body.telefono || '',
@@ -225,12 +251,16 @@ class APIClient {
 
         if (endpoint.startsWith('/empresa/clientes/') && method === 'DELETE') {
             const id = parseInt(endpoint.split('/')[3]);
+            const activeFicheros = db.ficheros.filter(f => f.id_cliente === id && (f.estado === 'ACTIVO' || f.estado === 'MOROSO'));
+            if (activeFicheros.length > 0) {
+                throw new Error('No se puede eliminar un cliente con créditos activos o morosos vigentes.');
+            }
             db.clientes = db.clientes.filter(c => c.id_cliente !== id);
             const ficIds = db.ficheros.filter(f => f.id_cliente === id).map(f => f.id_fichero);
             db.ficheros = db.ficheros.filter(f => f.id_cliente !== id);
             db.cuotas = db.cuotas.filter(q => !ficIds.includes(q.id_fichero));
             saveMockDB(db);
-            return { success: true, message: `🗑️ Cliente y sus ficheros eliminados correctamente.` };
+            return { success: true, message: `🗑️ Cliente y sus ficheros finalizados fueron eliminados correctamente.` };
         }
 
         // 4. FICHEROS (VENTAS)
@@ -364,7 +394,7 @@ class APIClient {
         return this.request(endpoint, { method: 'DELETE' });
     }
 
-    showBlockModal(message) {
+    async showBlockModal(message) {
         const panels = ['panel-super-admin', 'panel-admin-empresa', 'panel-cobrador', 'panel-client-portal'];
         panels.forEach(p => {
             const el = document.getElementById(p);
@@ -378,7 +408,7 @@ class APIClient {
             document.getElementById('block-msg-text').innerText = message;
             overlay.classList.remove('hidden');
         } else {
-            alert('🚫 ALERTA SAAS:\n\n' + message);
+            await showAlert('🚫 ALERTA SAAS:\n\n' + message);
         }
     }
 }

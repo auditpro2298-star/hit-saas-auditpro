@@ -108,4 +108,53 @@ router.put('/tenants/:id/status', async (req, res) => {
     }
 });
 
+// DELETE /api/superadmin/tenants/:id - Eliminar empresa por completo (en cascada)
+router.delete('/tenants/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const empresa = await get('SELECT nombre_comercial FROM empresas WHERE id_empresa = ?', [id]);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        await run('DELETE FROM empresas WHERE id_empresa = ?', [id]);
+
+        res.json({
+            success: true,
+            message: `🗑️ Empresa "${empresa.nombre_comercial}" y todos sus datos vinculados fueron eliminados correctamente.`
+        });
+    } catch (err) {
+        console.error('Error al eliminar empresa:', err);
+        res.status(500).json({ error: 'Error al eliminar la empresa.' });
+    }
+});
+
+// PUT /api/superadmin/tenants/:id/logo - Actualizar logo_url de la empresa
+router.put('/tenants/:id/logo', async (req, res) => {
+    const { id } = req.params;
+    const { logo_url } = req.body;
+
+    if (!logo_url || logo_url.trim().length === 0) {
+        return res.status(400).json({ error: 'Debe especificar una URL de logo válida.' });
+    }
+
+    try {
+        const empresa = await get('SELECT nombre_comercial FROM empresas WHERE id_empresa = ?', [id]);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        await run('UPDATE empresas SET logo_url = ? WHERE id_empresa = ?', [logo_url.trim(), id]);
+
+        res.json({
+            success: true,
+            message: `🖼️ Logo de "${empresa.nombre_comercial}" actualizado con éxito.`
+        });
+    } catch (err) {
+        console.error('Error al actualizar logo de empresa:', err);
+        res.status(500).json({ error: 'Error al actualizar el logo de la empresa.' });
+    }
+});
+
 module.exports = router;
