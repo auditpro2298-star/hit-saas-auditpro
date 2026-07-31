@@ -196,9 +196,6 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}')" title="Actualizar dirección por mudanza">
                         ✏️ Mudanza
                     </button>
-                    <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="regenerarQrCliente(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Regenerar por pérdida o robo">
-                        🔄 Revocar QR
-                    </button>
                     ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
                     <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Eliminar cliente por error o cuando termina de pagar todo">
                         🗑️ Eliminar
@@ -663,6 +660,15 @@ async function loadFicheros() {
             selectVend.innerHTML += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
         });
         selectVend.innerHTML += '<option value="Otro">Otro Vendedor</option>';
+    }
+
+    const encargados = await api.get('/empresa/encargados');
+    const selectEnc = document.getElementById('new-fich-encargado');
+    if (selectEnc) {
+        selectEnc.innerHTML = '<option value="">-- Sin Asignar (General) --</option>';
+        encargados.forEach(enc => {
+            selectEnc.innerHTML += `<option value="${enc.nombre}">${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+        });
     }
 }
 
