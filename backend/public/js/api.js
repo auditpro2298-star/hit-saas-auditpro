@@ -263,6 +263,16 @@ class APIClient {
             return { success: true, message: `🗑️ Cliente y sus ficheros finalizados fueron eliminados correctamente.` };
         }
 
+        if (endpoint.startsWith('/empresa/clientes/') && endpoint.endsWith('/calificacion') && method === 'PATCH') {
+            const id = parseInt(endpoint.split('/')[3]);
+            const cli = db.clientes.find(c => c.id_cliente === id);
+            if (cli) {
+                cli.calificacion = body.calificacion;
+            }
+            saveMockDB(db);
+            return { success: true, message: `Calificación actualizada en modo demo.` };
+        }
+
         // 4. FICHEROS (VENTAS)
         if (endpoint === '/empresa/ficheros' && method === 'GET') {
             return db.ficheros.map(f => {
@@ -388,6 +398,10 @@ class APIClient {
 
     put(endpoint, body) {
         return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) });
+    }
+
+    patch(endpoint, body) {
+        return this.request(endpoint, { method: 'PATCH', body: JSON.stringify(body) });
     }
 
     delete(endpoint) {

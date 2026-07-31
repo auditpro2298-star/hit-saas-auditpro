@@ -262,17 +262,18 @@
                     </div>
                 </div>
 
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <div class="glass-card">
                         <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de Clientes en Mapa HD</h3>
-                        <div id="map-container"></div>
+                        <div id="map-container" style="height: 380px;"></div>
                     </div>
                     <div class="glass-card">
                         <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">👥 Listado de Clientes con Código QR</h3>
-                        <div class="table-container" style="max-height: 340px; overflow-y: auto;">
+                        <div class="table-container" style="max-height: 500px; overflow-y: auto;">
                             <table class="styled-table">
                                 <thead>
                                     <tr>
+                                        <th>ID</th>
                                         <th>Cliente</th>
                                         <th>Dirección / Barrio</th>
                                         <th>Teléfono</th>

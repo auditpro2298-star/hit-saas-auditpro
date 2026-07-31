@@ -112,7 +112,7 @@ function renderClientesTable(clientes) {
     tbody.innerHTML = '';
 
     if (clientes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
         return;
     }
 
@@ -150,6 +150,7 @@ function renderClientesTable(clientes) {
         `;
 
         tr.innerHTML = `
+            <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong></td>
             <td>
                 <div>${badgeTipo}</div>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
@@ -157,7 +158,7 @@ function renderClientesTable(clientes) {
                     title="Hacer clic para ubicar en el mapa">
                     📍 ${nombreDisplay}
                 </strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">ID: <strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong> &nbsp;|&nbsp; ${docLabel}: ${docValue}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">${docLabel}: ${docValue}</div>
             </td>
             <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>
@@ -1479,6 +1480,59 @@ async function descargarBackupEmpresa() {
     }
 }
 
+async function cambiarCalificacionCliente(idCliente, nuevaCalificacion) {
+    try {
+        const res = await api.patch(`/empresa/clientes/${idCliente}/calificacion`, { calificacion: nuevaCalificacion });
+        if (res.success) {
+            // Actualizar en la caché local para no tener que recargar toda la base de datos
+            if (window.currentClientesCache) {
+                const cli = window.currentClientesCache.find(c => c.id_cliente === idCliente);
+                if (cli) cli.calificacion = nuevaCalificacion;
+            }
+            await showAlert(`✅ Calificación actualizada con éxito a ${nuevaCalificacion}.`);
+            // Recargar para aplicar los estilos de color
+            if (window.currentClientesCache) {
+                renderClientesTable(window.currentClientesCache);
+            }
+        }
+    } catch (err) {
+        await showAlert('❌ Error al actualizar calificación: ' + err.message);
+        // Recargar la tabla para restaurar el valor anterior
+        if (window.currentClientesCache) {
+            renderClientesTable(window.currentClientesCache);
+        }
+    }
+}
+
+async function buscarClientePorIdODni() {
+    const searchVal = document.getElementById('new-fich-buscar-cliente-id').value.trim();
+    const infoPreview = document.getElementById('new-fich-cliente-info-preview');
+    const selectCliente = document.getElementById('new-fich-cliente');
+    
+    if (!searchVal) {
+        if (infoPreview) infoPreview.innerHTML = '<span style="color:#ef4444;">Por favor, ingrese un ID o DNI.</span>';
+        return;
+    }
+
+    // Buscar en la caché de clientes
+    const clientes = window.currentClientesCache || [];
+    const clienteEncontrado = clientes.find(c => c.id_cliente.toString() === searchVal || c.dni.toString().trim() === searchVal);
+
+    if (clienteEncontrado) {
+        selectCliente.value = clienteEncontrado.id_cliente;
+        if (infoPreview) {
+            infoPreview.innerHTML = `✅ Cliente cargado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (ID: ${clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni})`;
+        }
+    } else {
+        if (infoPreview) {
+            infoPreview.innerHTML = '<span style="color:#ef4444;">❌ Cliente no encontrado. Verifique el ID o DNI en la tabla de clientes.</span>';
+        }
+        selectCliente.value = "";
+    }
+}
+
+window.cambiarCalificacionCliente = cambiarCalificacionCliente;
+window.buscarClientePorIdODni = buscarClientePorIdODni;
 window.initEmpresaPanel = initEmpresaPanel;
 window.descargarBackupEmpresa = descargarBackupEmpresa;
 

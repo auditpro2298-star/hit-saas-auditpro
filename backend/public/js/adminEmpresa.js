@@ -112,7 +112,7 @@ function renderClientesTable(clientes) {
     tbody.innerHTML = '';
 
     if (clientes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
         return;
     }
 
@@ -150,6 +150,7 @@ function renderClientesTable(clientes) {
         `;
 
         tr.innerHTML = `
+            <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong></td>
             <td>
                 <div>${badgeTipo}</div>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
@@ -157,7 +158,7 @@ function renderClientesTable(clientes) {
                     title="Hacer clic para ubicar en el mapa">
                     📍 ${nombreDisplay}
                 </strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">ID: <strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong> &nbsp;|&nbsp; ${docLabel}: ${docValue}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">${docLabel}: ${docValue}</div>
             </td>
             <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>
