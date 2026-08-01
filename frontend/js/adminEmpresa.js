@@ -913,26 +913,34 @@ function drawRouteMap(customFicherosList) {
     if (!container || !window.L) return;
 
     if (!routeMapInstance) {
-        routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
-        
-        // Capa Esri World Street Map HD para mapa secuencial de rutas
-        const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Powered by Esri'
-        });
-        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Imagery &copy; Esri'
-        });
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        });
+        if (container._leaflet_id) {
+            container._leaflet_id = null;
+        }
+        try {
+            routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
+            
+            // Capa Esri World Street Map HD para mapa secuencial de rutas
+            const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Powered by Esri'
+            });
+            const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Imagery &copy; Esri'
+            });
+            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            });
 
-        esriStreet.addTo(routeMapInstance);
+            esriStreet.addTo(routeMapInstance);
 
-        L.control.layers({
-            "🗺️ Callejero HD (Esri)": esriStreet,
-            "🛰️ Satelital HD (Esri)": esriSat,
-            "🌐 OpenStreetMap": osm
-        }).addTo(routeMapInstance);
+            L.control.layers({
+                "🗺️ Callejero HD (Esri)": esriStreet,
+                "🛰️ Satelital HD (Esri)": esriSat,
+                "🌐 OpenStreetMap": osm
+            }).addTo(routeMapInstance);
+        } catch (err) {
+            console.warn('Advertencia inicializando mapa de rutas:', err);
+            return;
+        }
     }
 
     // Limpiar previo
