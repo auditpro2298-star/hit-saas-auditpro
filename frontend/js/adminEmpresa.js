@@ -602,8 +602,7 @@ async function submitNewClienteForm(event) {
         direccion: direccionCompleta,
         barrio: barrioVal,
         piso_dpto: (document.getElementById('new-cli-piso')?.value || '').trim(),
-        referencia_domicilio: (document.getElementById('new-cli-ref')?.value || '').trim(),
-        encargado_zona: document.getElementById('new-cli-encargado')?.value || ''
+        referencia_domicilio: (document.getElementById('new-cli-ref')?.value || '').trim()
     };
 
     if (window.tempClientLat && window.tempClientLng) {
@@ -635,6 +634,32 @@ async function submitNewClienteForm(event) {
 
 // SOLAPA 2: FICHEROS Y VENTAS
 async function loadFicheros() {
+    // 1. Cargar encargados y cobradores
+    try {
+        const [encargados, cobradores] = await Promise.all([
+            api.get('/empresa/encargados').catch(() => []),
+            api.get('/empresa/cobradores').catch(() => [])
+        ]);
+
+        const cacheMap = new Map();
+        (encargados || []).forEach(e => cacheMap.set(e.id_usuario, e));
+        (cobradores || []).forEach(c => {
+            if (!cacheMap.has(c.id_usuario)) cacheMap.set(c.id_usuario, c);
+        });
+        window.allEncargadosCache = Array.from(cacheMap.values());
+
+        const selectCob = document.getElementById('new-fich-cobrador');
+        if (selectCob) {
+            selectCob.innerHTML = '<option value="">-- Sin Asignar (General) --</option>';
+            window.allEncargadosCache.forEach(enc => {
+                const tag = enc.rol === 'ENCARGADO_ZONA' ? 'Encargado' : 'Cobrador';
+                selectCob.innerHTML += `<option value="${enc.id_usuario}">${enc.nombre} (${tag} - ${enc.zona_asignada || 'General'})</option>`;
+            });
+        }
+    } catch (e) {
+        console.error('Error cargando encargados/cobradores:', e);
+    }
+
     const ficheros = await api.get('/empresa/ficheros');
     renderFicherosTable(ficheros);
 
@@ -645,15 +670,6 @@ async function loadFicheros() {
         select.innerHTML = '<option value="">-- Seleccionar Cliente --</option>';
         clientes.forEach(c => {
             select.innerHTML += `<option value="${c.id_cliente}">${c.nombre_apellido} (${c.dni}) - ${c.barrio}</option>`;
-        });
-    }
-
-    const cobradores = await api.get('/empresa/cobradores');
-    const selectCob = document.getElementById('new-fich-cobrador');
-    if (selectCob) {
-        selectCob.innerHTML = '<option value="">-- Sin Asignar (General) --</option>';
-        cobradores.forEach(cb => {
-            selectCob.innerHTML += `<option value="${cb.id_usuario}">${cb.nombre} (${cb.zona_asignada})</option>`;
         });
     }
 
@@ -683,9 +699,27 @@ function renderFicherosTable(ficheros) {
         return;
     }
 
+    const encargadosList = window.allEncargadosCache || [];
+
     ficheros.forEach(f => {
         const tr = document.createElement('tr');
         const badgeStatus = f.estado === 'ACTIVO' ? 'badge-success' : 'badge-warning';
+
+        let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
+        
+        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
+            let optionsHtml = `<option value="">-- Sin asignar --</option>`;
+            encargadosList.forEach(enc => {
+                const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
+                optionsHtml += `<option value="${enc.id_usuario}" ${isSelected ? 'selected' : ''}>${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+            });
+            encargadoTdContent = `
+                <select class="form-control" style="font-size:0.78rem; padding:0.25rem 0.4rem; font-weight:600; border:1px solid #8b5cf6; border-radius: var(--radius-md); max-width: 170px;" onchange="cambiarEncargadoFichero(${f.id_fichero}, this.value)">
+                    ${optionsHtml}
+                </select>
+            `;
+        }
+
         tr.innerHTML = `
             <td><strong>#${f.id_fichero}</strong></td>
             <td>
@@ -702,7 +736,7 @@ function renderFicherosTable(ficheros) {
                     <span style="font-size:0.8rem;">${f.cuotas_pagadas || 0} / ${f.cantidad_cuotas} pagadas</span>
                 </div>
             </td>
-            <td>🛵 <strong>${f.cobrador_nombre || 'Sin asignar'}</strong></td>
+            <td>${encargadoTdContent}</td>
             <td><span class="badge ${badgeStatus}">${f.estado}</span></td>
             <td>
                 ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
@@ -714,6 +748,23 @@ function renderFicherosTable(ficheros) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+async function cambiarEncargadoFichero(id_fichero, val) {
+    const id_cobrador = val ? parseInt(val) : null;
+    const selectedEnc = (window.allEncargadosCache || []).find(e => e.id_usuario === id_cobrador);
+    const encName = selectedEnc ? selectedEnc.nombre : '';
+
+    try {
+        const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, {
+            id_cobrador_asignado: id_cobrador,
+            encargado_zona: encName
+        });
+        await showAlert(res.message || '✅ Encargado de Zona asignado con éxito.');
+        await loadFicheros();
+    } catch (err) {
+        await showAlert('❌ Error al asignar Encargado de Zona: ' + err.message);
+    }
 }
 
 async function eliminarClienteConfirmado(id_cliente, nombre_apellido) {
@@ -752,6 +803,10 @@ async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
 
 async function submitNewFicheroForm(event) {
     event.preventDefault();
+    const encSelect = document.getElementById('new-fich-cobrador');
+    const encId = encSelect?.value ? parseInt(encSelect.value) : null;
+    const encObj = (window.allEncargadosCache || []).find(e => e.id_usuario === encId);
+
     const payload = {
         id_cliente: parseInt(document.getElementById('new-fich-cliente').value),
         producto_nombre: document.getElementById('new-fich-producto').value,
@@ -759,8 +814,8 @@ async function submitNewFicheroForm(event) {
         valor_cuota: parseFloat(document.getElementById('new-fich-valor').value),
         frecuencia_pago: document.getElementById('new-fich-frecuencia')?.value || 'SEMANAL',
         vendedor: document.getElementById('new-fich-vendedor')?.value || '',
-        encargado_zona: document.getElementById('new-fich-encargado')?.value || '',
-        id_cobrador_asignado: document.getElementById('new-fich-cobrador').value || null,
+        encargado_zona: encObj ? encObj.nombre : (encSelect?.options[encSelect.selectedIndex]?.text || 'General'),
+        id_cobrador_asignado: encId,
         fecha_entrega: document.getElementById('new-fich-fecha').value || new Date().toISOString().split('T')[0]
     };
 
@@ -1624,6 +1679,7 @@ window.toggleActivoEmpleado = toggleActivoEmpleado;
 window.editarClienteMudanza = editarClienteMudanza;
 window.resetPasswordEmpleado = resetPasswordEmpleado;
 window.updateFicheroOrden = updateFicheroOrden;
+window.cambiarEncargadoFichero = cambiarEncargadoFichero;
 window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;

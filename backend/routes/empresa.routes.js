@@ -318,8 +318,10 @@ router.get('/ficheros', async (req, res) => {
         `;
         const params = [id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
-            sql += ` AND LOWER(c.barrio) LIKE ?`;
-            params.push(`%${req.user.zona_asignada.toLowerCase().trim()}%`);
+            sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ? OR LOWER(c.barrio) LIKE ?)`;
+            const zone = `%${(req.user.zona_asignada || '').toLowerCase().trim()}%`;
+            const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
+            params.push(req.user.id_usuario, userName, zone);
         }
         sql += ` ORDER BY f.id_fichero DESC`;
         
@@ -341,8 +343,15 @@ router.post('/ficheros', async (req, res) => {
     }
 
     try {
-        const clientObj = await get('SELECT encargado_zona FROM clientes WHERE id_cliente = ?', [id_cliente]);
-        const finalEncargado = encargado_zona || (clientObj ? clientObj.encargado_zona : 'General');
+        let finalEncargado = encargado_zona;
+        if (id_cobrador_asignado && !finalEncargado) {
+            const usr = await get('SELECT nombre FROM usuarios WHERE id_usuario = ?', [id_cobrador_asignado]);
+            if (usr) finalEncargado = usr.nombre;
+        }
+        if (!finalEncargado) {
+            const clientObj = await get('SELECT encargado_zona FROM clientes WHERE id_cliente = ?', [id_cliente]);
+            finalEncargado = clientObj ? clientObj.encargado_zona : 'General';
+        }
 
         const monto_total = parseFloat(valor_cuota) * parseInt(cantidad_cuotas);
         const freq = (frecuencia_pago || 'SEMANAL').toUpperCase();
@@ -379,19 +388,25 @@ router.post('/ficheros', async (req, res) => {
     }
 });
 
-// PUT /api/empresa/ficheros/:id/asignar - Asignación dinámica de fichero a un Cobrador (Drag & Drop / Clientes)
+// PUT /api/empresa/ficheros/:id/asignar - Asignación dinámica de fichero a un Encargado / Cobrador
 router.put('/ficheros/:id/asignar', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { id_cobrador_asignado } = req.body;
+    const { id_cobrador_asignado, encargado_zona } = req.body;
 
     try {
-        await run('UPDATE ficheros SET id_cobrador_asignado = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, id, id_empresa]);
+        let encName = encargado_zona || null;
+        if (id_cobrador_asignado && (!encName || encName === 'Sin asignar')) {
+            const usr = await get('SELECT nombre FROM usuarios WHERE id_usuario = ?', [id_cobrador_asignado]);
+            if (usr) encName = usr.nombre;
+        }
+
+        await run('UPDATE ficheros SET id_cobrador_asignado = ?, encargado_zona = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, encName || 'Sin asignar', id, id_empresa]);
         await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
-        res.json({ success: true, message: `Fichero asignado al cobrador ID: ${id_cobrador_asignado || 'Sin asignar'}` });
+        res.json({ success: true, message: `✅ Fichero #${id} asignado a ${encName || 'Sin asignar'}` });
     } catch (err) {
         console.error('Error al asignar fichero:', err);
-        res.status(500).json({ error: 'Error en asignación de cobrador.' });
+        res.status(500).json({ error: 'Error en asignación de Encargado de Zona.' });
     }
 });
 

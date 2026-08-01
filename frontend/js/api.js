@@ -297,9 +297,28 @@ class APIClient {
             });
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
                 const zone = (this.user.zona_asignada || '').toLowerCase().trim();
-                list = list.filter(item => (item.barrio || '').toLowerCase().includes(zone));
+                const userName = (this.user.nombre || '').toLowerCase().trim();
+                list = list.filter(item => {
+                    const encName = (item.encargado_zona || '').toLowerCase();
+                    const barrio = (item.barrio || '').toLowerCase();
+                    return (encName && userName && encName.includes(userName)) || 
+                           (item.id_cobrador_asignado === this.user.id_usuario) ||
+                           (zone && barrio.includes(zone));
+                });
             }
             return list.sort((a, b) => b.id_fichero - a.id_fichero);
+        }
+
+        if (endpoint.startsWith('/empresa/ficheros/') && endpoint.endsWith('/asignar') && method === 'PUT') {
+            const id = parseInt(endpoint.split('/')[3]);
+            const f = db.ficheros.find(item => item.id_fichero === id);
+            if (f) {
+                f.id_cobrador_asignado = body.id_cobrador_asignado || null;
+                const usr = db.usuarios.find(u => u.id_usuario === body.id_cobrador_asignado);
+                f.encargado_zona = body.encargado_zona || (usr ? usr.nombre : 'Sin asignar');
+                saveMockDB(db);
+            }
+            return { success: true, message: `✅ Fichero #${id} asignado a Encargado de Zona correctamente.` };
         }
 
         if (endpoint === '/empresa/ficheros' && method === 'POST') {
@@ -315,7 +334,7 @@ class APIClient {
                 frecuencia_pago: body.frecuencia_pago || 'SEMANAL',
                 monto_total: monto_total,
                 vendedor: body.vendedor || 'General',
-                encargado_zona: body.encargado_zona || 'Admin',
+                encargado_zona: body.encargado_zona || 'General',
                 id_cobrador_asignado: body.id_cobrador_asignado || null,
                 fecha_entrega: body.fecha_entrega,
                 estado: 'ACTIVO'
