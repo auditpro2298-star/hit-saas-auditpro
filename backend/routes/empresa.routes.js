@@ -202,8 +202,8 @@ router.post('/clientes', async (req, res) => {
         }
 
         const result = await run(
-            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO', ?)",
-            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token, encargado_zona || 'General']
+            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO')",
+            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token]
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);
@@ -218,7 +218,7 @@ router.post('/clientes', async (req, res) => {
 router.put('/clientes/:id', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion, encargado_zona } = req.body;
+    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion } = req.body;
 
     if (!direccion || !barrio) {
         return res.status(400).json({ error: 'Dirección y barrio son obligatorios.' });
@@ -264,10 +264,9 @@ router.put('/clientes/:id', async (req, res) => {
                 telefono = ?,
                 latitud = ?,
                 longitud = ?,
-                calificacion = ?,
-                encargado_zona = ?
+                calificacion = ?
             WHERE id_cliente = ? AND id_empresa = ?
-        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, encargado_zona !== undefined ? encargado_zona : (cliente.encargado_zona || 'General'), id, id_empresa]);
+        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
         res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });

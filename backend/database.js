@@ -203,9 +203,24 @@ async function syncPostgresSequences() {
     }
 }
 
+async function runSchemaMigrations() {
+    try {
+        if (isPostgres && pgPool) {
+            await pgPool.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
+            await pgPool.query("ALTER TABLE ficheros ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
+        } else if (db) {
+            db.run("ALTER TABLE clientes ADD COLUMN encargado_zona VARCHAR(120)", () => {});
+            db.run("ALTER TABLE ficheros ADD COLUMN encargado_zona VARCHAR(120)", () => {});
+        }
+    } catch (e) {
+        // Ignorar si ya existe
+    }
+}
+
 async function initDatabase() {
     try {
         await executeSqlFile(SCHEMA_PATH);
+        await runSchemaMigrations();
         console.log('✅ Esquema DDL verificado con éxito.');
         
         const rowEmp = await get("SELECT COUNT(*) as count FROM empresas");
