@@ -412,6 +412,38 @@ class APIClient {
             return { success: true, message: `🗑️ Empleado eliminado correctamente.` };
         }
 
+        // 6. AUDITORÍA DE CAJA, PROMESAS DE PAGO & WHATSAPP LOG (DEMO MOCK)
+        if (endpoint === '/empresa/auditoria' && method === 'GET') {
+            return {
+                cierres_cobrador: [
+                    { id_usuario: 3, cobrador_nombre: "Juan Pérez", zona_asignada: "Flores / Caballito", recaudado_efectivo: 45000, recaudado_transferencia: 15000, cobros_realizados: 12, visitas_no_cobradas: 1 },
+                    { id_usuario: 4, cobrador_nombre: "Diego Silva", zona_asignada: "Avellaneda / Sur", recaudado_efectivo: 30000, recaudado_transferencia: 25000, cobros_realizados: 9, visitas_no_cobradas: 2 }
+                ],
+                cobros_detallados: [
+                    { id_cuota: 101, nro_cuota: 4, monto: 5000, fecha_pago: new Date().toISOString(), medio_pago: "TRANSFERENCIA", comprobante_img_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=300", cliente_nombre: "Juan Carlos Pérez", barrio: "Barrio Centro", id_fichero: 1 },
+                    { id_cuota: 102, nro_cuota: 2, monto: 5000, fecha_pago: new Date().toISOString(), medio_pago: "EFECTIVO", comprobante_img_url: null, cliente_nombre: "María Elena Gómez", barrio: "Barrio Sur", id_fichero: 2 }
+                ]
+            };
+        }
+
+        if (endpoint === '/empresa/promesas' && method === 'GET') {
+            return {
+                promesas: [
+                    { id_cuota: 105, nro_cuota: 5, monto: 5000, promesa_pago_fecha: "2026-08-05T10:00:00.000Z", nombre_apellido: "Juan Carlos Pérez", barrio: "Barrio Centro", telefono: "3815551234", motivo_no_cobro: "Prometió abonar el 5 al cobrar sueldo", nombre_cobrador: "Juan Pérez", id_fichero: 1 }
+                ],
+                ranking_morosidad: [
+                    { id_cliente: 2, nombre_apellido: "María Elena Gómez", telefono: "3815555678", barrio: "Barrio Sur", calificacion: "REGULAR", postergaciones: 3 }
+                ]
+            };
+        }
+
+        if (endpoint === '/empresa/whatsapp-log' && method === 'GET') {
+            return [
+                { id_notificacion: 1, fecha: new Date().toISOString(), cliente_nombre: "Juan Carlos Pérez", telefono_cliente: "+54 9 11 3344-5566", nro_cuota: 4, monto: 5000, mensaje: "HIT SaaS: Hola Juan, recibimos tu pago de $5,000 en cuota #4. Saldo pendiente: $150,000.", estado: "ENTREGADO" },
+                { id_notificacion: 2, fecha: new Date().toISOString(), cliente_nombre: "María Elena Gómez", telefono_cliente: "+54 9 11 4455-6677", nro_cuota: 2, monto: 5000, mensaje: "HIT SaaS: Hola María, recibimos tu pago de $5,000 en cuota #2. Saldo pendiente: $70,000.", estado: "ENTREGADO" }
+            ];
+        }
+
         // Fallback genérico para otros GET/POST
         if (method === 'GET') return [];
         return { success: true, message: 'Operación registrada en modo demo estático.' };
