@@ -803,10 +803,6 @@ async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
 
 async function submitNewFicheroForm(event) {
     event.preventDefault();
-    const encSelect = document.getElementById('new-fich-cobrador');
-    const encId = encSelect?.value ? parseInt(encSelect.value) : null;
-    const encObj = (window.allEncargadosCache || []).find(e => e.id_usuario === encId);
-
     const payload = {
         id_cliente: parseInt(document.getElementById('new-fich-cliente').value),
         producto_nombre: document.getElementById('new-fich-producto').value,
@@ -814,8 +810,8 @@ async function submitNewFicheroForm(event) {
         valor_cuota: parseFloat(document.getElementById('new-fich-valor').value),
         frecuencia_pago: document.getElementById('new-fich-frecuencia')?.value || 'SEMANAL',
         vendedor: document.getElementById('new-fich-vendedor')?.value || '',
-        encargado_zona: encObj ? encObj.nombre : (encSelect?.options[encSelect.selectedIndex]?.text || 'General'),
-        id_cobrador_asignado: encId,
+        encargado_zona: 'Sin asignar',
+        id_cobrador_asignado: null,
         fecha_entrega: document.getElementById('new-fich-fecha').value || new Date().toISOString().split('T')[0]
     };
 
