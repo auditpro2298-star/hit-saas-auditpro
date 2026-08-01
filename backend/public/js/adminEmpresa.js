@@ -634,30 +634,12 @@ async function submitNewClienteForm(event) {
 
 // SOLAPA 2: FICHEROS Y VENTAS
 async function loadFicheros() {
-    // 1. Cargar encargados y cobradores
+    // 1. Cargar únicamente encargados de zona
     try {
-        const [encargados, cobradores] = await Promise.all([
-            api.get('/empresa/encargados').catch(() => []),
-            api.get('/empresa/cobradores').catch(() => [])
-        ]);
-
-        const cacheMap = new Map();
-        (encargados || []).forEach(e => cacheMap.set(e.id_usuario, e));
-        (cobradores || []).forEach(c => {
-            if (!cacheMap.has(c.id_usuario)) cacheMap.set(c.id_usuario, c);
-        });
-        window.allEncargadosCache = Array.from(cacheMap.values());
-
-        const selectCob = document.getElementById('new-fich-cobrador');
-        if (selectCob) {
-            selectCob.innerHTML = '<option value="">-- Sin Asignar (General) --</option>';
-            window.allEncargadosCache.forEach(enc => {
-                const tag = enc.rol === 'ENCARGADO_ZONA' ? 'Encargado' : 'Cobrador';
-                selectCob.innerHTML += `<option value="${enc.id_usuario}">${enc.nombre} (${tag} - ${enc.zona_asignada || 'General'})</option>`;
-            });
-        }
+        const encargados = await api.get('/empresa/encargados').catch(() => []);
+        window.allEncargadosCache = (encargados || []).filter(e => e.rol === 'ENCARGADO_ZONA' || !e.rol);
     } catch (e) {
-        console.error('Error cargando encargados/cobradores:', e);
+        console.error('Error cargando encargados de zona:', e);
     }
 
     const ficheros = await api.get('/empresa/ficheros');
