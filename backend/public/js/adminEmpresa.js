@@ -913,34 +913,26 @@ function drawRouteMap(customFicherosList) {
     if (!container || !window.L) return;
 
     if (!routeMapInstance) {
-        if (container._leaflet_id) {
-            container._leaflet_id = null;
-        }
-        try {
-            routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
-            
-            // Capa Esri World Street Map HD para mapa secuencial de rutas
-            const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Powered by Esri'
-            });
-            const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Imagery &copy; Esri'
-            });
-            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            });
+        routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
+        
+        // Capa Esri World Street Map HD para mapa secuencial de rutas
+        const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Powered by Esri'
+        });
+        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Imagery &copy; Esri'
+        });
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        });
 
-            esriStreet.addTo(routeMapInstance);
+        esriStreet.addTo(routeMapInstance);
 
-            L.control.layers({
-                "🗺️ Callejero HD (Esri)": esriStreet,
-                "🛰️ Satelital HD (Esri)": esriSat,
-                "🌐 OpenStreetMap": osm
-            }).addTo(routeMapInstance);
-        } catch (err) {
-            console.warn('Advertencia inicializando mapa de rutas:', err);
-            return;
-        }
+        L.control.layers({
+            "🗺️ Callejero HD (Esri)": esriStreet,
+            "🛰️ Satelital HD (Esri)": esriSat,
+            "🌐 OpenStreetMap": osm
+        }).addTo(routeMapInstance);
     }
 
     // Limpiar previo
@@ -1124,41 +1116,47 @@ async function loadPromesas() {
     try {
         const data = await api.get('/empresa/promesas');
         const promesas = data.promesas || [];
-        const ranking = data.ranking_morosidad || [];
+        const ranking = data.ranking_clientes || data.ranking_morosidad || [];
 
         const tbodyProm = document.getElementById('tbody-promesas-list');
-        tbodyProm.innerHTML = '';
-        if (promesas.length === 0) {
-            tbodyProm.innerHTML = `<tr><td colspan="4" class="text-center text-muted">🎉 No hay promesas de pago pendientes.</td></tr>`;
-        } else {
-            promesas.forEach(p => {
-                const tr = document.createElement('tr');
-                const fechaProm = p.promesa_pago_fecha ? new Date(p.promesa_pago_fecha).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha';
-                tr.innerHTML = `
-                    <td><strong style="color:#d97706;">📅 ${fechaProm}</strong></td>
-                    <td><strong>${p.nombre_apellido}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${p.barrio} (${p.telefono || 'Sin tel'})</span></td>
-                    <td>Fichero #${p.id_fichero}<br><strong>Cuota #${p.nro_cuota} ($${Number(p.monto).toLocaleString('es-AR')})</strong></td>
-                    <td><span class="badge badge-danger" style="font-size:0.72rem;">${p.motivo_no_cobro || 'NO COBRADO'}</span><br><span style="font-size:0.75rem; color:var(--text-secondary);">Cobrador: ${p.nombre_cobrador || 'Calle'}</span></td>
-                `;
-                tbodyProm.appendChild(tr);
-            });
+        if (tbodyProm) {
+            tbodyProm.innerHTML = '';
+            if (promesas.length === 0) {
+                tbodyProm.innerHTML = `<tr><td colspan="4" class="text-center text-muted">🎉 No hay promesas de pago pendientes.</td></tr>`;
+            } else {
+                promesas.forEach(p => {
+                    const tr = document.createElement('tr');
+                    const fechaProm = p.promesa_pago_fecha ? new Date(p.promesa_pago_fecha).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha';
+                    const nombreCli = p.cliente_nombre || p.nombre_apellido || 'Cliente';
+                    tr.innerHTML = `
+                        <td><strong style="color:#d97706;">📅 ${fechaProm}</strong></td>
+                        <td><strong>${nombreCli}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${p.barrio || ''} (${p.telefono || 'Sin tel'})</span></td>
+                        <td>Fichero #${p.id_fichero}<br><strong>Cuota #${p.nro_cuota} ($${Number(p.monto).toLocaleString('es-AR')})</strong></td>
+                        <td><span class="badge badge-danger" style="font-size:0.72rem;">${p.motivo_no_cobro || 'NO COBRADO'}</span><br><span style="font-size:0.75rem; color:var(--text-secondary);">Cobrador: ${p.cobrador_nombre || p.nombre_cobrador || 'Calle'}</span></td>
+                    `;
+                    tbodyProm.appendChild(tr);
+                });
+            }
         }
 
         const tbodyRank = document.getElementById('tbody-ranking-clientes');
-        tbodyRank.innerHTML = '';
-        if (ranking.length === 0) {
-            tbodyRank.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Ningún cliente registra postergaciones reiteradas.</td></tr>`;
-        } else {
-            ranking.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${r.nombre_apellido}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">📞 ${r.telefono || 'Sin tel'}</span></td>
-                    <td><span class="badge badge-purple">${r.barrio}</span></td>
-                    <td><span class="badge badge-success">${r.calificacion || 'BUENO'}</span></td>
-                    <td><span class="badge badge-danger" style="font-size:0.85rem; font-weight:800;">🚨 ${r.postergaciones} rechazos / promesas</span></td>
-                `;
-                tbodyRank.appendChild(tr);
-            });
+        if (tbodyRank) {
+            tbodyRank.innerHTML = '';
+            if (ranking.length === 0) {
+                tbodyRank.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Ningún cliente registra postergaciones reiteradas.</td></tr>`;
+            } else {
+                ranking.forEach(r => {
+                    const tr = document.createElement('tr');
+                    const countPostergaciones = r.total_postergaciones || r.postergaciones || 0;
+                    tr.innerHTML = `
+                        <td><strong>${r.nombre_apellido}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">📞 ${r.telefono || 'Sin tel'}</span></td>
+                        <td><span class="badge badge-purple">${r.barrio}</span></td>
+                        <td><span class="badge badge-success">${r.calificacion || 'BUENO'}</span></td>
+                        <td><span class="badge badge-danger" style="font-size:0.85rem; font-weight:800;">🚨 ${countPostergaciones} rechazos / promesas</span></td>
+                    `;
+                    tbodyRank.appendChild(tr);
+                });
+            }
         }
     } catch (err) {
         console.error('Error cargando promesas de pago:', err);
@@ -1170,6 +1168,7 @@ async function loadWhatsappLog() {
     try {
         const notifs = await api.get('/empresa/whatsapp-log');
         const tbody = document.getElementById('tbody-whatsapp-log');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!notifs || notifs.length === 0) {
@@ -1179,10 +1178,12 @@ async function loadWhatsappLog() {
 
         notifs.forEach(w => {
             const tr = document.createElement('tr');
-            const fechaStr = w.fecha ? new Date(w.fecha).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
+            const rawFecha = w.fecha_envio || w.fecha;
+            const fechaStr = rawFecha ? new Date(rawFecha).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
+            const telStr = w.telefono || w.telefono_cliente || 'Sin tel';
             tr.innerHTML = `
                 <td><strong>${fechaStr}</strong></td>
-                <td><strong>${w.cliente_nombre || 'Cliente'}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">📞 ${w.telefono_cliente || 'Sin tel'}</span></td>
+                <td><strong>${w.cliente_nombre || 'Cliente'}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">📞 ${telStr}</span></td>
                 <td>Cuota #${w.nro_cuota || '-'} ($${Number(w.monto || 0).toLocaleString('es-AR')})</td>
                 <td style="max-width:320px; font-size:0.8rem; line-height:1.35; color:var(--text-secondary); white-space:normal;">💬 "${w.mensaje}"</td>
                 <td><span class="badge badge-success">✔✔ ${w.estado}</span></td>

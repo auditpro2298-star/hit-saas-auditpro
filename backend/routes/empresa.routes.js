@@ -318,11 +318,8 @@ router.get('/ficheros', async (req, res) => {
         `;
         const params = [id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
-            const zoneStr = (req.user.zona_asignada || '').toLowerCase().trim();
-            if (zoneStr && zoneStr !== 'todas' && zoneStr !== 'general') {
-                sql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ? OR LOWER(c.encargado_zona) LIKE ?)`;
-                params.push(`%${zoneStr}%`, `%${zoneStr}%`, `%${zoneStr}%`);
-            }
+            sql += ` AND LOWER(c.barrio) LIKE ?`;
+            params.push(`%${req.user.zona_asignada.toLowerCase().trim()}%`);
         }
         sql += ` ORDER BY f.id_fichero DESC`;
         
@@ -634,9 +631,7 @@ router.get('/auditoria', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneStr = (req.user.zona_asignada || '').toLowerCase().trim();
-        const hasZone = isEncargado && zoneStr && zoneStr !== 'todas' && zoneStr !== 'general';
-        const zoneFilter = hasZone ? `%${zoneStr}%` : null;
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
 
         // Conciliación del día o histórico
         let cierresSql = `
@@ -652,9 +647,9 @@ router.get('/auditoria', async (req, res) => {
             WHERE q.id_empresa = ? AND date(q.fecha_pago) = date('now')
         `;
         const cierresParams = [id_empresa];
-        if (hasZone) {
-            cierresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(u.zona_asignada) LIKE ?)`;
-            cierresParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            cierresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cierresParams.push(zoneFilter);
         }
         cierresSql += ` GROUP BY u.id_usuario`;
         const cierresCobrador = await query(cierresSql, cierresParams);
@@ -671,9 +666,9 @@ router.get('/auditoria', async (req, res) => {
             WHERE q.id_empresa = ? AND q.estado = 'PAGADO'
         `;
         const cobrosParams = [id_empresa];
-        if (hasZone) {
-            cobrosSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            cobrosParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            cobrosSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cobrosParams.push(zoneFilter);
         }
         cobrosSql += ` ORDER BY q.fecha_pago DESC, q.id_cuota DESC LIMIT 50`;
         const cobrosDetallados = await query(cobrosSql, cobrosParams);
@@ -686,9 +681,9 @@ router.get('/auditoria', async (req, res) => {
             WHERE w.id_empresa = ? 
         `;
         const waParams = [id_empresa];
-        if (hasZone) {
-            waSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(c.encargado_zona) LIKE ?)`;
-            waParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            waSql += ` AND LOWER(c.barrio) LIKE ?`;
+            waParams.push(zoneFilter);
         }
         waSql += ` ORDER BY w.id_notificacion DESC LIMIT 30`;
         const whatsappRecientes = await query(waSql, waParams);
@@ -709,9 +704,7 @@ router.get('/promesas', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneStr = (req.user.zona_asignada || '').toLowerCase().trim();
-        const hasZone = isEncargado && zoneStr && zoneStr !== 'todas' && zoneStr !== 'general';
-        const zoneFilter = hasZone ? `%${zoneStr}%` : null;
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
 
         let promesasSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_vencimiento, q.fecha_pago, q.motivo_no_cobro, q.promesa_pago_fecha, q.notas,
@@ -725,9 +718,9 @@ router.get('/promesas', async (req, res) => {
             WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
         `;
         const promesasParams = [id_empresa];
-        if (hasZone) {
-            promesasSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            promesasParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            promesasSql += ` AND LOWER(c.barrio) LIKE ?`;
+            promesasParams.push(zoneFilter);
         }
         promesasSql += ` ORDER BY q.promesa_pago_fecha ASC`;
         const promesasPendientes = await query(promesasSql, promesasParams);
@@ -740,9 +733,9 @@ router.get('/promesas', async (req, res) => {
             WHERE q.id_empresa = ? AND q.estado = 'NO_COBRADO'
         `;
         const postergadoresParams = [id_empresa];
-        if (hasZone) {
-            postergadoresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            postergadoresParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            postergadoresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            postergadoresParams.push(zoneFilter);
         }
         postergadoresSql += ` GROUP BY c.id_cliente ORDER BY total_postergaciones DESC LIMIT 10`;
         const clientesPostergadores = await query(postergadoresSql, postergadoresParams);
@@ -756,19 +749,15 @@ router.get('/promesas', async (req, res) => {
             WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
         `;
         const cobradoresParams = [id_empresa];
-        if (hasZone) {
-            cobradoresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            cobradoresParams.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            cobradoresSql += ` AND LOWER(c.barrio) LIKE ?`;
+            cobradoresParams.push(zoneFilter);
         }
         cobradoresSql += ` GROUP BY COALESCE(q.nombre_cobrador, u.nombre) ORDER BY promesas_tomadas DESC LIMIT 10`;
         const cobradoresPromesas = await query(cobradoresSql, cobradoresParams);
 
         res.json({
             promesas: promesasPendientes,
-            ranking_morosidad: clientesPostergadores.map(r => ({
-                ...r,
-                postergaciones: r.total_postergaciones || 0
-            })),
             ranking_clientes: clientesPostergadores,
             ranking_cobradores: cobradoresPromesas
         });
@@ -783,9 +772,7 @@ router.get('/whatsapp-log', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneStr = (req.user.zona_asignada || '').toLowerCase().trim();
-        const hasZone = isEncargado && zoneStr && zoneStr !== 'todas' && zoneStr !== 'general';
-        const zoneFilter = hasZone ? `%${zoneStr}%` : null;
+        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
 
         let sql = `
             SELECT w.*, c.nombre_apellido as cliente_nombre, f.producto_nombre, q.nro_cuota, q.monto
@@ -796,9 +783,9 @@ router.get('/whatsapp-log', async (req, res) => {
             WHERE w.id_empresa = ?
         `;
         const params = [id_empresa];
-        if (hasZone) {
-            sql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            params.push(zoneFilter, zoneFilter);
+        if (isEncargado) {
+            sql += ` AND LOWER(c.barrio) LIKE ?`;
+            params.push(zoneFilter);
         }
         sql += ` ORDER BY w.fecha_envio DESC LIMIT 100`;
 
@@ -987,7 +974,57 @@ router.get('/backup', requireAdmin, async (req, res) => {
     }
 });
 
+// GET /api/empresa/promesas - Obtener promesas de pago pendientes y ranking de morosidad
+router.get('/promesas', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const promesas = await query(`
+            SELECT 
+                c.id_cuota,
+                c.id_fichero,
+                c.nro_cuota,
+                c.monto,
+                c.motivo_no_cobro,
+                c.promesa_pago_fecha,
+                c.nombre_cobrador,
+                cl.nombre_apellido,
+                cl.barrio,
+                cl.telefono
+            FROM cuotas c
+            JOIN ficheros f ON c.id_fichero = f.id_fichero
+            JOIN clientes cl ON f.id_cliente = cl.id_cliente
+            WHERE c.id_empresa = ? 
+              AND (c.promesa_pago_fecha IS NOT NULL OR c.estado = 'NO_COBRADO')
+            ORDER BY c.promesa_pago_fecha DESC, c.id_cuota DESC
+            LIMIT 50
+        `, [id_empresa]);
 
+        const ranking_morosidad = await query(`
+            SELECT 
+                cl.id_cliente,
+                cl.nombre_apellido,
+                cl.telefono,
+                cl.barrio,
+                cl.calificacion,
+                COUNT(c.id_cuota) as postergaciones
+            FROM cuotas c
+            JOIN ficheros f ON c.id_fichero = f.id_fichero
+            JOIN clientes cl ON f.id_cliente = cl.id_cliente
+            WHERE c.id_empresa = ? AND (c.estado = 'NO_COBRADO' OR c.motivo_no_cobro IS NOT NULL OR c.promesa_pago_fecha IS NOT NULL)
+            GROUP BY cl.id_cliente, cl.nombre_apellido, cl.telefono, cl.barrio, cl.calificacion
+            ORDER BY postergaciones DESC
+            LIMIT 20
+        `, [id_empresa]);
+
+        res.json({
+            promesas: promesas || [],
+            ranking_morosidad: ranking_morosidad || []
+        });
+    } catch (err) {
+        console.error('Error al obtener promesas y morosidad:', err);
+        res.status(500).json({ error: 'Error al obtener promesas y morosidad.' });
+    }
+});
 
 // GET /api/empresa/whatsapp-log - Obtener registro de notificaciones de WhatsApp
 router.get('/whatsapp-log', async (req, res) => {

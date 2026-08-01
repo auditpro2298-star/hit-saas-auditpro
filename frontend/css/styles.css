@@ -358,12 +358,11 @@ body {
 /* Tabs & Navigation within Panels */
 .panel-tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
   padding-bottom: 0.5rem;
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .tab-btn {
