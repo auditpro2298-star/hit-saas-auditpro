@@ -240,6 +240,62 @@ async function syncSequences() {
     }
 }
 
+async function resequenceAndReset(id_empresa = null) {
+    try {
+        console.log('🔄 Sincronizando y re-secuenciando IDs de clientes y ficheros desde 1...');
+        
+        if (!isPostgres && db) {
+            await run("PRAGMA foreign_keys = OFF");
+        }
+
+        // 1. Re-secuenciar clientes si existen con IDs saltados (ej: ID 15 -> ID 1)
+        const filterSql = id_empresa ? "WHERE id_empresa = ?" : "";
+        const filterParams = id_empresa ? [id_empresa] : [];
+        
+        const clientesList = await query(`SELECT id_cliente FROM clientes ${filterSql} ORDER BY id_cliente ASC`, filterParams);
+        
+        let newClientId = 1;
+        for (const c of clientesList) {
+            const oldId = c.id_cliente;
+            if (oldId !== newClientId) {
+                await run("UPDATE clientes SET id_cliente = ? WHERE id_cliente = ?", [newClientId, oldId]);
+                await run("UPDATE ficheros SET id_cliente = ? WHERE id_cliente = ?", [newClientId, oldId]);
+                await run("UPDATE whatsapp_notifications SET id_cliente = ? WHERE id_cliente = ?", [newClientId, oldId]);
+            }
+            newClientId++;
+        }
+
+        // 2. Re-secuenciar ficheros
+        const ficherosList = await query(`SELECT id_fichero FROM ficheros ${filterSql} ORDER BY id_fichero ASC`, filterParams);
+        
+        let newFicheroId = 1;
+        for (const f of ficherosList) {
+            const oldId = f.id_fichero;
+            if (oldId !== newFicheroId) {
+                await run("UPDATE ficheros SET id_fichero = ? WHERE id_fichero = ?", [newFicheroId, oldId]);
+                await run("UPDATE cuotas SET id_fichero = ? WHERE id_fichero = ?", [newFicheroId, oldId]);
+            }
+            newFicheroId++;
+        }
+
+        if (!isPostgres && db) {
+            await run("PRAGMA foreign_keys = ON");
+        }
+
+        // 3. Sincronizar secuencias de auto-incremento (SQLite y PostgreSQL)
+        await syncSequences();
+
+        console.log('✅ IDs re-secuenciados y contadores restablecidos con éxito desde 1.');
+        return { success: true, message: 'Conteo de IDs de clientes y ficheros re-secuenciado e iniciado desde 1.' };
+    } catch (err) {
+        console.error('⚠️ Error al re-secuenciar IDs:', err.message);
+        if (!isPostgres && db) {
+            try { await run("PRAGMA foreign_keys = ON"); } catch (e) {}
+        }
+        throw err;
+    }
+}
+
 async function runSchemaMigrations() {
     try {
         if (isPostgres && pgPool) {
@@ -271,13 +327,13 @@ async function initDatabase() {
             await executeSqlFile(SEED_PATH);
             await ensureSeedUsers();
             await updateInitialUserHashes();
-            await syncSequences();
+            await resequenceAndReset();
             console.log('✅ Datos iniciales cargados con éxito.');
         } else {
             await ensureSeedUsers();
             await updateInitialUserHashes();
-            await syncSequences();
-            console.log('💾 Base de datos conservada intacta.');
+            await resequenceAndReset();
+            console.log('💾 Base de datos conservada intacta y secuencias restablecidas.');
         }
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
@@ -381,5 +437,6 @@ module.exports = {
     get,
     resetAndSeed,
     initDatabase,
-    syncSequences
+    syncSequences,
+    resequenceAndReset
 };
