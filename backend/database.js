@@ -189,17 +189,54 @@ async function updateInitialUserHashes() {
     }
 }
 
-async function syncPostgresSequences() {
-    if (!isPostgres || !pgPool) return;
+async function syncSequences() {
     try {
-        console.log('⚙️ Sincronizando secuencias de PostgreSQL...');
-        await pgPool.query("SELECT setval('empresas_id_empresa_seq', COALESCE((SELECT MAX(id_empresa) FROM empresas), 1))");
-        await pgPool.query("SELECT setval('usuarios_id_usuario_seq', COALESCE((SELECT MAX(id_usuario) FROM usuarios), 1))");
-        await pgPool.query("SELECT setval('clientes_id_cliente_seq', COALESCE((SELECT MAX(id_cliente) FROM clientes), 1))");
-        await pgPool.query("SELECT setval('ficheros_id_fichero_seq', COALESCE((SELECT MAX(id_fichero) FROM ficheros), 1))");
-        console.log('✅ Secuencias sincronizadas con éxito.');
+        if (isPostgres && pgPool) {
+            console.log('⚙️ Sincronizando secuencias de PostgreSQL...');
+            const tables = [
+                { name: 'empresas', seq: 'empresas_id_empresa_seq', id: 'id_empresa' },
+                { name: 'usuarios', seq: 'usuarios_id_usuario_seq', id: 'id_usuario' },
+                { name: 'clientes', seq: 'clientes_id_cliente_seq', id: 'id_cliente' },
+                { name: 'ficheros', seq: 'ficheros_id_fichero_seq', id: 'id_fichero' },
+                { name: 'cuotas', seq: 'cuotas_id_cuota_seq', id: 'id_cuota' },
+                { name: 'auditoria_caja', seq: 'auditoria_caja_id_caja_seq', id: 'id_caja' },
+                { name: 'whatsapp_notifications', seq: 'whatsapp_notifications_id_notificacion_seq', id: 'id_notificacion' }
+            ];
+
+            for (const t of tables) {
+                const res = await pgPool.query(`SELECT MAX(${t.id}) as max_id FROM ${t.name}`);
+                const maxId = res.rows[0]?.max_id;
+                if (maxId === null || maxId === undefined) {
+                    await pgPool.query(`SELECT setval('${t.seq}', 1, false)`);
+                } else {
+                    await pgPool.query(`SELECT setval('${t.seq}', ${maxId})`);
+                }
+            }
+            console.log('✅ Secuencias PostgreSQL sincronizadas con éxito.');
+        } else if (db) {
+            console.log('⚙️ Sincronizando secuencias de SQLite...');
+            const tables = [
+                { name: 'clientes', id: 'id_cliente' },
+                { name: 'ficheros', id: 'id_fichero' },
+                { name: 'cuotas', id: 'id_cuota' },
+                { name: 'usuarios', id: 'id_usuario' },
+                { name: 'empresas', id: 'id_empresa' },
+                { name: 'auditoria_caja', id: 'id_caja' },
+                { name: 'whatsapp_notifications', id: 'id_notificacion' }
+            ];
+
+            for (const t of tables) {
+                const row = await get(`SELECT COUNT(*) as cnt, MAX(${t.id}) as max_id FROM ${t.name}`);
+                if (!row || parseInt(row.cnt || 0, 10) === 0) {
+                    await run(`DELETE FROM sqlite_sequence WHERE name = ?`, [t.name]);
+                } else if (row.max_id) {
+                    await run(`INSERT OR REPLACE INTO sqlite_sequence (name, seq) VALUES (?, ?)`, [t.name, row.max_id]);
+                }
+            }
+            console.log('✅ Secuencias SQLite sincronizadas con éxito.');
+        }
     } catch (err) {
-        console.error('⚠️ Error al sincronizar secuencias PostgreSQL:', err.message);
+        console.error('⚠️ Error al sincronizar secuencias:', err.message);
     }
 }
 
@@ -234,12 +271,12 @@ async function initDatabase() {
             await executeSqlFile(SEED_PATH);
             await ensureSeedUsers();
             await updateInitialUserHashes();
-            await syncPostgresSequences();
+            await syncSequences();
             console.log('✅ Datos iniciales cargados con éxito.');
         } else {
             await ensureSeedUsers();
             await updateInitialUserHashes();
-            await syncPostgresSequences();
+            await syncSequences();
             console.log('💾 Base de datos conservada intacta.');
         }
     } catch (err) {
@@ -313,7 +350,7 @@ function resetAndSeed() {
                 await pgPool.query("TRUNCATE TABLE whatsapp_notifications, auditoria_caja, cuotas, ficheros, clientes, usuarios, empresas RESTART IDENTITY CASCADE");
                 await executeSqlFile(SEED_PATH);
                 await updateInitialUserHashes();
-                await syncPostgresSequences();
+                await syncSequences();
                 return resolve({ success: true, message: 'Base de datos PostgreSQL restablecida con datos semilla.' });
             } catch (err) {
                 console.error('Error al resetear PostgreSQL:', err.message);
@@ -343,5 +380,6 @@ module.exports = {
     run,
     get,
     resetAndSeed,
-    initDatabase
+    initDatabase,
+    syncSequences
 };

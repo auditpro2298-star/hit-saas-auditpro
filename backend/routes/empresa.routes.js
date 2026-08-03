@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { query, run, get } = require('../database');
+const { query, run, get, syncSequences } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
@@ -919,6 +919,8 @@ router.delete('/clientes/:id', requireAdmin, async (req, res) => {
         await run('DELETE FROM whatsapp_notifications WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
         await run('DELETE FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
 
+        await syncSequences();
+
         res.json({
             success: true,
             message: `🗑️ Cliente "${cliente.nombre_apellido}" y sus ficheros fueron eliminados correctamente.`
@@ -943,6 +945,8 @@ router.delete('/ficheros/:id', requireAdmin, async (req, res) => {
         await run('DELETE FROM cuotas WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
         await run('DELETE FROM ficheros WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
 
+        await syncSequences();
+
         res.json({
             success: true,
             message: `🗑️ Fichero #${id} ("${fichero.producto_nombre}") fue eliminado correctamente.`
@@ -950,6 +954,20 @@ router.delete('/ficheros/:id', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Error al eliminar fichero:', err);
         res.status(500).json({ error: 'Error al eliminar fichero.' });
+    }
+});
+
+// POST /api/empresa/reset-secuencias - Reiniciar y sincronizar secuencias de IDs (conteo desde cero o max_id)
+router.post('/reset-secuencias', requireAdmin, async (req, res) => {
+    try {
+        await syncSequences();
+        res.json({
+            success: true,
+            message: '✅ Conteo de IDs de clientes y ficheros reiniciado y sincronizado con éxito.'
+        });
+    } catch (err) {
+        console.error('Error al reiniciar secuencias:', err);
+        res.status(500).json({ error: 'Error al reiniciar secuencias.' });
     }
 });
 
