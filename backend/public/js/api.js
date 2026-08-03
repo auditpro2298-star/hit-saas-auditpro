@@ -19,23 +19,9 @@ function getInitialMockDB() {
         vendedores: [
             { id_vendedor: 1, id_empresa: 1, nombre: "Natasha Vendedora", zona_asignada: "Zona Centro", telefono: "3815001122" }
         ],
-        clientes: [
-            { id_cliente: 1, id_empresa: 1, nombre_apellido: "Juan Carlos Pérez", dni: "32456789", telefono: "3815551234", direccion: "Av. Avellaneda 450", barrio: "Barrio Centro", piso_dpto: "Piso 2 A", referencia_domicilio: "Portón blanco", latitud: -26.83, longitud: -65.20, qr_token: "HIT-QR-8821-A90F", calificacion: "BUENO" },
-            { id_cliente: 2, id_empresa: 1, nombre_apellido: "María Elena Gómez", dni: "28990112", telefono: "3815555678", direccion: "Jujuy 820", barrio: "Barrio Sur", piso_dpto: "", referencia_domicilio: "Frente a plaza", latitud: -26.84, longitud: -65.21, qr_token: "HIT-QR-3319-B42C", calificacion: "BUENO" }
-        ],
-        ficheros: [
-            { id_fichero: 1, id_cliente: 1, id_empresa: 1, producto_nombre: "Smart TV 55 Samsung", cantidad_cuotas: 34, valor_cuota: 5000, frecuencia_pago: "SEMANAL", monto_total: 170000, vendedor: "Natasha Vendedora", encargado_zona: "Admin", id_cobrador_asignado: 2, fecha_entrega: "2026-07-01", estado: "ACTIVO", orden_visita: 1 }
-        ],
-        cuotas: Array.from({ length: 34 }, (_, i) => ({
-            id_cuota: i + 1,
-            id_fichero: 1,
-            id_empresa: 1,
-            nro_cuota: i + 1,
-            monto: 5000,
-            estado: i === 0 ? "PAGADO" : "PENDIENTE",
-            fecha_vencimiento: `2026-07-${(i * 7 + 7).toString().padStart(2, '0')}`,
-            id_cobrador: 2
-        }))
+        clientes: [],
+        ficheros: [],
+        cuotas: []
     };
 }
 
