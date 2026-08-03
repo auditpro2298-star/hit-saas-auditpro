@@ -229,8 +229,9 @@ class APIClient {
 
         if (endpoint === '/empresa/clientes' && method === 'POST') {
             const tipo = (body.tipo_cliente || 'particular').toLowerCase();
+            const maxId = db.clientes.reduce((max, c) => (c.id_cliente < 1000000 ? Math.max(max, c.id_cliente) : max), 0);
             const newClient = {
-                id_cliente: Date.now(),
+                id_cliente: maxId + 1,
                 id_empresa: 1,
                 tipo_cliente: tipo,
                 razon_social: tipo === 'empresa' ? (body.razon_social || body.nombre_apellido) : null,
