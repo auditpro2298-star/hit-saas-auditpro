@@ -98,6 +98,8 @@ async function switchEmpresaTab(tabName) {
             await loadPromesas();
         } else if (tabName === 'whatsapp') {
             await loadWhatsappLog();
+        } else if (tabName === 'operativo') {
+            await loadControlOperativoDiario();
         }
     } catch (err) {
         console.error(`Error al cargar datos de solapa "${tabName}":`, err);
@@ -1632,6 +1634,118 @@ async function buscarClientePorIdODni() {
     }
 }
 
+// SOLAPA 8: CONTROL OPERATIVO DIARIO (RENDICIÓN ENCARGADO)
+async function loadControlOperativoDiario() {
+    try {
+        const ficheros = await api.get('/empresa/ficheros') || [];
+        const cobros = await api.get('/empresa/auditoria') || { cobros_detallados: [] };
+        const promesasData = await api.get('/empresa/promesas') || { promesas: [] };
+
+        const cobrosDetallados = cobros.cobros_detallados || [];
+        const promesas = promesasData.promesas || [];
+
+        // Filtrar datos según encargado_zona si el usuario tiene rol ENCARGADO_ZONA
+        const isEncargado = (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA');
+        const userZona = (window.currentUser && window.currentUser.zona_asignada) ? window.currentUser.zona_asignada.toLowerCase() : '';
+        const userNombre = (window.currentUser && window.currentUser.nombre) ? window.currentUser.nombre.toLowerCase() : '';
+
+        const filterByEncargado = (item) => {
+            if (!isEncargado) return true;
+            const itemEnc = (item.encargado_zona || item.barrio || '').toLowerCase();
+            return itemEnc.includes(userZona) || itemEnc.includes(userNombre) || (userZona && userZona.includes(itemEnc));
+        };
+
+        const ficherosFiltrados = ficheros.filter(filterByEncargado);
+
+        let totalAsignados = ficherosFiltrados.length;
+        let totalCobrados = 0;
+        let montoCobrado = 0;
+        let totalPromesas = 0;
+        let totalParciales = 0;
+        let totalSaldoFavor = 0;
+
+        const tbody = document.getElementById('tbody-control-operativo');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (ficherosFiltrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Sin clientes ni ficheros asignados a esta zona hoy.</td></tr>`;
+        } else {
+            ficherosFiltrados.forEach((f, idx) => {
+                const cobroFichero = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero);
+                const ultimoCobro = cobroFichero.length > 0 ? cobroFichero[0] : null;
+                const promesaFichero = promesas.find(p => p.id_fichero === f.id_fichero);
+
+                let estadoHtml = `<span class="badge badge-warning">PENDIENTE</span>`;
+                let montoStr = `$0`;
+                let saldoStr = `$${Number(f.valor_cuota || 0).toLocaleString('es-AR')}`;
+                let proxNota = `Prioridad #${f.orden_visita || (idx + 1)}`;
+
+                if (ultimoCobro) {
+                    if (ultimoCobro.estado === 'PAGADO') {
+                        totalCobrados++;
+                        montoCobrado += Number(ultimoCobro.monto || 0);
+                        montoStr = `$${Number(ultimoCobro.monto || 0).toLocaleString('es-AR')}`;
+
+                        if (Number(ultimoCobro.monto || 0) > Number(f.valor_cuota || 0)) {
+                            const favor = Number(ultimoCobro.monto) - Number(f.valor_cuota);
+                            totalSaldoFavor += favor;
+                            estadoHtml = `<span class="badge badge-success">✅ PAGADO + SALDO A FAVOR</span>`;
+                            saldoStr = `<strong style="color:var(--success);">+$${favor.toLocaleString('es-AR')} a favor</strong>`;
+                        } else if (Number(ultimoCobro.monto || 0) < Number(f.valor_cuota || 0) && Number(ultimoCobro.monto || 0) > 0) {
+                            totalParciales++;
+                            const resto = Number(f.valor_cuota) - Number(ultimoCobro.monto);
+                            estadoHtml = `<span class="badge badge-purple">💵 PAGO PARCIAL</span>`;
+                            saldoStr = `<strong style="color:#d97706;">Resta $${resto.toLocaleString('es-AR')}</strong>`;
+                        } else {
+                            estadoHtml = `<span class="badge badge-success">✅ PAGADO COMPLETO</span>`;
+                            saldoStr = `$0 al día`;
+                        }
+                    } else if (ultimoCobro.estado === 'NO_COBRADO') {
+                        totalPromesas++;
+                        estadoHtml = `<span class="badge badge-danger">❌ NO COBRADO</span>`;
+                        proxNota = `Motivo: ${ultimoCobro.motivo_no_cobro || 'Ausente'}`;
+                    }
+                } else if (promesaFichero) {
+                    totalPromesas++;
+                    estadoHtml = `<span class="badge badge-orange">📅 PROMESA PAGO</span>`;
+                    proxNota = `Promesa: ${promesaFichero.promesa_pago_fecha ? new Date(promesaFichero.promesa_pago_fecha).toLocaleDateString() : 'Pendiente'}`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>#${f.id_fichero}</strong> — ${f.cliente_nombre || 'Cliente'}</td>
+                    <td>📍 ${f.direccion || ''} <br><span style="font-size:0.75rem; color:var(--text-secondary);">${f.barrio || ''}</span></td>
+                    <td>🛵 <strong>${f.cobrador_nombre || f.encargado_zona || 'Sin Asignar'}</strong></td>
+                    <td>${estadoHtml}</td>
+                    <td><strong>${montoStr}</strong></td>
+                    <td>${saldoStr}</td>
+                    <td style="font-size:0.8rem; color:var(--text-secondary);">${proxNota}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Actualizar métricas del DOM
+        const elAsig = document.getElementById('op-total-asignados');
+        if (elAsig) elAsig.innerText = totalAsignados;
+        const elCob = document.getElementById('op-total-cobrados');
+        if (elCob) elCob.innerText = totalCobrados;
+        const elMonto = document.getElementById('op-monto-cobrado');
+        if (elMonto) elMonto.innerText = `$${montoCobrado.toLocaleString('es-AR')} ARS`;
+        const elProm = document.getElementById('op-total-promesas');
+        if (elProm) elProm.innerText = totalPromesas;
+        const elParc = document.getElementById('op-total-parciales');
+        if (elParc) elParc.innerText = totalParciales;
+        const elFav = document.getElementById('op-total-saldofavor');
+        if (elFav) elFav.innerText = `$${totalSaldoFavor.toLocaleString('es-AR')} ARS`;
+
+    } catch (err) {
+        console.error('Error cargando control operativo diario:', err);
+    }
+}
+
+window.loadControlOperativoDiario = loadControlOperativoDiario;
 window.cambiarCalificacionCliente = cambiarCalificacionCliente;
 window.buscarClientePorIdODni = buscarClientePorIdODni;
 window.initEmpresaPanel = initEmpresaPanel;

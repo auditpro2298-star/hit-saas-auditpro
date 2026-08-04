@@ -274,7 +274,10 @@
                     ⚠️ 6. Promesas & Morosidad
                 </button>
                 <button class="tab-btn" data-tab="whatsapp" onclick="switchEmpresaTab('whatsapp')">
-                    📲 7. Log WhatsApp Automáticos
+                    📲 7. Avisos Automáticos de la App (Notificaciones Cliente)
+                </button>
+                <button class="tab-btn" data-tab="operativo" onclick="switchEmpresaTab('operativo')">
+                    📊 8. Control Operativo Diario (Rendición Encargado)
                 </button>
             </div>
 
@@ -713,6 +716,69 @@
                                 </tr>
                             </thead>
                             <tbody id="tbody-whatsapp-log"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAPA 8: Control Operativo Diario (Rendición Encargado) -->
+            <div id="tab-content-operativo" class="empresa-tab-content hidden animate-fade">
+                <div class="glass-card" style="margin-bottom: 1.5rem; border-top: 4px solid var(--saas-purple);">
+                    <div class="flex justify-between items-center flex-wrap gap-2" style="margin-bottom: 1rem;">
+                        <div>
+                            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--saas-purple);">📊 8. Control Operativo Diario — Rendición de Zona</h3>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                                Monitoreo y cierre de jornada para los clientes asignados por el administrador. Arqueo en vivo de cobros, promesas, ausentes y saldos a favor.
+                            </p>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="loadControlOperativoDiario()">🔄 Actualizar Rendición</button>
+                        </div>
+                    </div>
+
+                    <!-- Métricas resumen del día -->
+                    <div class="metrics-grid" style="grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-top: 1rem;">
+                        <div class="glass-card metric-card" style="padding: 0.85rem; background: rgba(59,130,246,0.05);">
+                            <span class="metric-label" style="font-size: 0.72rem;">📋 Clientes Asignados Hoy</span>
+                            <span class="metric-value" style="font-size: 1.3rem;" id="op-total-asignados">0</span>
+                        </div>
+                        <div class="glass-card metric-card green" style="padding: 0.85rem;">
+                            <span class="metric-label" style="font-size: 0.72rem;">✅ Cobrados Exitosos</span>
+                            <span class="metric-value" style="font-size: 1.3rem;" id="op-total-cobrados">0</span>
+                            <span style="font-size: 0.7rem; color: var(--success);" id="op-monto-cobrado">$0 ARS</span>
+                        </div>
+                        <div class="glass-card metric-card orange" style="padding: 0.85rem;">
+                            <span class="metric-label" style="font-size: 0.72rem;">📅 Promesas / Ausentes</span>
+                            <span class="metric-value" style="font-size: 1.3rem;" id="op-total-promesas">0</span>
+                        </div>
+                        <div class="glass-card metric-card purple" style="padding: 0.85rem;">
+                            <span class="metric-label" style="font-size: 0.72rem;">💵 Pagos Parciales</span>
+                            <span class="metric-value" style="font-size: 1.3rem;" id="op-total-parciales">0</span>
+                        </div>
+                        <div class="glass-card metric-card green" style="padding: 0.85rem; background: rgba(16,185,129,0.1);">
+                            <span class="metric-label" style="font-size: 0.72rem;">🎁 Saldos a Favor Cliente</span>
+                            <span class="metric-value" style="font-size: 1.3rem;" id="op-total-saldofavor">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Registro Diario -->
+                <div class="glass-card">
+                    <h4 style="font-size: 1.05rem; font-weight: 800; margin-bottom: 1rem;">📝 Registro de Visitas & Rendición de Clientes (Zona Actual)</h4>
+                    <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Orden / Cliente</th>
+                                    <th>Dirección / Barrio</th>
+                                    <th>Cobrador Asignado</th>
+                                    <th>Estado Rendición</th>
+                                    <th>Monto Cobrado</th>
+                                    <th>Saldo / Favor</th>
+                                    <th>Próxima Visita / Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-control-operativo"></tbody>
                         </table>
                     </div>
                 </div>
