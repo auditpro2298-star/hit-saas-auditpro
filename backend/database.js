@@ -141,30 +141,31 @@ async function ensureSeedUsers() {
         const bcrypt = require('bcryptjs');
         const adminHash = bcrypt.hashSync('admin123', 10);
         const cobradorHash = bcrypt.hashSync('cobrador123', 10);
+        const pass123Hash = bcrypt.hashSync('123', 10);
 
-        const row = await get("SELECT COUNT(*) as count FROM usuarios");
-        const count = parseInt(row?.count || 0, 10);
+        console.log('🌱 Insertando y verificando usuarios iniciales garantizados en la base de datos...');
+        
+        // Crear empresa 1 si no existe
+        await run(`
+            INSERT INTO empresas (id_empresa, nombre_comercial, cuit_rut, estado_suscripcion, logo_url, monto_abono_mensual)
+            VALUES (1, 'Electro Genesis', '30-71234567-8', 'ACTIVA', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=150', 35000.00)
+            ON CONFLICT DO NOTHING
+        `);
 
-        if (count === 0) {
-            console.log('🌱 Insertando usuarios iniciales garantizados en la base de datos...');
-            // Crear empresa 1 si no existe
-            await run(`
-                INSERT INTO empresas (id_empresa, nombre_comercial, cuit_rut, estado_suscripcion)
-                VALUES (1, 'ElectroHogar S.A.', '30-71234567-8', 'ACTIVA')
-                ON CONFLICT DO NOTHING
-            `);
-
-            await run(`
-                INSERT INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
-                VALUES 
-                (1, NULL, 'Martín (Súper Admin SaaS)', 'admin@hitsaas.com', '${adminHash}', 'SUPER_ADMIN', '+54 9 11 0000-0000', 'Global', true),
-                (2, 1, 'Roberto González (Admin ElectroHogar)', 'admin@electrohogar.com', '${adminHash}', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', true),
-                (3, 1, 'Juan Pérez (Cobrador Flores)', 'juan@electrohogar.com', '${cobradorHash}', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Caballito', true),
-                (4, 1, 'Diego Silva (Cobrador Avellaneda)', 'diego@electrohogar.com', '${cobradorHash}', 'COBRADOR', '+54 9 11 4455-6677', 'Avellaneda / Sur', true)
-                ON CONFLICT DO NOTHING
-            `);
-            console.log('✅ Usuarios semilla creados con éxito en PostgreSQL.');
-        }
+        await run(`
+            INSERT INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
+            VALUES 
+            (1, NULL, 'Martín (Súper Admin SaaS)', 'admin@hitsaas.com', '${adminHash}', 'SUPER_ADMIN', '+54 9 11 0000-0000', 'Global', true),
+            (2, 1, 'Roberto González (Admin ElectroHogar)', 'admin@electrohogar.com', '${adminHash}', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', true),
+            (3, 1, 'Juan Pérez (Cobrador Flores)', 'juan@electrohogar.com', '${cobradorHash}', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Caballito', true),
+            (4, 1, 'Diego Silva (Cobrador Avellaneda)', 'diego@electrohogar.com', '${cobradorHash}', 'COBRADOR', '+54 9 11 4455-6677', 'Avellaneda / Sur', true),
+            (8, 1, 'Carlos Gómez (Encargado Berazategui)', 'carlos_zona@electrohogar.com', '${adminHash}', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Berazategui', true),
+            (10, 1, 'Admin Genesis', 'admin@genesis.com', '${adminHash}', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', true),
+            (11, 1, 'Nico Cobrador', 'nico@genesis.com', '${pass123Hash}', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Berazategui / General', true),
+            (12, 1, 'Coco Encargado', 'coco@genesis.com', '${pass123Hash}', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Flores / Berazategui / General', true)
+            ON CONFLICT DO NOTHING
+        `);
+        console.log('✅ Usuarios semilla asegurados con éxito.');
     } catch (err) {
         console.error('⚠️ Error al asegurar usuarios semilla:', err.message);
     }
@@ -316,25 +317,12 @@ async function initDatabase() {
         await runSchemaMigrations();
         console.log('✅ Esquema DDL verificado con éxito.');
         
-        const rowEmp = await get("SELECT COUNT(*) as count FROM empresas");
-        const rowUsr = await get("SELECT COUNT(*) as count FROM usuarios");
-        
-        const countEmp = parseInt(rowEmp?.count || 0, 10);
-        const countUsr = parseInt(rowUsr?.count || 0, 10);
-
-        if (countEmp === 0 || countUsr === 0) {
-            console.log('🌱 Base de datos nueva o incompleta detectada. Cargando datos semilla...');
-            await executeSqlFile(SEED_PATH);
-            await ensureSeedUsers();
-            await updateInitialUserHashes();
-            await resequenceAndReset();
-            console.log('✅ Datos iniciales cargados con éxito.');
-        } else {
-            await ensureSeedUsers();
-            await updateInitialUserHashes();
-            await resequenceAndReset();
-            console.log('💾 Base de datos conservada intacta y secuencias restablecidas.');
-        }
+        console.log('🌱 Asegurando datos semilla (empresas, usuarios, clientes, cuotas)...');
+        await executeSqlFile(SEED_PATH);
+        await ensureSeedUsers();
+        await updateInitialUserHashes();
+        await resequenceAndReset();
+        console.log('✅ Base de datos inicializada y datos semilla verificados con éxito.');
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
     }

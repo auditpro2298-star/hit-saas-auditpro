@@ -5,6 +5,18 @@ const bcrypt = require('bcryptjs');
 const { get, resetAndSeed } = require('../database');
 const { JWT_SECRET, authenticateToken } = require('../middleware/auth');
 
+// GET /api/auth/seed-demo - Forzar re-ejecución de datos semilla de demostración en la nube (Render)
+router.get('/seed-demo', async (req, res) => {
+    try {
+        const { initDatabase } = require('../database');
+        await initDatabase();
+        res.json({ success: true, message: '✅ Base de datos de demostración re-inicializada con éxito en Render.' });
+    } catch (err) {
+        console.error('Error al forzar seed demo:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -16,25 +28,21 @@ router.post('/login', async (req, res) => {
         const cleanEmail = (email || '').trim().toLowerCase();
         let usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
         
-        // Auto-recuperación en la nube (Render): si la base de datos PostgreSQL se creó sin usuarios iniciales
+        // Auto-recuperación en la nube (Render): si la base de datos se creó sin usuarios iniciales
         if (!usuario) {
-            const countRow = await get('SELECT COUNT(*) as count FROM usuarios');
-            const totalUsers = parseInt(countRow?.count || 0, 10);
-            if (totalUsers === 0) {
-                console.log('🌱 Base de datos sin usuarios detectada durante el login. Ejecutando seeding inicial...');
-                const { initDatabase } = require('../database');
-                await initDatabase();
-                usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
-            }
+            console.log(`🌱 Usuario "${cleanEmail}" no encontrado. Ejecutando verificación de esquema y datos semilla...`);
+            const { initDatabase } = require('../database');
+            await initDatabase();
+            usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
         }
 
         if (!usuario || !usuario.activo) {
             return res.status(401).json({ error: 'Usuario incorrecto o cuenta inactiva.' });
         }
 
-        // Verificación de contraseña (soporte para 'admin123' / 'cobrador123' en dev o hash bcrypt)
+        // Verificación de contraseña (soporte para 'admin123' / 'cobrador123' / '123' en dev/demo o hash bcrypt)
         let validPass = false;
-        if (password === 'admin123' || password === 'cobrador123') {
+        if (password === 'admin123' || password === 'cobrador123' || password === '123') {
             validPass = true;
         } else if (usuario.password_hash) {
             try {
