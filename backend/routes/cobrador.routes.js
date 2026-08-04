@@ -10,22 +10,32 @@ router.use(authenticateToken, requireRole(['COBRADOR', 'ADMIN_EMPRESA', 'SUPER_A
 router.get('/hoja-de-ruta', async (req, res) => {
     const id_usuario = req.user.id_usuario;
     const id_empresa = req.user.id_empresa;
+    const userRole = req.user.rol;
+    const userZone = (req.user.zona_asignada || '').toLowerCase().trim();
 
     try {
-        const ruta = await query(`
+        let sql = `
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
                    c.id_cliente, c.nombre_apellido, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND (date(q.fecha_pago) = date('now') OR q.fecha_pago LIKE date('now') || '%')) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND (date(q.fecha_pago) = date('now') OR date(q.promesa_pago_fecha) = date('now') OR q.fecha_pago LIKE date('now') || '%')) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = date('now')) as cobrado_hoy,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND (date(q.fecha_pago) = date('now') OR date(q.promesa_pago_fecha) = date('now'))) as no_cobrado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
-            WHERE f.id_empresa = ? AND (f.id_cobrador_asignado = ? OR req_user_rol != 'COBRADOR') AND f.estado = 'ACTIVO'
-            ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC
-        `.replace('req_user_rol', `'${req.user.rol}'`), [id_empresa, id_usuario]);
+            WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
+        `;
+        const params = [id_empresa];
 
+        if (userRole === 'COBRADOR') {
+            sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL OR ? LIKE '%' || LOWER(c.barrio) || '%' OR LOWER(c.barrio) LIKE '%' || ? || '%')`;
+            params.push(id_usuario, userZone, userZone);
+        }
+
+        sql += ` ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC`;
+
+        const ruta = await query(sql, params);
         res.json(ruta);
     } catch (err) {
         console.error('Error sincronizando hoja de ruta:', err);

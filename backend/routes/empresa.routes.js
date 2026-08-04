@@ -665,7 +665,7 @@ router.get('/auditoria', async (req, res) => {
             cierresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
             cierresParams.push(`%${userZone}%`, `%${userZone}%`);
         }
-        cierresSql += ` GROUP BY u.id_usuario`;
+        cierresSql += ` GROUP BY u.id_usuario, u.nombre, u.zona_asignada`;
         const cierresCobrador = await query(cierresSql, cierresParams);
 
         // Últimos cobros con o sin comprobante + cobrador histórico
@@ -718,7 +718,7 @@ router.get('/promesas', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+        const userZone = (req.user && req.user.zona_asignada) ? req.user.zona_asignada.toLowerCase().trim() : '';
 
         let promesasSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_vencimiento, q.fecha_pago, q.motivo_no_cobro, q.promesa_pago_fecha, q.notas,
@@ -729,14 +729,14 @@ router.get('/promesas', async (req, res) => {
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
-            WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
+            WHERE q.id_empresa = ? AND (q.promesa_pago_fecha IS NOT NULL OR q.estado = 'NO_COBRADO')
         `;
         const promesasParams = [id_empresa];
-        if (isEncargado) {
-            promesasSql += ` AND LOWER(c.barrio) LIKE ?`;
-            promesasParams.push(zoneFilter);
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
+            promesasSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            promesasParams.push(`%${userZone}%`, `%${userZone}%`);
         }
-        promesasSql += ` ORDER BY q.promesa_pago_fecha ASC`;
+        promesasSql += ` ORDER BY q.promesa_pago_fecha ASC, q.id_cuota DESC`;
         const promesasPendientes = await query(promesasSql, promesasParams);
 
         let postergadoresSql = `
@@ -747,11 +747,11 @@ router.get('/promesas', async (req, res) => {
             WHERE q.id_empresa = ? AND q.estado = 'NO_COBRADO'
         `;
         const postergadoresParams = [id_empresa];
-        if (isEncargado) {
-            postergadoresSql += ` AND LOWER(c.barrio) LIKE ?`;
-            postergadoresParams.push(zoneFilter);
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
+            postergadoresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            postergadoresParams.push(`%${userZone}%`, `%${userZone}%`);
         }
-        postergadoresSql += ` GROUP BY c.id_cliente ORDER BY total_postergaciones DESC LIMIT 10`;
+        postergadoresSql += ` GROUP BY c.id_cliente, c.nombre_apellido, c.telefono, c.barrio, c.calificacion ORDER BY total_postergaciones DESC LIMIT 10`;
         const clientesPostergadores = await query(postergadoresSql, postergadoresParams);
 
         let cobradoresSql = `
@@ -760,14 +760,14 @@ router.get('/promesas', async (req, res) => {
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
-            WHERE q.id_empresa = ? AND q.promesa_pago_fecha IS NOT NULL AND q.estado = 'NO_COBRADO'
+            WHERE q.id_empresa = ? AND (q.promesa_pago_fecha IS NOT NULL OR q.estado = 'NO_COBRADO')
         `;
         const cobradoresParams = [id_empresa];
-        if (isEncargado) {
-            cobradoresSql += ` AND LOWER(c.barrio) LIKE ?`;
-            cobradoresParams.push(zoneFilter);
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
+            cobradoresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            cobradoresParams.push(`%${userZone}%`, `%${userZone}%`);
         }
-        cobradoresSql += ` GROUP BY COALESCE(q.nombre_cobrador, u.nombre) ORDER BY promesas_tomadas DESC LIMIT 10`;
+        cobradoresSql += ` GROUP BY q.nombre_cobrador, u.nombre ORDER BY promesas_tomadas DESC LIMIT 10`;
         const cobradoresPromesas = await query(cobradoresSql, cobradoresParams);
 
         res.json({
