@@ -645,7 +645,7 @@ router.get('/auditoria', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+        const userZone = (req.user && req.user.zona_asignada) ? req.user.zona_asignada.toLowerCase().trim() : '';
 
         // Conciliación del día o histórico
         let cierresSql = `
@@ -658,12 +658,12 @@ router.get('/auditoria', async (req, res) => {
             JOIN usuarios u ON q.id_cobrador = u.id_usuario
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
-            WHERE q.id_empresa = ? AND date(q.fecha_pago) = date('now')
+            WHERE q.id_empresa = ?
         `;
         const cierresParams = [id_empresa];
-        if (isEncargado) {
-            cierresSql += ` AND LOWER(c.barrio) LIKE ?`;
-            cierresParams.push(zoneFilter);
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
+            cierresSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            cierresParams.push(`%${userZone}%`, `%${userZone}%`);
         }
         cierresSql += ` GROUP BY u.id_usuario`;
         const cierresCobrador = await query(cierresSql, cierresParams);
@@ -672,17 +672,17 @@ router.get('/auditoria', async (req, res) => {
         let cobrosSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.estado,
                    c.nombre_apellido as cliente_nombre, c.direccion, c.barrio,
-                   COALESCE(q.nombre_cobrador, u.nombre, 'Desconocido') as cobrador_nombre, f.id_fichero, f.producto_nombre
+                   COALESCE(q.nombre_cobrador, u.nombre, 'Desconocido') as cobrador_nombre, f.id_fichero, f.producto_nombre, f.encargado_zona
             FROM cuotas q
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
-            WHERE q.id_empresa = ? AND q.estado = 'PAGADO'
+            WHERE q.id_empresa = ? AND (q.estado = 'PAGADO' OR q.estado = 'NO_COBRADO')
         `;
         const cobrosParams = [id_empresa];
-        if (isEncargado) {
-            cobrosSql += ` AND LOWER(c.barrio) LIKE ?`;
-            cobrosParams.push(zoneFilter);
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
+            cobrosSql += ` AND (LOWER(c.barrio) LIKE ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            cobrosParams.push(`%${userZone}%`, `%${userZone}%`);
         }
         cobrosSql += ` ORDER BY q.fecha_pago DESC, q.id_cuota DESC LIMIT 50`;
         const cobrosDetallados = await query(cobrosSql, cobrosParams);
@@ -695,9 +695,9 @@ router.get('/auditoria', async (req, res) => {
             WHERE w.id_empresa = ? 
         `;
         const waParams = [id_empresa];
-        if (isEncargado) {
+        if (isEncargado && userZone && !userZone.includes('general') && !userZone.includes('global') && !userZone.includes('oficina')) {
             waSql += ` AND LOWER(c.barrio) LIKE ?`;
-            waParams.push(zoneFilter);
+            waParams.push(`%${userZone}%`);
         }
         waSql += ` ORDER BY w.id_notificacion DESC LIMIT 30`;
         const whatsappRecientes = await query(waSql, waParams);

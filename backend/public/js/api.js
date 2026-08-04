@@ -5,38 +5,155 @@
 const API_BASE = '/api';
 
 function getInitialMockDB() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nowIso = new Date().toISOString();
+
     return {
         empresas: [
-            { id_empresa: 1, nombre_comercial: "ElectroHogar Cuotas", cuit_rut: "30-71829384-9", estado_suscripcion: "ACTIVA", logo_url: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150" }
+            { id_empresa: 1, nombre_comercial: "Electro Genesis", cuit_rut: "30-71829384-9", estado_suscripcion: "ACTIVA", logo_url: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150" }
         ],
         usuarios: [
             { id_usuario: 1, id_empresa: null, nombre: "Martín (Súper Admin SaaS)", email: "admin@hitsaas.com", rol: "SUPER_ADMIN", activo: 1, zona_asignada: "Global" },
-            { id_usuario: 2, id_empresa: 1, nombre: "Roberto González (Admin ElectroHogar)", email: "admin@electrohogar.com", rol: "ADMIN_EMPRESA", activo: 1, zona_asignada: "Oficina Central" },
-            { id_usuario: 3, id_empresa: 1, nombre: "Juan Pérez (Cobrador Flores)", email: "juan@electrohogar.com", rol: "COBRADOR", activo: 1, zona_asignada: "Flores / Caballito", telefono: "+54 9 11 3344-5566" },
+            { id_usuario: 2, id_empresa: 1, nombre: "Admin Genesis", email: "admin@genesis.com", rol: "ADMIN_EMPRESA", activo: 1, zona_asignada: "Oficina Central" },
+            { id_usuario: 3, id_empresa: 1, nombre: "Nico Cobrador", email: "nico@genesis.com", rol: "COBRADOR", activo: 1, zona_asignada: "Flores / Berazategui / General", telefono: "+54 9 11 3344-5566" },
             { id_usuario: 4, id_empresa: 1, nombre: "Diego Silva (Cobrador Avellaneda)", email: "diego@electrohogar.com", rol: "COBRADOR", activo: 1, zona_asignada: "Avellaneda / Sur", telefono: "+54 9 11 4455-6677" },
-            { id_usuario: 5, id_empresa: 1, nombre: "Carlos Gómez (Encargado Berazategui)", email: "carlos_zona@electrohogar.com", rol: "ENCARGADO_ZONA", activo: 1, zona_asignada: "Berazategui", telefono: "+54 9 11 5566-7788" }
+            { id_usuario: 5, id_empresa: 1, nombre: "Coco Encargado", email: "coco@genesis.com", rol: "ENCARGADO_ZONA", activo: 1, zona_asignada: "Flores / Berazategui / General", telefono: "+54 9 11 5566-7788" },
+            { id_usuario: 6, id_empresa: 1, nombre: "Carlos Gómez (Encargado Berazategui)", email: "carlos_zona@electrohogar.com", rol: "ENCARGADO_ZONA", activo: 1, zona_asignada: "Berazategui", telefono: "+54 9 11 5566-7788" }
         ],
         vendedores: [
-            { id_vendedor: 1, id_empresa: 1, nombre: "Natasha Vendedora", zona_asignada: "Zona Centro", telefono: "3815001122" }
+            { id_vendedor: 1, id_empresa: 1, nombre: "Milagros Vendedora", zona_asignada: "Zona Centro", telefono: "3815001122" }
         ],
-        clientes: [],
-        ficheros: [],
-        cuotas: []
+        clientes: [
+            {
+                id_cliente: 1,
+                id_empresa: 1,
+                nombre_apellido: "Marcelo Gómez",
+                dni: "30123456",
+                telefono: "+54 9 11 4455-6677",
+                direccion: "Av. San Martín 1234",
+                barrio: "Flores",
+                piso_dpto: "2 B",
+                referencia_domicilio: "Frente a la plaza central",
+                latitud: "-34.628",
+                longitud: "-58.462",
+                qr_token: "4f3b9a12-e82b-4cc3-a123-456789abcdef",
+                calificacion: "BUENO",
+                encargado_zona: "Coco Encargado"
+            },
+            {
+                id_cliente: 2,
+                id_empresa: 1,
+                nombre_apellido: "Lucía Fernández",
+                dni: "32987654",
+                telefono: "+54 9 11 8877-6655",
+                direccion: "Calle 14 nro 456",
+                barrio: "Berazategui",
+                piso_dpto: "PB",
+                referencia_domicilio: "Portón blanco",
+                latitud: "-34.764",
+                longitud: "-58.249",
+                qr_token: "9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f",
+                calificacion: "EXCELENTE",
+                encargado_zona: "Coco Encargado"
+            }
+        ],
+        ficheros: [
+            {
+                id_fichero: 1,
+                id_cliente: 1,
+                id_empresa: 1,
+                producto_nombre: "Smart TV 55 Samsung",
+                cantidad_cuotas: 16,
+                valor_cuota: 22000,
+                frecuencia_pago: "SEMANAL",
+                monto_total: 352000,
+                vendedor: "Milagros Vendedora",
+                encargado_zona: "Coco Encargado",
+                id_cobrador_asignado: 3,
+                orden_visita: 1,
+                fecha_entrega: todayStr,
+                estado: "ACTIVO"
+            }
+        ],
+        cuotas: [
+            {
+                id_cuota: 101,
+                id_fichero: 1,
+                id_empresa: 1,
+                nro_cuota: 1,
+                monto: 22000,
+                estado: "PAGADO",
+                medio_pago: "EFECTIVO",
+                fecha_pago: nowIso,
+                fecha_vencimiento: todayStr,
+                id_cobrador: 3,
+                nombre_cobrador: "Nico Cobrador"
+            },
+            {
+                id_cuota: 102,
+                id_fichero: 1,
+                id_empresa: 1,
+                nro_cuota: 2,
+                monto: 22000,
+                estado: "PAGADO",
+                medio_pago: "TRANSFERENCIA",
+                comprobante_img_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400",
+                fecha_pago: nowIso,
+                fecha_vencimiento: todayStr,
+                id_cobrador: 3,
+                nombre_cobrador: "Nico Cobrador"
+            },
+            {
+                id_cuota: 103,
+                id_fichero: 1,
+                id_empresa: 1,
+                nro_cuota: 3,
+                monto: 22000,
+                estado: "NO_COBRADO",
+                motivo_no_cobro: "AUSENTE - No respondieron timbre",
+                promesa_pago_fecha: todayStr + " 17:00",
+                fecha_vencimiento: todayStr,
+                id_cobrador: 3,
+                nombre_cobrador: "Nico Cobrador"
+            }
+        ],
+        whatsapp_notifications: [
+            {
+                id_notificacion: 1,
+                id_empresa: 1,
+                id_cliente: 1,
+                id_cuota: 101,
+                telefono: "+54 9 11 4455-6677",
+                mensaje: "✅ Comprobante Virtual HIT SaaS: Cuota #1 abonada ($22.000 ARS en EFECTIVO). Cobrador: Nico. Saldo pendiente: $308.000 ARS.",
+                estado: "ENVIADO",
+                fecha_envio: nowIso
+            },
+            {
+                id_notificacion: 2,
+                id_empresa: 1,
+                id_cliente: 1,
+                id_cuota: 102,
+                telefono: "+54 9 11 4455-6677",
+                mensaje: "📸 Comprobante Virtual HIT SaaS: Cuota #2 abonada ($22.000 ARS por TRANSFERENCIA BANCARIA). Comprobante en verificación por tesorería. ¡Muchas gracias!",
+                estado: "ENVIADO",
+                fecha_envio: nowIso
+            }
+        ]
     };
 }
 
 function getMockDB() {
-    const raw = localStorage.getItem('HIT_DEMO_DB_V2');
+    const raw = localStorage.getItem('HIT_DEMO_DB_V4');
     if (!raw) {
         const initial = getInitialMockDB();
-        localStorage.setItem('HIT_DEMO_DB_V2', JSON.stringify(initial));
+        localStorage.setItem('HIT_DEMO_DB_V4', JSON.stringify(initial));
         return initial;
     }
     return JSON.parse(raw);
 }
 
 function saveMockDB(db) {
-    localStorage.setItem('HIT_DEMO_DB_V2', JSON.stringify(db));
+    localStorage.setItem('HIT_DEMO_DB_V4', JSON.stringify(db));
 }
 
 class APIClient {
@@ -198,14 +315,129 @@ class APIClient {
         // 2. DASHBOARD EMPRESA
         if (endpoint === '/empresa/dashboard' && method === 'GET') {
             const activosCount = db.ficheros.filter(f => f.estado === 'ACTIVO').length;
-            const totalCartera = db.ficheros.filter(f => f.estado === 'ACTIVO').reduce((acc, f) => acc + (f.monto_total || 0), 0);
+            const totalCartera = db.ficheros.filter(f => f.estado === 'ACTIVO').reduce((acc, f) => acc + Number(f.monto_total || 0), 0);
+            const pagadasHoy = db.cuotas.filter(q => q.estado === 'PAGADO');
+            const cobradoHoyMonto = pagadasHoy.reduce((acc, q) => acc + Number(q.monto || 0), 0);
+            const deudaMonto = db.cuotas.filter(q => q.estado !== 'PAGADO').reduce((acc, q) => acc + Number(q.monto || 0), 0);
+
             return {
                 clientes_total: db.clientes.length,
                 ficheros_activos: activosCount,
                 cartera_activa: totalCartera,
-                cobrado_hoy: { monto: 5000, cantidad: 1 },
-                deuda_pendiente: { monto: totalCartera * 0.85 }
+                cobrado_hoy: { monto: cobradoHoyMonto, cantidad: pagadasHoy.length },
+                deuda_pendiente: { monto: deudaMonto }
             };
+        }
+
+        // 2.5 AUDITORÍA, PROMESAS & WHATSAPP
+        if (endpoint === '/empresa/auditoria' && method === 'GET') {
+            const isEncargado = (this.user && this.user.rol === 'ENCARGADO_ZONA');
+            const userZona = (this.user && this.user.zona_asignada) ? this.user.zona_asignada.toLowerCase() : '';
+            const userNombre = (this.user && this.user.nombre) ? this.user.nombre.toLowerCase() : '';
+
+            const cobrosDetallados = db.cuotas
+                .filter(q => q.estado === 'PAGADO' || q.estado === 'NO_COBRADO')
+                .map(q => {
+                    const f = db.ficheros.find(fic => fic.id_fichero === q.id_fichero) || {};
+                    const c = db.clientes.find(cli => cli.id_cliente === f.id_cliente) || {};
+                    const cob = db.usuarios.find(u => u.id_usuario === (q.id_cobrador || f.id_cobrador_asignado)) || {};
+                    return {
+                        id_cuota: q.id_cuota,
+                        id_fichero: q.id_fichero,
+                        nro_cuota: q.nro_cuota,
+                        monto: q.monto,
+                        fecha_pago: q.fecha_pago || new Date().toISOString(),
+                        medio_pago: q.medio_pago || (q.estado === 'PAGADO' ? 'EFECTIVO' : 'NO COBRADO'),
+                        comprobante_img_url: q.comprobante_img_url || null,
+                        motivo_no_cobro: q.motivo_no_cobro || null,
+                        promesa_pago_fecha: q.promesa_pago_fecha || null,
+                        estado: q.estado,
+                        cliente_nombre: c.nombre_apellido || 'Marcelo Gómez',
+                        direccion: c.direccion || 'Av. San Martín 1234',
+                        barrio: c.barrio || 'Flores',
+                        cobrador_nombre: q.nombre_cobrador || cob.nombre || 'Nico Cobrador',
+                        encargado_zona: f.encargado_zona || c.encargado_zona || 'General'
+                    };
+                })
+                .filter(q => {
+                    if (!isEncargado) return true;
+                    const encStr = (q.encargado_zona || q.barrio || '').toLowerCase();
+                    return encStr.includes(userZona) || encStr.includes(userNombre) || userZona.includes('flores') || userZona.includes('general') || userZona.includes('coco') || !userZona;
+                });
+
+            const cierresMap = {};
+            cobrosDetallados.forEach(q => {
+                const name = q.cobrador_nombre || 'Nico Cobrador';
+                if (!cierresMap[name]) {
+                    cierresMap[name] = { cobrador_nombre: name, zona_asignada: q.barrio || 'Flores', recaudado_efectivo: 0, recaudado_transferencia: 0, cobros_realizados: 0, visitas_no_cobradas: 0 };
+                }
+                if (q.estado === 'PAGADO') {
+                    cierresMap[name].cobros_realizados++;
+                    if (q.medio_pago === 'TRANSFERENCIA') {
+                        cierresMap[name].recaudado_transferencia += Number(q.monto || 0);
+                    } else {
+                        cierresMap[name].recaudado_efectivo += Number(q.monto || 0);
+                    }
+                } else if (q.estado === 'NO_COBRADO') {
+                    cierresMap[name].visitas_no_cobradas++;
+                }
+            });
+
+            return {
+                cierres_cobrador: Object.values(cierresMap),
+                cobros_detallados: cobrosDetallados
+            };
+        }
+
+        if (endpoint === '/empresa/promesas' && method === 'GET') {
+            const isEncargado = (this.user && this.user.rol === 'ENCARGADO_ZONA');
+            const userZona = (this.user && this.user.zona_asignada) ? this.user.zona_asignada.toLowerCase() : '';
+            const userNombre = (this.user && this.user.nombre) ? this.user.nombre.toLowerCase() : '';
+
+            const promesas = db.cuotas
+                .filter(q => q.estado === 'NO_COBRADO' || q.promesa_pago_fecha)
+                .map(q => {
+                    const f = db.ficheros.find(fic => fic.id_fichero === q.id_fichero) || {};
+                    const c = db.clientes.find(cli => cli.id_cliente === f.id_cliente) || {};
+                    return {
+                        id_cuota: q.id_cuota,
+                        id_fichero: q.id_fichero,
+                        nro_cuota: q.nro_cuota,
+                        monto: q.monto,
+                        motivo_no_cobro: q.motivo_no_cobro || 'AUSENTE - No respondieron timbre',
+                        promesa_pago_fecha: q.promesa_pago_fecha || new Date().toISOString(),
+                        cliente_nombre: c.nombre_apellido || 'Marcelo Gómez',
+                        telefono: c.telefono || '+54 9 11 4455-6677',
+                        barrio: c.barrio || 'Flores',
+                        cobrador_nombre: q.nombre_cobrador || 'Nico Cobrador',
+                        encargado_zona: f.encargado_zona || c.encargado_zona || 'General'
+                    };
+                })
+                .filter(q => {
+                    if (!isEncargado) return true;
+                    const encStr = (q.encargado_zona || q.barrio || '').toLowerCase();
+                    return encStr.includes(userZona) || encStr.includes(userNombre) || userZona.includes('flores') || userZona.includes('general') || userZona.includes('coco') || !userZona;
+                });
+
+            const ranking = db.clientes.map(c => {
+                return {
+                    id_cliente: c.id_cliente,
+                    nombre_apellido: c.nombre_apellido,
+                    telefono: c.telefono,
+                    barrio: c.barrio,
+                    calificacion: c.calificacion || 'BUENO',
+                    total_postergaciones: 1
+                };
+            });
+
+            return {
+                promesas: promesas,
+                ranking_clientes: ranking
+            };
+        }
+
+        if (endpoint === '/empresa/whatsapp-log' && method === 'GET') {
+            return db.whatsapp_notifications || [];
         }
 
         // 3. CLIENTES
