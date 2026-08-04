@@ -39,7 +39,7 @@ INSERT OR IGNORE INTO cuotas (id_cuota, id_fichero, id_empresa, nro_cuota, monto
 (103, 1, 1, 3, 22000.00, 'NO_COBRADO', 'NINGUNO', NULL, date('now'), 11, 'Nico Cobrador');
 
 -- 6. WHATSAPP NOTIFICATIONS
-INSERT OR IGNORE INTO whatsapp_notifications (id_notificacion, id_empresa, id_cliente, id_cuota, telefono, mensaje, estado, fecha_envio) VALUES
+INSERT OR IGNORE INTO whatsapp_notifications (id_notificacion, id_empresa, id_cliente, id_cuota, telefono_cliente, mensaje, estado, fecha_envio) VALUES
 (1, 1, 1, 101, '+54 9 11 4455-6677', '✅ Comprobante Virtual HIT SaaS: Cuota #1 abonada ($22.000 ARS en EFECTIVO). Cobrador: Nico. Saldo pendiente: $308.000 ARS.', 'ENVIADO', datetime('now')),
 (2, 1, 1, 102, '+54 9 11 4455-6677', '📸 Comprobante Virtual HIT SaaS: Cuota #2 abonada ($22.000 ARS por TRANSFERENCIA BANCARIA). Comprobante en verificación por tesorería. ¡Muchas gracias!', 'ENVIADO', datetime('now'));
 
