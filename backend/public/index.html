@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HIT — Software as a Service (SaaS) | Multi-Tenant Platform</title>
-    
+
     <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
-    
+
     <!-- Custom Design System -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
 </head>
+
 <body>
 
     <!-- ======================================================================
@@ -46,13 +48,17 @@
         </div>
 
         <div class="header-controls">
-            <span id="user-status-badge" style="font-size: 0.8rem; background: rgba(255,255,255,0.08); padding: 0.35rem 0.75rem; border-radius: var(--radius-full);">
+            <span id="user-status-badge"
+                style="font-size: 0.8rem; background: rgba(255,255,255,0.08); padding: 0.35rem 0.75rem; border-radius: var(--radius-full);">
                 👤 No conectado
             </span>
-            <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.2); font-size: 0.78rem;" id="btn-theme-toggle" onclick="toggleTheme()">
+            <button class="btn btn-outline"
+                style="color: white; border-color: rgba(255,255,255,0.2); font-size: 0.78rem;" id="btn-theme-toggle"
+                onclick="toggleTheme()">
                 🌙 Modo Oscuro
             </button>
-            <button class="btn btn-danger hidden" id="btn-logout" style="font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="logout()">
+            <button class="btn btn-danger hidden" id="btn-logout" style="font-size: 0.78rem; padding: 0.4rem 0.8rem;"
+                onclick="logout()">
                 🚪 Cerrar Sesión
             </button>
         </div>
@@ -71,37 +77,52 @@
                 <div class="text-center" style="margin-bottom: 1.75rem;">
                     <div style="font-size: 2.5rem; margin-bottom: 0.25rem;">⚡</div>
                     <h2 style="font-size: 1.6rem; font-weight: 800;">HIT SaaS Platform</h2>
-                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Ingrese con sus credenciales autorizadas.</p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Ingrese con sus
+                        credenciales autorizadas.</p>
                 </div>
 
                 <form id="form-login" onsubmit="submitLoginForm(event)">
                     <div class="form-group" style="margin-bottom: 1.25rem;">
                         <label class="form-label" style="font-weight: 600;">Correo Electrónico</label>
-                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@empresa.com" required style="padding: 0.75rem;">
+                        <input type="email" id="login-email" class="form-control" placeholder="ejemplo@empresa.com"
+                            required style="padding: 0.75rem;">
                     </div>
                     <div class="form-group" style="margin-bottom: 1.5rem;">
                         <label class="form-label" style="font-weight: 600;">Contraseña de Acceso</label>
-                        <input type="password" id="login-pass" class="form-control" placeholder="••••••••" required style="padding: 0.75rem;">
+                        <input type="password" id="login-pass" class="form-control" placeholder="••••••••" required
+                            style="padding: 0.75rem;">
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
+                    <button type="submit" class="btn btn-primary"
+                        style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
                         🔐 Iniciar Sesión Segura
                     </button>
                 </form>
 
-                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px dashed var(--border-color);" class="text-center">
-                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">⚡ Acceso Rápido de Demostración (1-Clic):</p>
+                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px dashed var(--border-color);"
+                    class="text-center">
+                    <p
+                        style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">
+                        ⚡ Acceso Rápido de Demostración (1-Clic):</p>
                     <div class="flex gap-2 justify-center flex-wrap">
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem 0.65rem;" onclick="fillLoginFields('admin@hitsaas.com', 'admin123')">
+                        <button type="button" class="btn btn-outline"
+                            style="font-size: 0.72rem; padding: 0.35rem 0.65rem;"
+                            onclick="fillLoginFields('admin@hitsaas.com', 'admin123')">
                             👑 Súper Admin
                         </button>
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem 0.65rem;" onclick="fillLoginFields('admin@electrohogar.com', 'admin123')">
+                        <button type="button" class="btn btn-outline"
+                            style="font-size: 0.72rem; padding: 0.35rem 0.65rem;"
+                            onclick="fillLoginFields('admin@genesis.com', 'admin123')">
                             🏢 Admin Empresa
                         </button>
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem 0.65rem;" onclick="fillLoginFields('juan@electrohogar.com', 'cobrador123')">
-                            📱 Cobrador Juan
+                        <button type="button" class="btn btn-outline"
+                            style="font-size: 0.72rem; padding: 0.35rem 0.65rem;"
+                            onclick="fillLoginFields('nico@genesis.com', '123')">
+                            📱 Cobrador nico
                         </button>
-                        <button type="button" class="btn btn-outline" style="font-size: 0.72rem; padding: 0.35rem 0.65rem;" onclick="fillLoginFields('carlos_zona@electrohogar.com', 'admin123')">
-                            👮 Encargado Carlos
+                        <button type="button" class="btn btn-outline"
+                            style="font-size: 0.72rem; padding: 0.35rem 0.65rem;"
+                            onclick="fillLoginFields('coco@genesis.com', '123')">
+                            👮 Encargado Coco
                         </button>
                     </div>
                 </div>
@@ -114,10 +135,13 @@
         <section id="panel-superadmin" class="role-panel animate-fade hidden">
             <div class="flex justify-between items-center" style="margin-bottom: 1.5rem;">
                 <div>
-                    <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.025em;">Súper Admin — Panel Central SaaS</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Monitoreo universal, facturación (MRR), alta y bloqueo de empresas inquilinas en 1 clic.</p>
+                    <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.025em;">Súper Admin — Panel
+                        Central SaaS</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Monitoreo universal, facturación (MRR),
+                        alta y bloqueo de empresas inquilinas en 1 clic.</p>
                 </div>
-                <button class="btn btn-purple" onclick="document.getElementById('modal-new-tenant').classList.remove('hidden')">
+                <button class="btn btn-purple"
+                    onclick="document.getElementById('modal-new-tenant').classList.remove('hidden')">
                     ➕ Alta de Nueva Empresa (Tenant)
                 </button>
             </div>
@@ -148,7 +172,8 @@
 
             <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
                 <div class="glass-card">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🏢 Empresas Inquilinas (Tenants)</h3>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🏢 Empresas Inquilinas
+                        (Tenants)</h3>
                     <div class="table-container">
                         <table class="styled-table">
                             <thead>
@@ -169,7 +194,8 @@
                 </div>
 
                 <div class="glass-card">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">📊 Gráfico de Ingresos SaaS</h3>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">📊 Gráfico de Ingresos SaaS
+                    </h3>
                     <div style="height: 280px; position: relative;">
                         <canvas id="chart-saas-mrr"></canvas>
                     </div>
@@ -184,7 +210,8 @@
             <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
                 <div>
                     <h1 style="font-size: 1.85rem; font-weight: 800;">ElectroHogar S.A. — Gestión de Casa de Cuotas</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Entorno privado del dueño para clientes, geoposicionamiento en mapa, ficheros y hojas de ruta.</p>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">Entorno privado del dueño para
+                        clientes, geoposicionamiento en mapa, ficheros y hojas de ruta.</p>
                 </div>
                 <div class="flex gap-2 flex-wrap">
                     <button class="btn btn-primary" onclick="openNewClienteModal()">
@@ -193,7 +220,9 @@
                     <button class="btn btn-success" onclick="openNewFicheroModal()">
                         📝 Crear Fichero
                     </button>
-                    <button class="btn btn-outline" style="background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: rgba(255,255,255,0.2);" onclick="descargarBackupEmpresa()" title="Descargar Copia de Seguridad Completa en JSON">
+                    <button class="btn btn-outline"
+                        style="background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: rgba(255,255,255,0.2);"
+                        onclick="descargarBackupEmpresa()" title="Descargar Copia de Seguridad Completa en JSON">
                         📥 Copia de Seguridad (Backup)
                     </button>
                 </div>
@@ -252,14 +281,22 @@
             <!-- SOLAPA 1: Clientes y Mapa -->
             <div id="tab-content-clientes" class="empresa-tab-content hidden animate-fade">
                 <!-- Barra de Búsqueda y Filtro por Zona / Barrio -->
-                <div class="flex gap-2 items-center flex-wrap" style="margin-bottom: 1.25rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div class="flex gap-2 items-center flex-wrap"
+                    style="margin-bottom: 1.25rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                     <div style="flex: 1; min-width: 220px;">
-                        <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🔍 Buscador en Mapa y Lista</label>
-                        <input type="text" id="input-search-clientes-map" class="form-control" placeholder="Buscar por nombre, calle (ej: 121), DNI..." style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarClientesPorBarrioYTexto()">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🔍
+                            Buscador en Mapa y Lista</label>
+                        <input type="text" id="input-search-clientes-map" class="form-control"
+                            placeholder="Buscar por nombre, calle (ej: 121), DNI..."
+                            style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarClientesPorBarrioYTexto()">
                     </div>
                     <div style="min-width: 200px;">
-                        <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🏘️ Agrupar por Zona / Barrio</label>
-                        <select id="select-filter-barrio-map" class="form-control" style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarClientesPorBarrioYTexto()">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🏘️
+                            Agrupar por Zona / Barrio</label>
+                        <select id="select-filter-barrio-map" class="form-control"
+                            style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarClientesPorBarrioYTexto()">
                             <option value="ALL">📍 Todos los Barrios / Zonas</option>
                         </select>
                     </div>
@@ -267,11 +304,13 @@
 
                 <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de Clientes en Mapa HD</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">🗺️ Geolocalización de
+                            Clientes en Mapa HD</h3>
                         <div id="map-container" style="height: 380px;"></div>
                     </div>
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">👥 Listado de Clientes con Código QR</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">👥 Listado de Clientes
+                            con Código QR</h3>
                         <div class="table-container" style="max-height: 500px; overflow-y: auto;">
                             <table class="styled-table">
                                 <thead>
@@ -298,7 +337,8 @@
                     <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
                         <div>
                             <h3 style="font-size: 1.15rem; font-weight: 800;">📑 Ficheros Digitales</h3>
-                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Generación de planes automáticos semanales/quincenales/mensuales</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Generación de planes
+                                automáticos semanales/quincenales/mensuales</span>
                         </div>
                         <button class="btn btn-success" onclick="openNewFicheroModal()">➕ Crear Nuevo Fichero</button>
                     </div>
@@ -329,27 +369,35 @@
                     <!-- Caja 1: Gestión de Vendedores y Ranking Quién Vendió Más -->
                     <div class="glass-card" style="border-top: 4px solid #3b82f6;">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
-                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #3b82f6;">🌟 Sector Vendedores & Ranking Comercial</h3>
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #3b82f6;">🌟 Sector Vendedores &
+                                Ranking Comercial</h3>
                             <span class="badge badge-purple">Quién Vendió Más</span>
                         </div>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                            Sector separado de los empleados para dar de alta vendedores y medir automáticamente <strong>quién cerró más ventas y volumen de dinero</strong>.
+                            Sector separado de los empleados para dar de alta vendedores y medir automáticamente
+                            <strong>quién cerró más ventas y volumen de dinero</strong>.
                         </p>
 
-                        <form id="form-new-vendedor" onsubmit="submitNewVendedorForm(event)" class="grid" style="grid-template-columns: 1.5fr 1fr 1fr auto; gap: 0.6rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                        <form id="form-new-vendedor" onsubmit="submitNewVendedorForm(event)" class="grid"
+                            style="grid-template-columns: 1.5fr 1fr 1fr auto; gap: 0.6rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Nombre Vendedor</label>
-                                <input type="text" id="new-vend-nombre" class="form-control" placeholder="Ej: Milagros" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-vend-nombre" class="form-control" placeholder="Ej: Milagros"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
-                                <input type="text" id="new-vend-tel" class="form-control" placeholder="11-9988-7766" style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-vend-tel" class="form-control" placeholder="11-9988-7766"
+                                    style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Zona / Sector</label>
-                                <input type="text" id="new-vend-zona" class="form-control" placeholder="Berazategui" style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-vend-zona" class="form-control" placeholder="Berazategui"
+                                    style="padding:0.4rem; font-size:0.82rem;">
                             </div>
-                            <button type="submit" class="btn btn-primary" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Vendedor</button>
+                            <button type="submit" class="btn btn-primary"
+                                style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta
+                                Vendedor</button>
                         </form>
 
                         <div class="table-container" style="max-height: 320px; overflow-y: auto;">
@@ -370,31 +418,40 @@
                     <!-- Caja 2: Gestión de Cobradores en Calle y Envíos de Lugares por WhatsApp -->
                     <div class="glass-card" style="border-top: 4px solid #10b981;">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
-                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #10b981;">🛵 Sector Cobradores & Lugares a Cobrar</h3>
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: #10b981;">🛵 Sector Cobradores &
+                                Lugares a Cobrar</h3>
                             <span class="badge badge-success">Envíos por WhatsApp</span>
                         </div>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                            Dar de alta cobradores con acceso a la App Móvil y <strong>enviar por WhatsApp en 1 clic los lugares exactos y domicilios</strong> donde tienen que cobrar.
+                            Dar de alta cobradores con acceso a la App Móvil y <strong>enviar por WhatsApp en 1 clic los
+                                lugares exactos y domicilios</strong> donde tienen que cobrar.
                         </p>
 
-                        <form id="form-new-cobrador" onsubmit="submitNewCobradorForm(event)" class="grid" style="grid-template-columns: 1.2fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                        <form id="form-new-cobrador" onsubmit="submitNewCobradorForm(event)" class="grid"
+                            style="grid-template-columns: 1.2fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Nombre Cobrador</label>
-                                <input type="text" id="new-cob-nombre" class="form-control" placeholder="Ej: Juan Pérez" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-cob-nombre" class="form-control" placeholder="Ej: Juan Pérez"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Email (App Login)</label>
-                                <input type="email" id="new-cob-email" class="form-control" placeholder="juan@hit.com" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="email" id="new-cob-email" class="form-control" placeholder="juan@hit.com"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Contraseña</label>
-                                <input type="password" id="new-cob-pass" class="form-control" placeholder="••••••••" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="password" id="new-cob-pass" class="form-control" placeholder="••••••••"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
-                                <input type="text" id="new-cob-tel" class="form-control" placeholder="11-3344-5566" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-cob-tel" class="form-control" placeholder="11-3344-5566"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
-                            <button type="submit" class="btn btn-success" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Cobrador</button>
+                            <button type="submit" class="btn btn-success"
+                                style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta
+                                Cobrador</button>
                         </form>
 
                         <div class="table-container" style="max-height: 320px; overflow-y: auto;">
@@ -412,37 +469,49 @@
                         </div>
                     </div>
                     <!-- Caja 3: Gestión de Encargados de Zona con Filtros de Privacidad -->
-                    <div class="glass-card" style="border-top: 4px solid var(--saas-purple); margin-top: 1.5rem; grid-column: span 2;">
+                    <div class="glass-card"
+                        style="border-top: 4px solid var(--saas-purple); margin-top: 1.5rem; grid-column: span 2;">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
-                            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--saas-purple);">🛡️ Sector Encargados de Zona & Filtros de Privacidad</h3>
+                            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--saas-purple);">🛡️ Sector
+                                Encargados de Zona & Filtros de Privacidad</h3>
                             <span class="badge badge-purple">Seguridad de Datos</span>
                         </div>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                            Asignar supervisores para zonas específicas. Al ingresar, <strong>solo podrán ver las solapas 4, 5, 6 y 7</strong> y únicamente los clientes e información de su zona/barrio asignado.
+                            Asignar supervisores para zonas específicas. Al ingresar, <strong>solo podrán ver las
+                                solapas 4, 5, 6 y 7</strong> y únicamente los clientes e información de su zona/barrio
+                            asignado.
                         </p>
 
-                        <form id="form-new-encargado" onsubmit="submitNewEncargadoForm(event)" class="grid" style="grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(139,92,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
+                        <form id="form-new-encargado" onsubmit="submitNewEncargadoForm(event)" class="grid"
+                            style="grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto; gap: 0.6rem; background: rgba(139,92,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; align-items: end;">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Nombre Encargado</label>
-                                <input type="text" id="new-enc-nombre" class="form-control" placeholder="Ej: Carlos Gómez" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-enc-nombre" class="form-control"
+                                    placeholder="Ej: Carlos Gómez" required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Email (App Login)</label>
-                                <input type="email" id="new-enc-email" class="form-control" placeholder="carlos@hit.com" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="email" id="new-enc-email" class="form-control" placeholder="carlos@hit.com"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Contraseña</label>
-                                <input type="password" id="new-enc-pass" class="form-control" placeholder="••••••••" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="password" id="new-enc-pass" class="form-control" placeholder="••••••••"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Teléfono / WhatsApp</label>
-                                <input type="text" id="new-enc-tel" class="form-control" placeholder="11-5566-7788" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-enc-tel" class="form-control" placeholder="11-5566-7788"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size:0.75rem;">Zona / Barrio Asignado</label>
-                                <input type="text" id="new-enc-zona" class="form-control" placeholder="Berazategui" required style="padding:0.4rem; font-size:0.82rem;">
+                                <input type="text" id="new-enc-zona" class="form-control" placeholder="Berazategui"
+                                    required style="padding:0.4rem; font-size:0.82rem;">
                             </div>
-                            <button type="submit" class="btn btn-purple" style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta Encargado</button>
+                            <button type="submit" class="btn btn-purple"
+                                style="padding:0.45rem 0.85rem; font-size:0.8rem; white-space:nowrap;">➕ Alta
+                                Encargado</button>
                         </form>
 
                         <div class="table-container" style="max-height: 320px; overflow-y: auto;">
@@ -466,14 +535,22 @@
             <!-- SOLAPA 4: Asignación de Rutas -->
             <div id="tab-content-rutas" class="empresa-tab-content hidden animate-fade">
                 <!-- Barra de Búsqueda y Filtro de Zona / Barrio para Rutas -->
-                <div class="flex gap-2 items-center flex-wrap" style="margin-bottom: 1.25rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div class="flex gap-2 items-center flex-wrap"
+                    style="margin-bottom: 1.25rem; background: rgba(16,185,129,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                     <div style="flex: 1; min-width: 220px;">
-                        <label style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🔍 Buscador de Visitas / Dirección</label>
-                        <input type="text" id="input-search-rutas" class="form-control" placeholder="Buscar por cliente, calle (ej: 121), producto..." style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarRutasPorBarrioYTexto()">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🔍
+                            Buscador de Visitas / Dirección</label>
+                        <input type="text" id="input-search-rutas" class="form-control"
+                            placeholder="Buscar por cliente, calle (ej: 121), producto..."
+                            style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarRutasPorBarrioYTexto()">
                     </div>
                     <div style="min-width: 200px;">
-                        <label style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🏘️ Filtrar por Zona / Barrio</label>
-                        <select id="select-filter-route-barrio" class="form-control" style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarRutasPorBarrioYTexto()">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">🏘️
+                            Filtrar por Zona / Barrio</label>
+                        <select id="select-filter-route-barrio" class="form-control"
+                            style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarRutasPorBarrioYTexto()">
                             <option value="ALL">📍 Todas las Zonas / Barrios</option>
                         </select>
                     </div>
@@ -481,9 +558,11 @@
 
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y Priorización de Rutas</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y
+                            Priorización de Rutas</h3>
                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                            Defina el orden de visitas (ej. 1, 2, 3...) y asigne cobradores. El orden se refleja en tiempo real en la App Móvil de calle.
+                            Defina el orden de visitas (ej. 1, 2, 3...) y asigne cobradores. El orden se refleja en
+                            tiempo real en la App Móvil de calle.
                         </p>
                         <div class="table-container" style="max-height: 520px; overflow-y: auto;">
                             <table class="styled-table">
@@ -499,18 +578,23 @@
                             </table>
                         </div>
                     </div>
-                    
+
                     <div class="glass-card">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
                             <h3 style="font-size: 1.15rem; font-weight: 800;">🗺️ Mapa Secuencial de Hojas de Ruta</h3>
-                            <select id="select-filter-route-map" class="form-control" style="max-width: 190px; padding: 0.35rem; font-size: 0.82rem;" onchange="filtrarRutasPorBarrioYTexto()">
+                            <select id="select-filter-route-map" class="form-control"
+                                style="max-width: 190px; padding: 0.35rem; font-size: 0.82rem;"
+                                onchange="filtrarRutasPorBarrioYTexto()">
                                 <option value="ALL">📍 Ver Todo el Personal</option>
                             </select>
                         </div>
                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                            Las líneas discontinuas muestran el camino sugerido en base al número de orden asignado a la izquierda.
+                            Las líneas discontinuas muestran el camino sugerido en base al número de orden asignado a la
+                            izquierda.
                         </p>
-                        <div id="route-map-container" style="height: 440px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); z-index: 1;"></div>
+                        <div id="route-map-container"
+                            style="height: 440px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); z-index: 1;">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -519,7 +603,8 @@
             <div id="tab-content-auditoria" class="empresa-tab-content hidden animate-fade">
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">💰 Rendición y Arqueo por Cobrador (Hoy)</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">💰 Rendición y Arqueo por
+                            Cobrador (Hoy)</h3>
                         <div class="table-container">
                             <table class="styled-table">
                                 <thead>
@@ -536,9 +621,11 @@
                         </div>
                     </div>
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">📸 Conciliación con Recibos Bancarios</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">📸 Conciliación con
+                            Recibos Bancarios</h3>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                            Las cuotas pagadas con transferencia exigen foto del comprobante para auditar antes de cerrar caja.
+                            Las cuotas pagadas con transferencia exigen foto del comprobante para auditar antes de
+                            cerrar caja.
                         </p>
                         <div class="table-container" style="max-height: 280px; overflow-y: auto;">
                             <table class="styled-table">
@@ -563,7 +650,8 @@
             <div id="tab-content-promesas" class="empresa-tab-content hidden animate-fade">
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #d97706;">📅 Agenda de Promesas de Pago Pendientes</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #d97706;">📅
+                            Agenda de Promesas de Pago Pendientes</h3>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
                             Visitas no cobradas donde el cliente comprometió una fecha y hora de pago posterior.
                         </p>
@@ -582,7 +670,8 @@
                         </div>
                     </div>
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--danger);">🚨 Ranking de Clientes con Más Postergaciones</h3>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--danger);">
+                            🚨 Ranking de Clientes con Más Postergaciones</h3>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
                             Detección temprana de morosidad crónica por postergaciones repetidas.
                         </p>
@@ -606,9 +695,11 @@
             <!-- SOLAPA 6: Log WhatsApp Automáticos -->
             <div id="tab-content-whatsapp" class="empresa-tab-content hidden animate-fade">
                 <div class="glass-card">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #16a34a;">📲 Auditoría de Notificaciones Automáticas por WhatsApp</h3>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: #16a34a;">📲
+                        Auditoría de Notificaciones Automáticas por WhatsApp</h3>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                        Transparencia antirrobo: cada cobro en calle dispara al instante un comprobante virtual al WhatsApp del cliente con saldo en vivo.
+                        Transparencia antirrobo: cada cobro en calle dispara al instante un comprobante virtual al
+                        WhatsApp del cliente con saldo en vivo.
                     </p>
                     <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                         <table class="styled-table">
@@ -635,7 +726,8 @@
             <div class="text-center" style="margin-bottom: 1.5rem;">
                 <h1 style="font-size: 1.75rem; font-weight: 800;">Vista Móvil del Cobrador en Calle</h1>
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">
-                    Simulación de teléfono inteligente iOS/Android. Sincronización offline-ready, escáner QR en vivo por cámara y casilleros interactivos.
+                    Simulación de teléfono inteligente iOS/Android. Sincronización offline-ready, escáner QR en vivo por
+                    cámara y casilleros interactivos.
                 </p>
             </div>
 
@@ -648,22 +740,28 @@
 
                     <div class="phone-screen">
                         <!-- Cabecera Móvil -->
-                        <div class="flex justify-between items-center" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                        <div class="flex justify-between items-center"
+                            style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
                             <div>
                                 <h3 style="font-size: 1.1rem; font-weight: 800;">🛵 Hola, Juan</h3>
-                                <span style="font-size: 0.75rem; color: var(--text-secondary);">Ruta: Flores / Caballito</span>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary);">Ruta: Flores /
+                                    Caballito</span>
                             </div>
                             <div class="flex items-center gap-1">
-                                <span class="badge badge-success" style="font-size: 0.68rem;" id="cobrador-online-badge">🟢 ONLINE</span>
-                                <button class="btn btn-warning hidden" id="btn-sync-offline" style="font-size: 0.68rem; padding: 0.25rem 0.5rem;" onclick="syncOfflineQueue()">
+                                <span class="badge badge-success" style="font-size: 0.68rem;"
+                                    id="cobrador-online-badge">🟢 ONLINE</span>
+                                <button class="btn btn-warning hidden" id="btn-sync-offline"
+                                    style="font-size: 0.68rem; padding: 0.25rem 0.5rem;" onclick="syncOfflineQueue()">
                                     🔄 Sync (0)
                                 </button>
                             </div>
                         </div>
 
                         <!-- Resumen de Bolsillo -->
-                        <div class="glass-card" style="padding: 0.85rem; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
-                            <div class="flex justify-between items-center" style="font-size: 0.78rem; font-weight: 700; color: var(--primary);">
+                        <div class="glass-card"
+                            style="padding: 0.85rem; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
+                            <div class="flex justify-between items-center"
+                                style="font-size: 0.78rem; font-weight: 700; color: var(--primary);">
                                 <span>💵 Efectivo Bolsillo: <strong id="cob-efectivo-bolsillo">$0</strong></span>
                                 <span>📲 Transf: <strong id="cob-transf-cargadas">$0</strong></span>
                             </div>
@@ -671,18 +769,23 @@
 
                         <!-- Botón y Contenedor del Escáner QR de Cámara -->
                         <div class="glass-card text-center" style="padding: 1rem; border: 2px solid var(--primary);">
-                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.4rem;">📷 Escáner Tarjeta QR Físico</h4>
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin-bottom: 0.4rem;">📷 Escáner Tarjeta
+                                QR Físico</h4>
                             <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
                                 Apunta a la tarjeta QR del cliente para levantar su planilla sin buscar en listas.
                             </p>
                             <div class="flex gap-2 justify-center flex-wrap">
-                                <button class="btn btn-primary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="startCameraScanner()">
+                                <button class="btn btn-primary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;"
+                                    onclick="startCameraScanner()">
                                     📸 Activar Cámara
                                 </button>
-                                <button class="btn btn-warning" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="buscarClientePorDni()" title="Emergencia si el cliente perdió su tarjeta QR">
+                                <button class="btn btn-warning" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;"
+                                    onclick="buscarClientePorDni()"
+                                    title="Emergencia si el cliente perdió su tarjeta QR">
                                     🔍 Buscar por DNI (Sin QR)
                                 </button>
-                                <button class="btn btn-danger hidden" id="btn-stop-camera" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="stopCameraScanner()">
+                                <button class="btn btn-danger hidden" id="btn-stop-camera"
+                                    style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="stopCameraScanner()">
                                     🛑 Cerrar Cámara
                                 </button>
                             </div>
@@ -692,7 +795,8 @@
 
                         <!-- VISTA A: HOJA DE RUTA DEL DÍA -->
                         <div id="cobrador-vista-ruta">
-                            <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0.5rem 0;">📋 Hoja de Ruta Priorizada por Zona</h4>
+                            <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0.5rem 0;">📋 Hoja de Ruta
+                                Priorizada por Zona</h4>
                             <div id="hoja-ruta-list">
                                 <!-- Dinámico -->
                             </div>
@@ -701,15 +805,18 @@
                         <!-- VISTA B: PLANILLA DEL FICHERO DIGITAL ESCANEADO -->
                         <div id="cobrador-vista-planilla" class="hidden animate-fade">
                             <div class="flex justify-between items-center" style="margin-bottom: 0.75rem;">
-                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;" onclick="backToRuta()">
+                                <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;"
+                                    onclick="backToRuta()">
                                     ⬅ Volver a Ruta
                                 </button>
                                 <span class="badge badge-purple" id="planilla-qr-badge">QR-TOKEN</span>
                             </div>
 
-                            <div class="glass-card" style="padding: 1rem; margin-bottom: 1rem; border-left: 4px solid var(--success);">
+                            <div class="glass-card"
+                                style="padding: 1rem; margin-bottom: 1rem; border-left: 4px solid var(--success);">
                                 <h3 id="planilla-client-name" style="font-size: 1.15rem; font-weight: 800;">Cliente</h3>
-                                <span id="planilla-client-dir" style="font-size: 0.8rem; color: var(--text-secondary);">Dirección</span>
+                                <span id="planilla-client-dir"
+                                    style="font-size: 0.8rem; color: var(--text-secondary);">Dirección</span>
                             </div>
 
                             <div id="ficheros-planilla-container">
@@ -727,22 +834,28 @@
              ================================================================== -->
         <section id="panel-cliente" class="role-panel hidden animate-fade">
             <div class="text-center" style="max-width: 640px; margin: 0 auto 2rem auto;">
-                <h1 style="font-size: 1.85rem; font-weight: 800; margin-bottom: 0.5rem;">💳 Cartilla Virtual Digital del Cliente</h1>
+                <h1 style="font-size: 1.85rem; font-weight: 800; margin-bottom: 0.5rem;">💳 Cartilla Virtual Digital del
+                    Cliente</h1>
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">
-                    Acceso instantáneo vía escaneo de QR para control transparente de cuotas saldadas, próximas a vencer y saldos en tiempo real.
+                    Acceso instantáneo vía escaneo de QR para control transparente de cuotas saldadas, próximas a vencer
+                    y saldos en tiempo real.
                 </p>
-                
+
                 <!-- Buscador rápido para probar en escritorio -->
                 <div id="cartilla-search-wrapper">
                     <div class="flex gap-2 justify-center" style="margin-top: 1.25rem;">
-                        <input type="text" id="input-cliente-qr" class="form-control" placeholder="Ingrese o pegue token UUID QR" value="4f3b9a12-e82b-4cc3-a123-456789abcdef" style="max-width: 340px;">
+                        <input type="text" id="input-cliente-qr" class="form-control"
+                            placeholder="Ingrese o pegue token UUID QR" value="4f3b9a12-e82b-4cc3-a123-456789abcdef"
+                            style="max-width: 340px;">
                         <button class="btn btn-primary" onclick="loadCartillaPublica()">🔍 Ver Mi Cartilla</button>
                     </div>
                     <div class="flex gap-2 justify-center" style="margin-top: 0.6rem;">
-                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
+                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;"
+                            onclick="loadCartillaPublica('4f3b9a12-e82b-4cc3-a123-456789abcdef')">
                             ⚡ Demo Cartilla: Marcelo Gómez (UUID)
                         </button>
-                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;" onclick="loadCartillaPublica('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
+                        <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.7rem;"
+                            onclick="loadCartillaPublica('9b8c7d6e-5f4a-3b2c-1d0e-9a8b7c6d5e4f')">
                             ⚡ Demo Cartilla: Lucía Fernández (UUID)
                         </button>
                     </div>
@@ -764,38 +877,46 @@
         <div class="modal-box">
             <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
                 <h3 style="font-size: 1.2rem; font-weight: 800;">🏢 Alta de Nueva Empresa (Tenant)</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">✖</button>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">✖</button>
             </div>
             <form id="form-new-tenant" onsubmit="submitNewTenantForm(event)">
                 <div class="form-group">
                     <label>Nombre Comercial de la Empresa</label>
-                    <input type="text" id="new-tenant-nombre" class="form-control" placeholder="Ej: Créditos Sur o Fiados El Amigo" required>
+                    <input type="text" id="new-tenant-nombre" class="form-control"
+                        placeholder="Ej: Créditos Sur o Fiados El Amigo" required>
                 </div>
                 <div class="form-group">
                     <label>CUIT / RUT Único</label>
-                    <input type="text" id="new-tenant-cuit" class="form-control" placeholder="Ej: 30-88112233-4" required>
+                    <input type="text" id="new-tenant-cuit" class="form-control" placeholder="Ej: 30-88112233-4"
+                        required>
                 </div>
                 <div class="form-group">
                     <label>Monto Abono Mensual ($ ARS)</label>
                     <input type="number" id="new-tenant-abono" class="form-control" value="35000" required>
                 </div>
                 <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
-                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.75rem;">👤 Usuario Administrador de esta Empresa</h4>
+                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.75rem;">👤 Usuario Administrador de
+                        esta Empresa</h4>
                     <div class="form-group">
                         <label>Nombre del Dueño / Admin</label>
-                        <input type="text" id="new-tenant-admin-nombre" class="form-control" placeholder="Ej: Roberto González" required>
+                        <input type="text" id="new-tenant-admin-nombre" class="form-control"
+                            placeholder="Ej: Roberto González" required>
                     </div>
                     <div class="form-group">
                         <label>Email de Acceso</label>
-                        <input type="email" id="new-tenant-admin-email" class="form-control" placeholder="admin@creditos.com" required>
+                        <input type="email" id="new-tenant-admin-email" class="form-control"
+                            placeholder="admin@creditos.com" required>
                     </div>
                     <div class="form-group">
                         <label>Contraseña Inicial</label>
-                        <input type="password" id="new-tenant-admin-pass" class="form-control" value="admin123" required>
+                        <input type="password" id="new-tenant-admin-pass" class="form-control" value="admin123"
+                            required>
                     </div>
                 </div>
                 <div class="flex justify-between" style="margin-top: 1.5rem;">
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">Cancelar</button>
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('modal-new-tenant').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="btn btn-primary">💾 Guardar Empresa y Crear Admin</button>
                 </div>
             </form>
@@ -807,7 +928,8 @@
         <div class="modal-box">
             <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
                 <h3 style="font-size: 1.2rem; font-weight: 800;">📍 Nuevo Cliente & Generador QR</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">✖</button>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">✖</button>
             </div>
             <form id="form-new-cliente" onsubmit="submitNewClienteForm(event)">
 
@@ -826,7 +948,8 @@
                 <div class="grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Calle</label>
-                        <input type="text" id="new-cli-calle" class="form-control" placeholder="Ej: Av. San Martín o 121" required>
+                        <input type="text" id="new-cli-calle" class="form-control"
+                            placeholder="Ej: Av. San Martín o 121" required>
                     </div>
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Altura / Nro (opcional)</label>
@@ -845,38 +968,56 @@
                     </div>
                     <div class="form-group" style="margin-bottom: 0.5rem;">
                         <label>Fecha de pago (opcional)</label>
-                        <input type="text" id="new-cli-ref" class="form-control" placeholder="Ej: Todos los 10 o del 1 al 5">
+                        <input type="text" id="new-cli-ref" class="form-control"
+                            placeholder="Ej: Todos los 10 o del 1 al 5">
                     </div>
                 </div>
-                
+
                 <div class="flex items-center gap-2" style="margin-bottom: 0.75rem; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="verificarDireccionEnMapa()">
+                    <button type="button" class="btn btn-purple"
+                        style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"
+                        onclick="verificarDireccionEnMapa()">
                         🔍 Buscar en Mapa
                     </button>
-                    <button type="button" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="abrirBusquedaGoogleMaps()">
+                    <button type="button" class="btn btn-outline"
+                        style="font-size: 0.75rem; padding: 0.4rem 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"
+                        onclick="abrirBusquedaGoogleMaps()">
                         🗺️ Abrir Google Maps
                     </button>
-                    <span id="verificando-loader" style="font-size: 0.78rem; color: var(--text-secondary); display: none; font-weight: 500;">⌛ Geolocalizando dirección...</span>
+                    <span id="verificando-loader"
+                        style="font-size: 0.78rem; color: var(--text-secondary); display: none; font-weight: 500;">⌛
+                        Geolocalizando dirección...</span>
                 </div>
 
                 <!-- Campo para Pegar Link de Google Maps o Coordenadas Directas -->
-                <div class="form-group" style="margin-bottom: 0.75rem; background: rgba(59,130,246,0.06); padding: 0.65rem; border-radius: var(--radius-md); border: 1px dashed rgba(59,130,246,0.3);">
-                    <label style="font-size: 0.75rem; font-weight: 700; color: #2563eb;">📌 Opción 2: Pegar Enlace de Google Maps o Coordenadas (ej: -34.7646, -58.2495)</label>
+                <div class="form-group"
+                    style="margin-bottom: 0.75rem; background: rgba(59,130,246,0.06); padding: 0.65rem; border-radius: var(--radius-md); border: 1px dashed rgba(59,130,246,0.3);">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #2563eb;">📌 Opción 2: Pegar Enlace de
+                        Google Maps o Coordenadas (ej: -34.7646, -58.2495)</label>
                     <div class="flex gap-2" style="margin-top: 0.3rem;">
-                        <input type="text" id="new-cli-gmaps-link" class="form-control" placeholder="Pegue link de Google Maps o coords..." style="font-size: 0.78rem; padding: 0.35rem 0.5rem;" onchange="procesarEnlaceGoogleMaps()">
-                        <button type="button" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; white-space: nowrap;" onclick="procesarEnlaceGoogleMaps()">
+                        <input type="text" id="new-cli-gmaps-link" class="form-control"
+                            placeholder="Pegue link de Google Maps o coords..."
+                            style="font-size: 0.78rem; padding: 0.35rem 0.5rem;" onchange="procesarEnlaceGoogleMaps()">
+                        <button type="button" class="btn btn-primary"
+                            style="font-size: 0.75rem; padding: 0.35rem 0.75rem; white-space: nowrap;"
+                            onclick="procesarEnlaceGoogleMaps()">
                             🎯 Ubicar Pin
                         </button>
                     </div>
                 </div>
 
-                <div id="modal-map-container" style="height: 180px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1rem; display: none; position: relative;"></div>
+                <div id="modal-map-container"
+                    style="height: 180px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1rem; display: none; position: relative;">
+                </div>
 
-                <div style="background: rgba(16,185,129,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.8rem; color: #059669;">
-                    🌐 Al guardar, se usarán las coordenadas verificadas arriba. Podés arrastrar el marcador del mapa para precisar el domicilio.
+                <div
+                    style="background: rgba(16,185,129,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.8rem; color: #059669;">
+                    🌐 Al guardar, se usarán las coordenadas verificadas arriba. Podés arrastrar el marcador del mapa
+                    para precisar el domicilio.
                 </div>
                 <div class="flex justify-between">
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">Cancelar</button>
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('modal-new-cliente').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="btn btn-success">💾 Registrar Cliente e Imprimir QR</button>
                 </div>
             </form>
@@ -888,28 +1029,39 @@
         <div class="modal-box text-center" style="max-width: 420px;">
             <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
                 <h3 style="font-size: 1.15rem; font-weight: 800;">📱 Tarjeta QR Físico / Digital</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-client-qr').classList.add('hidden')">✖</button>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-client-qr').classList.add('hidden')">✖</button>
             </div>
-            <div class="glass-card" style="padding: 1.5rem; border: 2px solid var(--primary); background: #ffffff; color: #0f172a; margin-bottom: 1.25rem;">
+            <div class="glass-card"
+                style="padding: 1.5rem; border: 2px solid var(--primary); background: #ffffff; color: #0f172a; margin-bottom: 1.25rem;">
 
-                <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.2rem;">Cliente Nombre</h4>
-                <div id="modal-qr-client-doc" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">DNI: 30123456</div>
-                <div style="font-family: monospace; font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;" id="modal-qr-token-text">HIT-QR-TOKEN</div>
+                <h4 id="modal-qr-client-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.2rem;">
+                    Cliente Nombre</h4>
+                <div id="modal-qr-client-doc"
+                    style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">DNI: 30123456
+                </div>
+                <div style="font-family: monospace; font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;"
+                    id="modal-qr-token-text">HIT-QR-TOKEN</div>
                 <div style="display: flex; justify-content: center; margin: 1rem 0;">
                     <img id="modal-qr-image" src="" alt="QR" style="width: 200px; height: 200px; border-radius: 8px;">
                 </div>
                 <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem;">
-                    Esta tarjeta es escaneada por el cobrador al presentarse en el domicilio o por el cliente para ver su cartilla en línea.
+                    Esta tarjeta es escaneada por el cobrador al presentarse en el domicilio o por el cliente para ver
+                    su cartilla en línea.
                 </p>
                 <div class="flex flex-col gap-2 no-print">
-                    <input type="text" id="modal-qr-public-link" class="form-control" readonly style="font-size: 0.72rem; background: #f1f5f9; color: #334155;">
+                    <input type="text" id="modal-qr-public-link" class="form-control" readonly
+                        style="font-size: 0.72rem; background: #f1f5f9; color: #334155;">
                     <div class="flex gap-2">
-                        <button class="btn btn-outline" style="flex:1; font-size: 0.75rem; padding: 0.4rem;" onclick="copiarLinkCartillaCliente()">📋 Copiar Link</button>
-                        <button class="btn btn-success" style="flex:1; font-size: 0.75rem; padding: 0.4rem;" onclick="enviarLinkCartillaWhatsapp()">📲 WhatsApp</button>
+                        <button class="btn btn-outline" style="flex:1; font-size: 0.75rem; padding: 0.4rem;"
+                            onclick="copiarLinkCartillaCliente()">📋 Copiar Link</button>
+                        <button class="btn btn-success" style="flex:1; font-size: 0.75rem; padding: 0.4rem;"
+                            onclick="enviarLinkCartillaWhatsapp()">📲 WhatsApp</button>
                     </div>
                 </div>
             </div>
-            <button class="btn btn-primary no-print" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta QR</button>
+            <button class="btn btn-primary no-print" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta
+                QR</button>
         </div>
     </div>
 
@@ -918,16 +1070,24 @@
         <div class="modal-box">
             <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
                 <h3 style="font-size: 1.2rem; font-weight: 800;">📑 Crear Fichero de Venta</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">✖</button>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">✖</button>
             </div>
             <form id="form-new-fichero" onsubmit="submitNewFicheroForm(event)">
-                <div class="form-group" style="background: rgba(139,92,246,0.06); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple); margin-bottom: 1rem;">
-                    <label style="color: var(--saas-purple); font-weight: 700;">🔎 Cargar Cliente por ID / DNI (Evita volver a crearlo)</label>
+                <div class="form-group"
+                    style="background: rgba(139,92,246,0.06); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple); margin-bottom: 1rem;">
+                    <label style="color: var(--saas-purple); font-weight: 700;">🔎 Cargar Cliente por ID / DNI (Evita
+                        volver a crearlo)</label>
                     <div class="flex gap-2" style="margin-top: 0.3rem;">
-                        <input type="text" id="new-fich-buscar-cliente-id" class="form-control" placeholder="Ingrese ID o DNI del cliente..." style="font-size: 0.85rem; padding: 0.4rem;">
-                        <button type="button" class="btn btn-purple" style="font-size: 0.8rem; padding: 0.4rem 1rem; white-space: nowrap;" onclick="buscarClientePorIdODni()">🔍 Cargar</button>
+                        <input type="text" id="new-fich-buscar-cliente-id" class="form-control"
+                            placeholder="Ingrese ID o DNI del cliente..." style="font-size: 0.85rem; padding: 0.4rem;">
+                        <button type="button" class="btn btn-purple"
+                            style="font-size: 0.8rem; padding: 0.4rem 1rem; white-space: nowrap;"
+                            onclick="buscarClientePorIdODni()">🔍 Cargar</button>
                     </div>
-                    <div id="new-fich-cliente-info-preview" style="font-size: 0.78rem; margin-top: 0.4rem; font-weight: 600; color: var(--text-secondary);"></div>
+                    <div id="new-fich-cliente-info-preview"
+                        style="font-size: 0.78rem; margin-top: 0.4rem; font-weight: 600; color: var(--text-secondary);">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Seleccionar Cliente</label>
@@ -935,7 +1095,8 @@
                 </div>
                 <div class="form-group">
                     <label>Nombre del Producto o Préstamo</label>
-                    <input type="text" id="new-fich-producto" class="form-control" placeholder="Ej: Smart TV 55 Samsung o Préstamo $100k" required>
+                    <input type="text" id="new-fich-producto" class="form-control"
+                        placeholder="Ej: Smart TV 55 Samsung o Préstamo $100k" required>
                 </div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
@@ -965,11 +1126,14 @@
                         <input type="date" id="new-fich-fecha" class="form-control" required>
                     </div>
                 </div>
-                <div style="background: rgba(59,130,246,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; font-size: 0.8rem; color: #2563eb;">
-                    ✨ El sistema generará automáticamente la planilla idéntica al papel (casilleros del 1 hasta N) con vencimientos según la frecuencia elegida.
+                <div
+                    style="background: rgba(59,130,246,0.1); padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; font-size: 0.8rem; color: #2563eb;">
+                    ✨ El sistema generará automáticamente la planilla idéntica al papel (casilleros del 1 hasta N) con
+                    vencimientos según la frecuencia elegida.
                 </div>
                 <div class="flex justify-between">
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">Cancelar</button>
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('modal-new-fichero').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="btn btn-success">💾 Generar Fichero Digital</button>
                 </div>
             </form>
@@ -981,9 +1145,11 @@
         <div class="modal-box" style="max-width: 450px;">
             <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
                 <h3 id="cobro-modal-title" style="font-size: 1.2rem; font-weight: 800;">Registrar Casillero</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">✖</button>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">✖</button>
             </div>
-            <p id="cobro-modal-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;"></p>
+            <p id="cobro-modal-subtitle"
+                style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;"></p>
 
             <form id="form-cobrar-cuota" onsubmit="submitCobroForm(event)">
                 <div class="form-group">
@@ -996,31 +1162,41 @@
                 </div>
 
                 <!-- Campo condicional para TRANSFERENCIA (Subir/Sacar foto del comprobante) -->
-                <div id="div-transf-img" class="form-group hidden animate-fade" style="background: rgba(139,92,246,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple);">
-                    <label style="color: var(--saas-purple); font-weight: 700; display: block; margin-bottom: 0.5rem;">📸 Comprobante / Recibo de Transferencia</label>
-                    
+                <div id="div-transf-img" class="form-group hidden animate-fade"
+                    style="background: rgba(139,92,246,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple);">
+                    <label
+                        style="color: var(--saas-purple); font-weight: 700; display: block; margin-bottom: 0.5rem;">📸
+                        Comprobante / Recibo de Transferencia</label>
+
                     <div class="flex gap-2 items-center flex-wrap">
-                        <label for="input-foto-comprobante" class="btn btn-purple" style="font-size: 0.82rem; padding: 0.5rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <label for="input-foto-comprobante" class="btn btn-purple"
+                            style="font-size: 0.82rem; padding: 0.5rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
                             📷 Sacar Foto / Adjuntar Comprobante
                         </label>
-                        <input type="file" id="input-foto-comprobante" accept="image/*" capture="environment" style="display: none;" onchange="procesarFotoComprobante(this)">
+                        <input type="file" id="input-foto-comprobante" accept="image/*" capture="environment"
+                            style="display: none;" onchange="procesarFotoComprobante(this)">
                     </div>
 
                     <!-- Previsualización de la foto capturada -->
                     <div id="container-foto-preview" style="margin-top: 0.65rem; display: none; text-align: center;">
-                        <img id="img-foto-preview" src="" alt="Vista previa del comprobante" style="max-height: 140px; border-radius: var(--radius-sm); border: 2px solid var(--saas-purple); box-shadow: var(--shadow-sm); display: block; margin: 0 auto;">
-                        <span style="font-size: 0.72rem; color: #059669; font-weight: 700; display: block; margin-top: 0.25rem;">✅ Foto capturada correctamente</span>
+                        <img id="img-foto-preview" src="" alt="Vista previa del comprobante"
+                            style="max-height: 140px; border-radius: var(--radius-sm); border: 2px solid var(--saas-purple); box-shadow: var(--shadow-sm); display: block; margin: 0 auto;">
+                        <span
+                            style="font-size: 0.72rem; color: #059669; font-weight: 700; display: block; margin-top: 0.25rem;">✅
+                            Foto capturada correctamente</span>
                     </div>
 
                     <input type="hidden" id="cobro-transf-url">
 
                     <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.4rem;">
-                        💡 Sacá la foto del comprobante bancario para conciliar con la casa central antes del cierre de caja.
+                        💡 Sacá la foto del comprobante bancario para conciliar con la casa central antes del cierre de
+                        caja.
                     </span>
                 </div>
 
                 <!-- Campo condicional para NO COBRADO -->
-                <div id="div-rechazo-motivo" class="form-group hidden animate-fade" style="background: rgba(239,68,68,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--danger);">
+                <div id="div-rechazo-motivo" class="form-group hidden animate-fade"
+                    style="background: rgba(239,68,68,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--danger);">
                     <label style="color: var(--danger); font-weight: 700;">❌ Motivo del No Cobro</label>
                     <select id="cobro-rechazo-select" class="form-control">
                         <option value="AUSENTE - No respondieron timbre">Ausente — No respondieron timbre</option>
@@ -1031,9 +1207,12 @@
                 </div>
 
                 <!-- Campo condicional para NO COBRADO: Fecha y Hora de Promesa de Pago (Función 2) -->
-                <div id="div-promesa-fecha" class="form-group hidden animate-fade" style="background: rgba(245,158,11,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed #f59e0b; margin-top: 0.75rem;">
-                    <label style="color: #d97706; font-weight: 700;">📅 Fecha y Hora de Promesa de Pago (Obligatorio)</label>
-                    <input type="datetime-local" id="cobro-promesa-fecha" class="form-control" style="margin-top: 0.35rem;">
+                <div id="div-promesa-fecha" class="form-group hidden animate-fade"
+                    style="background: rgba(245,158,11,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed #f59e0b; margin-top: 0.75rem;">
+                    <label style="color: #d97706; font-weight: 700;">📅 Fecha y Hora de Promesa de Pago
+                        (Obligatorio)</label>
+                    <input type="datetime-local" id="cobro-promesa-fecha" class="form-control"
+                        style="margin-top: 0.35rem;">
                     <span style="font-size: 0.72rem; color: var(--text-secondary); display:block; margin-top: 0.35rem;">
                         💡 Agendar para seguimiento en el ranking de morosidad y alertas de central.
                     </span>
@@ -1041,11 +1220,13 @@
 
                 <div class="form-group">
                     <label>Observaciones o Notas del Cobrador</label>
-                    <textarea id="cobro-notas" class="form-control" rows="2" placeholder="Ej: Se cobró en puerta, todo normal."></textarea>
+                    <textarea id="cobro-notas" class="form-control" rows="2"
+                        placeholder="Ej: Se cobró en puerta, todo normal."></textarea>
                 </div>
 
                 <div class="flex justify-between" style="margin-top: 1.5rem;">
-                    <button type="button" class="btn btn-outline" onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">Cancelar</button>
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('modal-registrar-cobro').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="width: 60%;">💾 Confirmar y Asentar</button>
                 </div>
             </form>
@@ -1054,23 +1235,31 @@
 
     <!-- MODAL 6: ALERTA EN VIVO DE WHATSAPP AUTOMÁTICO -->
     <div id="modal-whatsapp-live" class="modal-overlay hidden" style="z-index: 10000;">
-        <div class="modal-box animate-fade" style="max-width: 440px; border: 2px solid #22c55e; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(22, 163, 74, 0.25);">
-            <div class="flex items-center gap-2" style="background: #22c55e; color: #fff; padding: 0.85rem 1.15rem; margin: -1.75rem -1.75rem 1.25rem -1.75rem; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+        <div class="modal-box animate-fade"
+            style="max-width: 440px; border: 2px solid #22c55e; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(22, 163, 74, 0.25);">
+            <div class="flex items-center gap-2"
+                style="background: #22c55e; color: #fff; padding: 0.85rem 1.15rem; margin: -1.75rem -1.75rem 1.25rem -1.75rem; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                 <span style="font-size: 1.4rem;">💬</span>
                 <div>
                     <h3 style="font-size: 1.05rem; font-weight: 800; margin: 0;">WhatsApp Automático Disparado</h3>
                     <span style="font-size: 0.75rem; opacity: 0.9;">Alerta Antirrobo de Central HIT -> Cliente</span>
                 </div>
             </div>
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem; font-family: sans-serif;">
-                <div class="flex justify-between items-center" style="margin-bottom: 0.5rem; border-bottom: 1px solid #dcfce7; padding-bottom: 0.4rem;">
-                    <span style="font-size: 0.78rem; font-weight: 700; color: #166534;">De: Central HIT SaaS (+54 9 11 BOT)</span>
+            <div
+                style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem; font-family: sans-serif;">
+                <div class="flex justify-between items-center"
+                    style="margin-bottom: 0.5rem; border-bottom: 1px solid #dcfce7; padding-bottom: 0.4rem;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #166534;">De: Central HIT SaaS (+54 9 11
+                        BOT)</span>
                     <span class="badge badge-success" style="font-size: 0.65rem;">✔✔ Enviado</span>
                 </div>
-                <p id="whatsapp-live-msg" style="font-size: 0.88rem; color: #15803d; line-height: 1.45; white-space: pre-wrap; font-weight: 500;"></p>
+                <p id="whatsapp-live-msg"
+                    style="font-size: 0.88rem; color: #15803d; line-height: 1.45; white-space: pre-wrap; font-weight: 500;">
+                </p>
             </div>
             <div class="text-center">
-                <button class="btn btn-success" style="width: 100%; font-weight: 800;" onclick="document.getElementById('modal-whatsapp-live').classList.add('hidden')">
+                <button class="btn btn-success" style="width: 100%; font-weight: 800;"
+                    onclick="document.getElementById('modal-whatsapp-live').classList.add('hidden')">
                     👌 Entendido (Cerrar Simulación)
                 </button>
             </div>
@@ -1081,13 +1270,18 @@
     <div id="modal-ver-comprobante" class="modal-overlay hidden">
         <div class="modal-box text-center" style="max-width: 480px;">
             <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
-                <h3 id="modal-comprobante-title" style="font-size: 1.1rem; font-weight: 800;">Recibo de Transferencia</h3>
-                <button class="btn btn-outline" style="border:none;" onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✖</button>
+                <h3 id="modal-comprobante-title" style="font-size: 1.1rem; font-weight: 800;">Recibo de Transferencia
+                </h3>
+                <button class="btn btn-outline" style="border:none;"
+                    onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✖</button>
             </div>
             <div style="margin: 1rem 0;">
-                <img id="modal-comprobante-img" src="" alt="Comprobante Bancario" style="max-width: 100%; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
+                <img id="modal-comprobante-img" src="" alt="Comprobante Bancario"
+                    style="max-width: 100%; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
             </div>
-            <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✅ Verificado por Tesorería</button>
+            <button class="btn btn-primary" style="width: 100%;"
+                onclick="document.getElementById('modal-ver-comprobante').classList.add('hidden')">✅ Verificado por
+                Tesorería</button>
         </div>
     </div>
 
@@ -1095,12 +1289,17 @@
     <div id="modal-block-subscription" class="modal-overlay hidden">
         <div class="modal-box text-center" style="max-width: 480px; border: 3px solid #ef4444;">
             <div style="font-size: 3rem; margin-bottom: 0.5rem;">🚫</div>
-            <h2 style="font-size: 1.5rem; font-weight: 800; color: #ef4444; margin-bottom: 0.75rem;">Suscripción Bloqueada</h2>
-            <p id="block-msg-text" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;"></p>
-            <div style="background: rgba(239,68,68,0.1); padding: 1rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #dc2626; margin-bottom: 1.5rem;">
-                📞 Para regularizar la situación del servicio de software o realizar el pago del abono mensual, comuníquese con el <strong>Súper Administrador del Sistema HIT</strong>.
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: #ef4444; margin-bottom: 0.75rem;">Suscripción
+                Bloqueada</h2>
+            <p id="block-msg-text"
+                style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;"></p>
+            <div
+                style="background: rgba(239,68,68,0.1); padding: 1rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #dc2626; margin-bottom: 1.5rem;">
+                📞 Para regularizar la situación del servicio de software o realizar el pago del abono mensual,
+                comuníquese con el <strong>Súper Administrador del Sistema HIT</strong>.
             </div>
-            <button class="btn btn-danger" style="width: 100%;" onclick="document.getElementById('modal-block-subscription').classList.add('hidden')">Entendido</button>
+            <button class="btn btn-danger" style="width: 100%;"
+                onclick="document.getElementById('modal-block-subscription').classList.add('hidden')">Entendido</button>
         </div>
     </div>
 
@@ -1120,4 +1319,5 @@
     <script src="js/app.js?v=2.0.6"></script>
 
 </body>
+
 </html>
