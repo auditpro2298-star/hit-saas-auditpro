@@ -643,11 +643,41 @@ class APIClient {
             return { success: true, message: `✅ Encargado de zona "${newEnc.nombre}" registrado exitosamente.` };
         }
 
-        if (endpoint.startsWith('/empresa/usuarios/') && method === 'DELETE') {
-            const id = parseInt(endpoint.split('/')[3]);
-            db.usuarios = db.usuarios.filter(u => u.id_usuario !== id);
-            saveMockDB(db);
-            return { success: true, message: `🗑️ Empleado eliminado correctamente.` };
+        // 6. COBRADOR HOJA DE RUTA
+        if (endpoint === '/cobrador/hoja-de-ruta' && method === 'GET') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return db.ficheros.map(f => {
+                const c = db.clientes.find(cli => cli.id_cliente === f.id_cliente) || {};
+                const cuotasFichero = db.cuotas.filter(q => q.id_fichero === f.id_fichero);
+                const cuotasPagadas = cuotasFichero.filter(q => q.estado === 'PAGADO').length;
+                const nextCuota = cuotasFichero.find(q => q.estado === 'PENDIENTE');
+                const cobradoHoy = cuotasFichero.filter(q => q.estado === 'PAGADO' && (q.fecha_pago || '').startsWith(todayStr)).length;
+                const noCobradoHoy = cuotasFichero.filter(q => (q.estado === 'NO_COBRADO' || q.motivo_no_cobro) && ((q.fecha_pago || '').startsWith(todayStr) || (q.promesa_pago_fecha || '').startsWith(todayStr))).length;
+
+                return {
+                    id_fichero: f.id_fichero,
+                    producto_nombre: f.producto_nombre,
+                    valor_cuota: f.valor_cuota,
+                    cantidad_cuotas: f.cantidad_cuotas,
+                    monto_total: f.monto_total,
+                    fichero_estado: f.estado,
+                    id_cliente: c.id_cliente,
+                    nombre_apellido: c.nombre_apellido || 'Cliente Demo',
+                    direccion: c.direccion || 'Calle Falsa 123',
+                    barrio: c.barrio || 'General',
+                    piso_dpto: c.piso_dpto || '',
+                    referencia_domicilio: c.referencia_domicilio || '',
+                    telefono: c.telefono || '',
+                    latitud: c.latitud,
+                    longitud: c.longitud,
+                    qr_token: c.qr_token || 'HIT-QR-DEMO',
+                    cuotas_saldadas: cuotasPagadas,
+                    proxima_cuota_nro: nextCuota ? nextCuota.nro_cuota : f.cantidad_cuotas,
+                    proximo_vencimiento: nextCuota ? nextCuota.fecha_vencimiento : todayStr,
+                    cobrado_hoy: cobradoHoy,
+                    no_cobrado_hoy: noCobradoHoy
+                };
+            });
         }
 
         // Fallback genérico para otros GET/POST

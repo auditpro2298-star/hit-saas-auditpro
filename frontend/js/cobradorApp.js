@@ -71,24 +71,41 @@ async function syncHojaDeRuta() {
             card.style.marginBottom = '0.85rem';
             
             const yaCobrado = (item.cobrado_hoy || 0) > 0;
+            const noCobradoHoy = (item.no_cobrado_hoy || 0) > 0;
+
             if (yaCobrado) {
                 card.style.borderLeft = '4px solid #10b981';
                 card.style.background = 'rgba(16, 185, 129, 0.06)';
+            } else if (noCobradoHoy) {
+                card.style.borderLeft = '4px solid #ef4444';
+                card.style.background = 'rgba(239, 68, 68, 0.08)';
             } else {
                 card.style.borderLeft = '4px solid var(--primary)';
             }
             
             const pisoInfo = item.piso_dpto ? ` <span style="color:#8b5cf6; font-weight:700;">[🏢 ${item.piso_dpto}]</span>` : '';
             const refInfo = item.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:700; margin-top:0.2rem;">🏠 Ref: ${item.referencia_domicilio}</div>` : '';
-            const btnText = yaCobrado ? '🔄 Re-escanear' : '⚡ Escanear QR';
-            const btnClass = yaCobrado ? 'btn-outline' : 'btn-primary';
+            
+            let badgeHtml = '';
+            let btnText = '⚡ Escanear QR';
+            let btnClass = 'btn-primary';
+
+            if (yaCobrado) {
+                badgeHtml = `<span class="badge" style="font-size:0.7rem; background:#10b981; color:#fff; font-weight:700; border-radius:4px; padding:0.15rem 0.35rem;">✅ COBRADO</span>`;
+                btnText = '🔄 Re-escanear';
+                btnClass = 'btn-outline';
+            } else if (noCobradoHoy) {
+                badgeHtml = `<span class="badge" style="font-size:0.7rem; background:#ef4444; color:#fff; font-weight:700; border-radius:4px; padding:0.15rem 0.35rem;">❌ NO COBRADO (VISITADO)</span>`;
+                btnText = '🔄 Re-intentar Cobro';
+                btnClass = 'btn-outline';
+            }
 
             card.innerHTML = `
                 <div class="flex justify-between items-center" style="margin-bottom:0.4rem;">
                     <strong>${item.nombre_apellido}</strong>
                     <div class="flex items-center gap-1">
                         <span class="badge badge-purple" style="font-size:0.7rem;">${item.barrio}</span>
-                        ${yaCobrado ? `<span class="badge" style="font-size:0.7rem; background:#10b981; color:#fff; font-weight:700; border-radius:4px; padding:0.15rem 0.35rem;">✅ COBRADO</span>` : ''}
+                        ${badgeHtml}
                     </div>
                 </div>
                 <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.6rem;">
