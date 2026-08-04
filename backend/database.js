@@ -54,10 +54,11 @@ function translateSqlToPg(sql) {
 
     // 2. Funciones y sintaxis comunes de compatibilidad
     pgSql = pgSql.replace(/\bIFNULL\b/gi, 'COALESCE');
-    pgSql = pgSql.replace(/date\("now"\)/gi, 'CURRENT_DATE');
-    pgSql = pgSql.replace(/date\('now'\)/gi, 'CURRENT_DATE');
-    pgSql = pgSql.replace(/date\(fecha_pago\) = date\('now'\)/gi, 'DATE(fecha_pago) = CURRENT_DATE');
-    pgSql = pgSql.replace(/date\(fecha_envio\) = date\('now'\)/gi, 'DATE(fecha_envio) = CURRENT_DATE');
+    pgSql = pgSql.replace(/date\(['"]now['"]\)/gi, 'CURRENT_DATE');
+    
+    // Traducir de forma genérica date(campo) a (campo)::date para compatibilidad en PostgreSQL
+    pgSql = pgSql.replace(/date\(([^)]+)\)/gi, '($1)::date');
+    
     pgSql = pgSql.replace(/datetime\(['"]now['"],\s*['"]localtime['"]\)/gi, 'CURRENT_TIMESTAMP');
     pgSql = pgSql.replace(/datetime\(['"]now['"]\)/gi, 'CURRENT_TIMESTAMP');
 
