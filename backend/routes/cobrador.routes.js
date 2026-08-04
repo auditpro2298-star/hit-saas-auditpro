@@ -16,12 +16,12 @@ router.get('/hoja-de-ruta', async (req, res) => {
     try {
         let sql = `
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
-                   c.id_cliente, c.nombre_apellido, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
+                   c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = date('now')) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND (date(q.fecha_pago) = date('now') OR date(q.promesa_pago_fecha) = date('now'))) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND DATE(q.fecha_pago) = CURRENT_DATE) as cobrado_hoy,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND DATE(q.fecha_pago) = CURRENT_DATE) OR (q.promesa_pago_fecha IS NOT NULL AND q.promesa_pago_fecha != '' AND DATE(q.promesa_pago_fecha) = CURRENT_DATE))) as no_cobrado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
@@ -29,8 +29,11 @@ router.get('/hoja-de-ruta', async (req, res) => {
         const params = [id_empresa];
 
         if (userRole === 'COBRADOR') {
-            sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL OR ? LIKE '%' || LOWER(c.barrio) || '%' OR LOWER(c.barrio) LIKE '%' || ? || '%')`;
-            params.push(id_usuario, userZone, userZone);
+            const hasGeneralZone = !userZone || userZone.includes('general') || userZone.includes('global') || userZone.includes('oficina');
+            if (!hasGeneralZone) {
+                sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL OR LOWER(COALESCE(c.barrio, '')) LIKE ? OR ? LIKE '%' || LOWER(COALESCE(c.barrio, '')) || '%')`;
+                params.push(id_usuario, `%${userZone}%`, userZone);
+            }
         }
 
         sql += ` ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC`;
@@ -39,7 +42,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
         res.json(ruta);
     } catch (err) {
         console.error('Error sincronizando hoja de ruta:', err);
-        res.status(500).json({ error: 'Error cargando hoja de ruta.' });
+        res.status(500).json({ error: 'Error cargando hoja de ruta.', details: err.message });
     }
 });
 
