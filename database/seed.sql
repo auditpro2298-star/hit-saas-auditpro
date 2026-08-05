@@ -4,7 +4,7 @@
 
 -- 1. EMPRESAS (Tenants)
 INSERT OR IGNORE INTO empresas (id_empresa, nombre_comercial, cuit_rut, estado_suscripcion, logo_url, monto_abono_mensual) VALUES
-(1, 'ElectroHogar S.A.', '30-71234567-8', 'ACTIVA', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=150', 35000.00),
+(1, 'Electro Genesis', '30-71234567-8', 'ACTIVA', '/logo_electro_genesis.jpg', 35000.00),
 (2, 'Muebles & Confort del Sur', '30-79876543-2', 'ACTIVA', 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=150', 35000.00),
 (3, 'Fiados La Económica', '30-65432109-1', 'BLOQUEADA', 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150', 35000.00);
 

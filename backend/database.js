@@ -146,10 +146,9 @@ async function ensureSeedUsers() {
 
         console.log('🌱 Insertando y verificando usuarios iniciales garantizados en la base de datos...');
         
-        // Crear empresa 1 si no existe
         await run(`
             INSERT INTO empresas (id_empresa, nombre_comercial, cuit_rut, estado_suscripcion, logo_url, monto_abono_mensual)
-            VALUES (1, 'Electro Genesis', '30-71234567-8', 'ACTIVA', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=150', 35000.00)
+            VALUES (1, 'Electro Genesis', '30-71234567-8', 'ACTIVA', '/logo_electro_genesis.jpg', 35000.00)
             ON CONFLICT DO NOTHING
         `);
 
