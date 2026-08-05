@@ -21,7 +21,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now')) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now')) OR (q.promesa_pago_fecha IS NOT NULL AND q.promesa_pago_fecha != '' AND date(q.promesa_pago_fecha) = date('now')))) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now')) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = date('now')))) as no_cobrado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
