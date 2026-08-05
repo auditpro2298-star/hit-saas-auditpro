@@ -142,7 +142,7 @@ router.post('/cobrar', async (req, res) => {
 
             // CONTROL DE SEGURIDAD: Prevenir cobros de cuotas adelantadas sin autorización previa del Admin
             const proximaPendiente = await get("SELECT MIN(nro_cuota) as min_nro FROM cuotas WHERE id_fichero = ? AND estado = 'PENDIENTE'", [cuota.id_fichero]);
-            if (proximaPendiente && cuota.nro_cuota > proximaPendiente.min_nro && !req.body.autorizacion_admin_codigo) {
+            if (proximaPendiente && proximaPendiente.min_nro !== null && cuota.nro_cuota > proximaPendiente.min_nro && !req.body.autorizacion_admin_codigo) {
                 return res.status(403).json({
                     error: 'REQUIERE_AUTORIZACION_ADELANTO',
                     message: `⚠️ CONTROL DE SEGURIDAD: La cuota #${cuota.nro_cuota} es un PAGO ADELANTADO (la cuota pendiente actual es la #${proximaPendiente.min_nro}). Para evitar maniobras no autorizadas, el cobrador debe solicitar permiso previo al Administrador de la Empresa.`

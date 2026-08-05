@@ -150,7 +150,7 @@ function renderCartillaUI(data) {
                     <h4 style="font-size:1.15rem; font-weight:800; color:var(--text-primary);">📦 ${f.producto_nombre}</h4>
                     <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.25rem; line-height:1.4;">
                         <span>🗓️ Frecuencia: <strong style="color:var(--primary);">${f.frecuencia_pago || 'SEMANAL'}</strong> (${f.cantidad_cuotas} cuotas de $${Number(f.valor_cuota).toLocaleString('es-AR')})</span><br>
-                        <span>👤 Vendedor: <strong>${f.vendedor || 'Milagros'}</strong> &nbsp;|&nbsp; 🛵 Encargado de Zona: <strong>${f.encargado_zona || 'Natasha'}</strong></span>
+                        <span>👤 Vendedor: <strong>${f.vendedor || 'Milagros'}</strong> &nbsp;|&nbsp; 🛵 Encargado de Cobro: <strong>${f.encargado_zona || 'Natasha'}</strong></span>
                     </div>
                 </div>
                 <span class="badge badge-success" style="font-size:0.85rem;">Progreso: ${res.porcentaje_progreso}%</span>

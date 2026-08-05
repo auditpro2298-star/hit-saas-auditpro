@@ -515,14 +515,11 @@ class APIClient {
                 };
             });
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
-                const zone = (this.user.zona_asignada || '').toLowerCase().trim();
                 const userName = (this.user.nombre || '').toLowerCase().trim();
                 list = list.filter(item => {
                     const encName = (item.encargado_zona || '').toLowerCase();
-                    const barrio = (item.barrio || '').toLowerCase();
                     return (encName && userName && encName.includes(userName)) || 
-                           (item.id_cobrador_asignado === this.user.id_usuario) ||
-                           (zone && barrio.includes(zone));
+                           (item.id_cobrador_asignado === this.user.id_usuario);
                 });
             }
             return list.sort((a, b) => b.id_fichero - a.id_fichero);
@@ -533,11 +530,12 @@ class APIClient {
             const f = db.ficheros.find(item => item.id_fichero === id);
             if (f) {
                 f.id_cobrador_asignado = body.id_cobrador_asignado || null;
-                const usr = db.usuarios.find(u => u.id_usuario === body.id_cobrador_asignado);
-                f.encargado_zona = body.encargado_zona || (usr ? usr.nombre : 'Sin asignar');
+                if (body.encargado_zona !== undefined) {
+                    f.encargado_zona = body.encargado_zona || 'Sin asignar';
+                }
                 saveMockDB(db);
             }
-            return { success: true, message: `✅ Fichero #${id} asignado a Encargado de Zona correctamente.` };
+            return { success: true, message: `✅ Fichero #${id} asignado a Encargado de Cobro correctamente.` };
         }
 
         if (endpoint === '/empresa/ficheros' && method === 'POST') {
@@ -640,7 +638,7 @@ class APIClient {
             };
             db.usuarios.push(newEnc);
             saveMockDB(db);
-            return { success: true, message: `✅ Encargado de zona "${newEnc.nombre}" registrado exitosamente.` };
+            return { success: true, message: `✅ Encargado de Cobro "${newEnc.nombre}" registrado exitosamente.` };
         }
 
         // 6. COBRADOR HOJA DE RUTA

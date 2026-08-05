@@ -744,10 +744,10 @@ async function cambiarEncargadoFichero(id_fichero, val) {
             id_cobrador_asignado: id_cobrador,
             encargado_zona: encName
         });
-        await showAlert(res.message || '✅ Encargado de Zona asignado con éxito.');
+        await showAlert(res.message || '✅ Encargado de Cobro asignado con éxito.');
         await loadFicheros();
     } catch (err) {
-        await showAlert('❌ Error al asignar Encargado de Zona: ' + err.message);
+        await showAlert('❌ Error al asignar Encargado de Cobro: ' + err.message);
     }
 }
 
@@ -1450,7 +1450,7 @@ async function submitNewEncargadoForm(event) {
 
     try {
         const res = await api.post('/empresa/encargados', { nombre, email, password, telefono, zona_asignada });
-        await showAlert(res.message || 'Encargado de zona registrado exitosamente.');
+        await showAlert(res.message || 'Encargado de Cobro registrado exitosamente.');
         document.getElementById('form-new-encargado').reset();
         loadEncargadosZona();
     } catch (err) {
@@ -1644,15 +1644,14 @@ async function loadControlOperativoDiario() {
         const cobrosDetallados = cobros.cobros_detallados || [];
         const promesas = promesasData.promesas || [];
 
-        // Filtrar datos según encargado_zona si el usuario tiene rol ENCARGADO_ZONA
+        // Filtrar datos según encargado_zona si el usuario tiene rol ENCARGADO_ZONA (Encargado de Cobro)
         const isEncargado = (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA');
-        const userZona = (window.currentUser && window.currentUser.zona_asignada) ? window.currentUser.zona_asignada.toLowerCase() : '';
         const userNombre = (window.currentUser && window.currentUser.nombre) ? window.currentUser.nombre.toLowerCase() : '';
 
         const filterByEncargado = (item) => {
             if (!isEncargado) return true;
-            const itemEnc = (item.encargado_zona || item.barrio || '').toLowerCase();
-            return itemEnc.includes(userZona) || itemEnc.includes(userNombre) || (userZona && userZona.includes(itemEnc));
+            const itemEnc = (item.encargado_zona || '').toLowerCase();
+            return itemEnc.includes(userNombre);
         };
 
         const ficherosFiltrados = ficheros.filter(filterByEncargado);
