@@ -502,6 +502,12 @@ class APIClient {
                 const cli = db.clientes.find(c => c.id_cliente === f.id_cliente) || {};
                 const cob = db.usuarios.find(u => u.id_usuario === f.id_cobrador_asignado) || {};
                 const pagadas = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO').length;
+                const nextPayment = (() => {
+                    const pending = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PENDIENTE');
+                    if (!pending.length) return null;
+                    pending.sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
+                    return pending[0].fecha_vencimiento;
+                })();
                 return {
                     ...f,
                     cliente_nombre: cli.nombre_apellido || 'Cliente Desconocido',
@@ -511,7 +517,9 @@ class APIClient {
                     latitud: cli.latitud,
                     longitud: cli.longitud,
                     cobrador_nombre: cob.nombre || 'Sin asignar',
-                    cuotas_pagadas: pagadas
+                    cuotas_pagadas: pagadas,
+                    cliente_telefono: cli.telefono || '',
+                    proximo_vencimiento: nextPayment
                 };
             });
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {

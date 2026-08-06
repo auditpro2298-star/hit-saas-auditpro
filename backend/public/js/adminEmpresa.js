@@ -44,6 +44,9 @@ async function initEmpresaPanel() {
         if (btnNuevoFichero) btnNuevoFichero.style.display = 'none';
         if (btnBackup) btnBackup.style.display = 'none';
 
+        const metricsDashboard = document.getElementById('empresa-metrics-dashboard');
+        if (metricsDashboard) metricsDashboard.style.display = 'none';
+
         await loadEmpresaDashboard();
         await switchEmpresaTab('rutas');
         return;
@@ -864,6 +867,15 @@ function filtrarRutasPorBarrioYTexto() {
     drawRouteMap(filtered);
 }
 
+function formatFechaSimple(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+}
+
 function renderAsignacionTable(ficheros, cobradores) {
     const tbody = document.getElementById('tbody-asignacion');
     if (!tbody) return;
@@ -871,7 +883,7 @@ function renderAsignacionTable(ficheros, cobradores) {
 
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
     if (activos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No se encontraron visitas para esta búsqueda o zona.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se encontraron visitas para esta búsqueda o zona.</td></tr>`;
         return;
     }
 
@@ -884,6 +896,10 @@ function renderAsignacionTable(ficheros, cobradores) {
             const selected = f.id_cobrador_asignado === cb.id_usuario ? 'selected' : '';
             optionsHtml += `<option value="${cb.id_usuario}" ${selected}>🛵 ${cb.nombre}</option>`;
         });
+
+        const cleanPhone = (f.cliente_telefono || '').replace(/\D/g, '');
+        const waMsg = `Hola *${f.cliente_nombre}*, te recordamos que el cobrador pasará a cobrar tu cuota de *${f.producto_nombre}* el día *${f.proximo_vencimiento ? formatFechaSimple(f.proximo_vencimiento) : 'próximo'}*. ¡Muchas gracias!`;
+        const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}` : '#';
 
         tr.innerHTML = `
             <td><strong>#${f.id_fichero}</strong></td>
@@ -907,6 +923,16 @@ function renderAsignacionTable(ficheros, cobradores) {
                         💾
                     </button>
                 </div>
+            </td>
+            <td>
+                <div style="font-weight: 600;">${f.cliente_telefono || '<span class="text-muted">Sin número</span>'}</div>
+                ${cleanPhone ? `
+                <a href="${waUrl}" target="_blank" class="btn" style="background-color: #25D366; color: white; padding: 0.25rem 0.5rem; border-radius: 6px; text-decoration: none; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 4px;">
+                    💬 Recordatorio
+                </a>` : ''}
+            </td>
+            <td>
+                <strong>${f.proximo_vencimiento ? formatFechaSimple(f.proximo_vencimiento) : '<span class="text-muted">Sin fecha</span>'}</strong>
             </td>
         `;
         tbody.appendChild(tr);

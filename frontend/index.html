@@ -229,7 +229,7 @@
             </div>
 
             <!-- Dashboard Mini -->
-            <div class="metrics-grid" style="grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+            <div id="empresa-metrics-dashboard" class="metrics-grid" style="grid-template-columns: repeat(5, 1fr); gap: 1rem;">
                 <div class="glass-card metric-card" style="padding: 1rem;">
                     <span class="metric-label" style="font-size: 0.75rem;">Total Clientes</span>
                     <span class="metric-value" style="font-size: 1.4rem;" id="emp-clientes-total">0</span>
@@ -558,7 +558,7 @@
                     </div>
                 </div>
 
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <div class="glass-card">
                         <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y
                             Priorización de Rutas</h3>
@@ -574,6 +574,8 @@
                                         <th style="width: 75px;">Orden</th>
                                         <th>Cliente / Dirección / Producto</th>
                                         <th>Cobrador Actual / Reasignar</th>
+                                        <th>WhatsApp</th>
+                                        <th>Fecha de Pago</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-asignacion"></tbody>
