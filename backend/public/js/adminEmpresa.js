@@ -932,7 +932,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                 </a>` : ''}
             </td>
             <td>
-                <strong>${f.proximo_vencimiento ? formatFechaSimple(f.proximo_vencimiento) : '<span class="text-muted">Sin fecha</span>'}</strong>
+                <strong>${f.referencia_domicilio || '<span class="text-muted">No especificada</span>'}</strong>
             </td>
         `;
         tbody.appendChild(tr);
