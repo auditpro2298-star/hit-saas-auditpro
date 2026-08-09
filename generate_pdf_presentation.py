@@ -1,6 +1,7 @@
 import os
 import sys
 from fpdf import FPDF
+from PIL import Image
 
 class PresentationPDF(FPDF):
     def __init__(self):
@@ -82,7 +83,7 @@ class PresentationPDF(FPDF):
         self.set_xy(20, 198)
         self.set_font(self.font_family_name, "B", 10)
         self.set_text_color(*self.c_white)
-        self.cell(100, 10, self.clean_text("⚡ HIT SaaS Platform — Software de Gestión y Cobranzas"))
+        self.cell(100, 10, self.clean_text("⚡ HIT Platform — Software de Gestión de Créditos y Cobranzas"))
         
     def add_content_slide(self, slide_num, title, left_text_blocks, image_path=None, is_image_vertical=False):
         self.add_page()
@@ -107,7 +108,7 @@ class PresentationPDF(FPDF):
         self.set_xy(260, 6)
         self.set_font(self.font_family_name, "B", 12)
         self.set_text_color(*self.c_accent_purple)
-        self.cell(22, 10, self.clean_text(f"Módulo {slide_num:02d}"), align="R")
+        self.cell(22, 10, self.clean_text(f"Paso {slide_num:02d}"), align="R")
         
         # Columna Izquierda (Texto)
         # Si hay imagen, la columna mide 115mm; si no, mide 267mm.
@@ -188,7 +189,7 @@ class PresentationPDF(FPDF):
         self.set_xy(15, 199)
         self.set_font(self.font_family_name, "", 8)
         self.set_text_color(*self.c_text_muted)
-        self.cell(150, 10, self.clean_text("⚡ HIT SaaS Platform — Dossier Operativo & Flujo de Trabajo"))
+        self.cell(150, 10, self.clean_text("⚡ HIT Platform — Dossier Operativo & Flujo de Trabajo"))
         
         self.set_xy(250, 199)
         self.cell(32, 10, self.clean_text(f"Página {self.page_no()}"), align="R")
@@ -252,193 +253,217 @@ class PresentationPDF(FPDF):
         self.set_xy(20, 198)
         self.set_font(self.font_family_name, "B", 10)
         self.set_text_color(*self.c_white)
-        self.cell(100, 10, self.clean_text("⚡ HIT SaaS Platform — © 2026. Todos los derechos reservados."))
+        self.cell(100, 10, self.clean_text("⚡ HIT Platform — © 2026. Todos los derechos reservados."))
 
 def main():
+    # 1. Asegurar el recorte de la imagen de inicio para remover accesos de demo
+    img_dir = os.path.join(os.path.dirname(__file__), "frontend")
+    img_login_original = os.path.join(img_dir, "screenshot_login.png")
+    img_login_cropped = os.path.join(img_dir, "screenshot_login_cropped.png")
+    
+    if os.path.exists(img_login_original):
+        try:
+            img = Image.open(img_login_original)
+            width, height = img.size
+            # Recortar 24% inferior para remover botones rápidos de simulación
+            crop_height = int(height * 0.76)
+            cropped = img.crop((0, 0, width, crop_height))
+            cropped.save(img_login_cropped)
+            print(f"✅ Imagen de login recortada exitosamente ({width}x{crop_height})")
+        except Exception as e:
+            print(f"⚠️ Error al recortar la imagen de login: {e}. Usando original como fallback.")
+            img_login_cropped = img_login_original
+    else:
+        img_login_cropped = img_login_original
+
+    # 2. Generar el PDF de la presentación
     pdf = PresentationPDF()
     
-    # Ruta de las imágenes en la carpeta frontend
-    img_dir = os.path.join(os.path.dirname(__file__), "frontend")
-    img_login = os.path.join(img_dir, "screenshot_login.png")
-    img_superadmin = os.path.join(img_dir, "screenshot_superadmin.png")
     img_admin = os.path.join(img_dir, "screenshot_admin.png")
     img_cobrador = os.path.join(img_dir, "screenshot_cliente.png")   # Vista móvil del cobrador en la calle
     img_cliente = os.path.join(img_dir, "screenshot_cobrador.png")   # Cartilla Virtual del Cliente
     
     # -------------------------------------------------------------
-    # SLIDE 1: PORTADA
+    # SLIDE 1: PORTADA (FONDO OSCURO)
     # -------------------------------------------------------------
     pdf.add_title_slide(
-        title="HIT SaaS Platform\nFlujo de Trabajo Detallado & Operación",
-        subtitle="Manual de Operación de la Plataforma de Créditos y Cobranzas",
+        title="HIT Platform\nFlujo de Trabajo Operativo de Créditos y Cobranzas",
+        subtitle="Manual de Operación de Procesos del Negocio",
         date_str="Agosto 2026",
-        footer_str="Preparado para: Presentación Comercial a Clientes\nCreado por: HIT Development Team"
+        footer_str="Preparado para: Presentación del Sistema a Clientes\nCreado por: HIT Development Team"
     )
     
     # -------------------------------------------------------------
-    # SLIDE 2: ARQUITECTURA GENERAL
+    # SLIDE 2: RESUMEN DE ROLES
     # -------------------------------------------------------------
     pdf.add_content_slide(
         slide_num=1,
-        title="Arquitectura General: Flujo de 4 Niveles de Acceso",
+        title="Estructura Operativa y Roles Activos",
         left_text_blocks=[
-            ("paragraph", "La plataforma HIT está diseñada bajo un modelo Multi-Tenant (Multi-Inquilino) y estructurada en 4 niveles de acceso que segregan las funciones de cada actor de manera segura y eficiente:"),
-            ("subheading", "Los 4 Niveles de Operación:"),
-            ("bullet", "Nivel 1: Súper Administrador (Dueño del SaaS)\nControl total de suscripciones, alta de nuevas empresas y bloqueo de inquilinos en mora."),
-            ("bullet", "Nivel 2: Administrador de Empresa (Dueño de la Casa de Cuotas)\nAlta de clientes con GPS, creación de planes de pago (ficheros digitales), asignación de rutas y auditoría diaria de cajas."),
-            ("bullet", "Nivel 3: Cobrador en Calle (App Móvil)\nHoja de ruta priorizada por geolocalización, escáner de tarjetas QR físico y registro fotográfico de transferencias bancarias."),
-            ("bullet", "Nivel 4: Vista de Cliente (Cartilla Virtual)\nVisualización en tiempo real del saldo, cuotas pagadas y pendientes mediante el simple escaneo de su tarjeta física QR.")
+            ("paragraph", "La plataforma digitaliza y conecta cada uno de los eslabones de la operación de venta en cuotas, garantizando la trazabilidad y la seguridad en tiempo real:"),
+            ("subheading", "Roles Clave del Flujo de Trabajo:"),
+            ("bullet", "1. Vendedor: Contacta al cliente, registra sus datos personales y selecciona el producto que desea adquirir."),
+            ("bullet", "2. Administrador: Analiza el stock y el perfil de riesgo crediticio del cliente. Si lo aprueba, crea el fichero digital y delega al Encargado de Zona."),
+            ("bullet", "3. Encargado de Zona: Modera y coordina los cobros, asigna los cobradores de calle correspondientes y valida los comprobantes."),
+            ("bullet", "4. Cobrador en Calle: Visita los domicilios en base a su hoja de ruta, escanea el QR único y registra los cobros correspondientes."),
+            ("bullet", "5. Cliente: Consulta de forma transparente el estado y progreso de su deuda escaneando su código QR único.")
         ]
     )
     
     # -------------------------------------------------------------
-    # SLIDE 3: ACCESO CENTRALIZADO (LOGIN)
+    # SLIDE 3: PASO 1 - VENDEDOR
     # -------------------------------------------------------------
     pdf.add_content_slide(
         slide_num=2,
-        title="Acceso Unificado y Seguridad de Datos",
+        title="Paso 1: El Vendedor (Inicio del Proceso)",
         left_text_blocks=[
-            ("paragraph", "La puerta de entrada de la plataforma es unificada y detecta automáticamente el nivel del usuario."),
-            ("subheading", "Seguridad y Simulación de Demostración:"),
-            ("bullet", "Aislamiento Multi-Tenant: Cada empresa opera en su propio espacio virtual aislado. Es imposible visualizar datos de otras empresas inquilinas."),
-            ("bullet", "Encriptación Avanzada: Las contraseñas están resguardadas con algoritmos bcrypt, y las sesiones se autorizan por tokens seguros JWT."),
-            ("bullet", "Simulador Rápido (Barra Inferior): La demo incluye accesos en 1-clic a usuarios pre-cargados (Súper Admin, Admin Empresa y Cobrador Juan) para agilizar las pruebas del cliente.")
+            ("paragraph", "El circuito se activa en el momento en que el cliente contacta al vendedor interesado en un artículo o plan:"),
+            ("subheading", "Actividades del Vendedor:"),
+            ("bullet", "Registro de Datos: Recopila y carga en el sistema todos los datos personales del cliente (Nombre, DNI, teléfono y dirección georreferenciada)."),
+            ("bullet", "Selección de Producto: Apunta de forma precisa la información del producto que el cliente desea comprar."),
+            ("bullet", "Envío al Administrador: Una vez completados los datos, envía la información de manera digital al Administrador para su evaluación.")
         ],
-        image_path=img_login,
+        image_path=img_login_cropped,
         is_image_vertical=False
     )
     
     # -------------------------------------------------------------
-    # SLIDE 4: SUPER ADMIN (NIVEL 1)
+    # SLIDE 4: PASO 2 - ADMINISTRADOR
     # -------------------------------------------------------------
     pdf.add_content_slide(
         slide_num=3,
-        title="Gestión SaaS y Aprovisionamiento (Súper Admin)",
+        title="Paso 2: El Administrador (Aprobación y Creación)",
         left_text_blocks=[
-            ("paragraph", "El panel maestro del administrador global (dueño del sistema SaaS) permite supervisar el negocio y dar soporte:"),
-            ("subheading", "Herramientas del Súper Admin:"),
-            ("bullet", "Métricas en Tiempo Real: Visualización del MRR (Ingreso Mensual Recurrente), volumen total recaudado e inquilinos activos."),
-            ("bullet", "Alta de Empresas: Creación instantánea de bases de datos para nuevas empresas interesadas en el servicio."),
-            ("bullet", "Bloqueo por Cuota Vencida: Si una empresa se atrasa en su abono, el Súper Admin cambia su estado a 'BLOQUEADA' en un clic. Esto deniega de inmediato el acceso a todos sus usuarios (administradores y cobradores) con un aviso en pantalla.")
-        ],
-        image_path=img_superadmin,
-        is_image_vertical=False
-    )
-    
-    # -------------------------------------------------------------
-    # SLIDE 5: ADMIN EMPRESA - DASHBOARD (NIVEL 2)
-    # -------------------------------------------------------------
-    pdf.add_content_slide(
-        slide_num=4,
-        title="Administración de la Casa de Cuotas: Clientes y Mapas",
-        left_text_blocks=[
-            ("paragraph", "El panel principal del Administrador de la Empresa centraliza el control de la cartera y de los empleados de la calle."),
-            ("subheading", "Gestión de Clientes y Geoposicionamiento:"),
-            ("bullet", "Buscador Georreferenciado: Alta de clientes ubicándolos directamente en un mapa interactivo de alta definición (GPS)."),
-            ("bullet", "Generación de Código QR: Al crear un cliente, el sistema asigna automáticamente un token criptográfico único que se imprime en una tarjeta física."),
-            ("bullet", "Visualización de Indicadores: KPIs rápidos de Clientes Totales, Ficheros Activos, Cartera Activa y total cobrado en el día.")
+            ("paragraph", "El Administrador audita y genera el marco comercial de la transacción:"),
+            ("subheading", "Responsabilidades del Administrador:"),
+            ("bullet", "Control de Stock: Recibe la información del vendedor y chequea la disponibilidad física del producto."),
+            ("bullet", "Análisis de Riesgo: Determina la viabilidad del cliente y si es apto para acceder al mini préstamo solicitado."),
+            ("bullet", "Creación de Fichero Digital: Si se aprueba, crea la cuenta y genera un Código QR único para el cliente."),
+            ("bullet", "Configuración del Plan: Carga el plan de pago detallando: producto, cantidad de cuotas, valor de cuota y fecha de entrega."),
+            ("bullet", "Derivación: Genera la orden y asigna el caso a un Encargado de Zona.")
         ],
         image_path=img_admin,
         is_image_vertical=False
     )
     
     # -------------------------------------------------------------
-    # SLIDE 6: ADMIN EMPRESA - ASIGNACION Y FICHEROS (NIVEL 2)
+    # SLIDE 5: PASO 3 - ENCARGADO DE ZONA A
     # -------------------------------------------------------------
     pdf.add_content_slide(
-        slide_num=5,
-        title="Ficheros Digitales y Asignación Dinámica de Rutas",
+        slide_num=4,
+        title="Paso 3: El Encargado de Zona (Coordinación y Asignación)",
         left_text_blocks=[
-            ("paragraph", "Sustitución definitiva de los pesados ficheros de cartón o papel de las oficinas centrales:"),
-            ("subheading", "Creación de Ficheros y Control de Zonas:"),
-            ("bullet", "Fichero Digital (Calco del Fichero Físico): Creación de planes de cuotas dinámicas (ej: 34 cuotas semanales de $5,000) con cálculo automático de vencimientos e importes."),
-            ("bullet", "Asignación por Drag & Drop: Asignación visual e interactiva de ficheros y clientes a las hojas de ruta de cobradores específicos según su zona geográfica de calle (Flores, Caballito, Quilmes, etc.)."),
-            ("bullet", "Reasignación Rápida: Ante mudanzas o faltas del personal de cobranzas, las carteras de cobro se reasignan en segundos.")
-        ],
-        image_path=img_admin, # Repetimos captura para este sub-módulo
-        is_image_vertical=False
-    )
-    
-    # -------------------------------------------------------------
-    # SLIDE 7: APP COBRADOR - HOJA RUTA (NIVEL 3)
-    # -------------------------------------------------------------
-    pdf.add_content_slide(
-        slide_num=6,
-        title="Operación del Cobrador en Calle: App Móvil",
-        left_text_blocks=[
-            ("paragraph", "La aplicación móvil del cobrador está diseñada para el uso ágil en la calle, con un consumo mínimo de batería y datos."),
-            ("subheading", "Herramientas de Trabajo en Calle:"),
-            ("bullet", "Hoja de Ruta Priorizada: Listado ordenado de clientes a visitar por zona, con semáforos visuales que indican el estado de morosidad."),
-            ("bullet", "Lector QR Integrado: Escaneo en vivo usando la cámara del teléfono celular. Al apuntar a la tarjeta física del cliente, el sistema abre al instante su ficha digital en la pantalla del cobrador."),
-            ("bullet", "Botón de Mapa y Llamada: Geolocalización en un toque para navegar mediante GPS al domicilio de visita o llamar directamente al cliente por teléfono.")
+            ("paragraph", "El Encargado de Zona planifica la ruta y establece la relación inicial de cobro:"),
+            ("subheading", "Acciones del Encargado de Zona:"),
+            ("bullet", "Recepción del Caso: Recibe en su aplicación móvil la cuenta y los detalles del cliente asignado a su zona."),
+            ("bullet", "Análisis de Ubicación: Visualiza en pantalla la dirección georreferenciada del cliente."),
+            ("bullet", "Contacto Inicial: Se comunica con el cliente para explicarle la modalidad de cobranza."),
+            ("bullet", "Preaviso de Visita: Llama o escribe al cliente un par de días antes de la fecha de visita para anticipar la llegada del cobrador."),
+            ("bullet", "Asignación de Cobrador: Asigna al cobrador específico de calle que realizará las cobranzas.")
         ],
         image_path=img_cobrador,
         is_image_vertical=True
     )
     
     # -------------------------------------------------------------
-    # SLIDE 8: APP COBRADOR - REGISTRO (NIVEL 3)
+    # SLIDE 6: PASO 3 - ENCARGADO DE ZONA B (ALERTAS Y PAGOS)
     # -------------------------------------------------------------
     pdf.add_content_slide(
-        slide_num=7,
-        title="Registro del Cobro y Gestión de Incidentes",
+        slide_num=5,
+        title="Paso 3: El Encargado de Zona (Alertas y Control de Pagos)",
         left_text_blocks=[
-            ("paragraph", "Registro de cobros transparente y sin fricciones mediante la interfaz interactiva de casilleros digitales (ej: 1 al 34):"),
-            ("subheading", "Métodos de Pago y Soporte Offline:"),
-            ("bullet", "Cobro en Efectivo: Registro inmediato. El sistema guarda la hora exacta y coordenadas GPS del cobrador para auditar que realmente estuvo en el lugar."),
-            ("bullet", "Cobro por Transferencia: Requiere de forma obligatoria que el cobrador suba una captura de pantalla del comprobante de transferencia bancaria, evitando fraudes."),
-            ("bullet", "Visitas No Cobradas: Reporte de motivos estandarizados en caso de no poder cobrar (Ausente, Pasa mañana, Domicilio cerrado, etc.) con registro de fecha prometida de pago."),
-            ("bullet", "Sincronización Offline: En zonas sin cobertura de internet móvil, el cobrador puede seguir cargando datos; estos se sincronizarán solos al recuperar señal.")
+            ("paragraph", "Supervisión de caja en tiempo real y emisión automatizada de tickets:"),
+            ("subheading", "Acciones de Control de Cobros:"),
+            ("bullet", "Notificaciones de Pago: Recibe una alerta en su aplicación cada vez que un cobrador registra un cobro exitoso en calle."),
+            ("bullet", "Ticket de WhatsApp: La app genera un mensaje con el comprobante de pago para copiar y enviar al cliente con un solo clic."),
+            ("bullet", "Cobranza de Transferencias: Si el cliente decide abonar mediante transferencia bancaria, se contacta con el Encargado de Zona, quien le comparte el CBU, recibe el comprobante bancario y registra el cobro en el sistema.")
         ],
-        image_path=img_cobrador, # Mantenemos la captura de pantalla de la app móvil
+        image_path=img_cobrador,
         is_image_vertical=True
     )
     
     # -------------------------------------------------------------
-    # SLIDE 9: PORTAL DEL CLIENTE (NIVEL 4)
+    # SLIDE 7: PASO 4 - COBRADOR A
     # -------------------------------------------------------------
     pdf.add_content_slide(
-        slide_num=8,
-        title="Cartilla Virtual del Cliente (Transparencia Total)",
+        slide_num=6,
+        title="Paso 4: El Cobrador en Calle (Recorrido y Escaneo)",
         left_text_blocks=[
-            ("paragraph", "Para aumentar la confianza y transparencia de la operación, el cliente cuenta con un acceso de solo lectura:"),
-            ("subheading", "Acceso Fácil mediante Código QR:"),
-            ("bullet", "Escaneo Directo: Sin necesidad de contraseñas, nombres de usuario ni descargar aplicaciones móviles pesadas desde las tiendas."),
-            ("bullet", "Casilleros Interactivos: El cliente ve en tiempo real su cartilla: cuotas pagadas marcadas en verde con tilde (check), cuotas pendientes y progreso total del plan."),
-            ("bullet", "Botón de Contacto Rápido: Accesos directos a WhatsApp y llamadas con la oficina comercial o su cobrador asignado para cualquier duda.")
+            ("paragraph", "El cobrador realiza la operación física en el domicilio del deudor:"),
+            ("subheading", "Acciones del Cobrador:"),
+            ("bullet", "Hoja de Ruta: Recibe en su teléfono celular la lista de clientes ordenados y priorizados por zona."),
+            ("bullet", "Visita Domiciliaria: Se dirige al domicilio cargado en el geoposicionador."),
+            ("bullet", "Escaneo QR en Vivo: Utiliza la cámara integrada en la aplicación para escanear el código QR de la tarjeta del cliente."),
+            ("bullet", "Apertura del Fichero: Al detectar el QR, la pantalla muestra de inmediato el fichero digital con el progreso de cuotas (casilleros del 1 al 34+).")
+        ],
+        image_path=img_cobrador,
+        is_image_vertical=True
+    )
+    
+    # -------------------------------------------------------------
+    # SLIDE 8: PASO 4 - COBRADOR B (REGISTRO Y OFFLINE)
+    # -------------------------------------------------------------
+    pdf.add_content_slide(
+        slide_num=7,
+        title="Paso 4: El Cobrador en Calle (Registro de Pago y Offline)",
+        left_text_blocks=[
+            ("paragraph", "Garantía de registro inmediato de cobro y resiliencia tecnológica:"),
+            ("subheading", "Proceso de Registro de Cobros:"),
+            ("bullet", "Imputación del Pago: Registra el cobro de la cuota correspondiente pulsando el casillero indicado."),
+            ("bullet", "Historial Automático: El pago impacta de forma inmediata en el historial contable del fichero digital."),
+            ("bullet", "Sincronización Offline: En caso de operar en zonas sin internet móvil, el cobrador puede registrar la transacción localmente. Los datos se sincronizan de manera autónoma al recuperar la conexión.")
         ],
         image_path=img_cliente,
         is_image_vertical=True
     )
     
     # -------------------------------------------------------------
-    # SLIDE 10: AUDITORIA Y CONCILIACION
+    # SLIDE 9: PASO 5 - APLICACIÓN DEL CLIENTE
     # -------------------------------------------------------------
     pdf.add_content_slide(
-        slide_num=9,
-        title="Auditoría y Conciliación Diaria (Cierre de Caja)",
+        slide_num=8,
+        title="Paso 5: Aplicación del Cliente (Transparencia Total)",
         left_text_blocks=[
-            ("paragraph", "El proceso diario finaliza con el arqueo de caja de los cobradores, cerrando de forma hermética el flujo de dinero de la empresa:"),
-            ("subheading", "Conciliación y Prevención de Fugas:"),
-            ("bullet", "Arqueo Segregado: El sistema separa de manera inalterable el dinero físico recaudado por el cobrador en efectivo, de las transferencias reportadas."),
-            ("bullet", "Verificación de Comprobantes: El administrador visualiza las capturas de transferencias bancarias cargadas por el cobrador en calle y las valida contra el banco."),
-            ("bullet", "Seguridad Total: En caso de robo o extravío del celular del cobrador, los datos no se pierden ya que están guardados de forma segura en la nube (copias de seguridad automatizadas diarias).")
-        ]
+            ("paragraph", "El cliente puede auditar sus pagos de forma autónoma, lo que genera confianza y reduce reclamos:"),
+            ("subheading", "Acceso a la Cartilla Virtual:"),
+            ("bullet", "Escaneo de Tarjeta QR: El cliente escanea su tarjeta física QR desde cualquier dispositivo celular."),
+            ("bullet", "Acceso Instantáneo: Se abre la cartilla virtual en su navegador sin necesidad de registrarse con contraseñas o descargar apps pesadas."),
+            ("bullet", "Control en Tiempo Real: Visualiza los casilleros de su préstamo. Cada vez que el cobrador rinde una cuota, esta aparece en verde con tilde (check) al instante.")
+        ],
+        image_path=img_cliente,
+        is_image_vertical=True
     )
     
     # -------------------------------------------------------------
-    # SLIDE 11: BENEFICIOS Y RETORNO DE INVERSIÓN
+    # SLIDE 10: PASO 6 - COBRANZA FALLIDA E INCIDENTES
+    # -------------------------------------------------------------
+    pdf.add_content_slide(
+        slide_num=9,
+        title="Paso 6: Gestión de Cobranzas Fallidas e Incidentes",
+        left_text_blocks=[
+            ("paragraph", "Control de contingencias en la ruta de cobros para un historial preciso:"),
+            ("subheading", "Reportes de Visita Fallida:"),
+            ("bullet", "Motivos Estandarizados: Si el cobrador no logra cobrar, selecciona e informa el motivo: *Ausente*, *Pasa mañana/Pasa otro día*, *No pudo pagar*, u *Otros*."),
+            ("bullet", "Notificación al Encargado: El reporte se envía automáticamente al Encargado de Zona para planificar el nuevo intento de cobro."),
+            ("bullet", "Historial de Visitas: Mantiene un registro permanente de cada visita del cobrador, protegiendo la información."),
+            ("bullet", "Cuentas Especiales: Se aplica la misma lógica para cobros con pagos parciales o saldos a favor.")
+        ],
+        image_path=img_cobrador,
+        is_image_vertical=True
+    )
+    
+    # -------------------------------------------------------------
+    # SLIDE 11: BENEFICIOS (FONDO OSCURO)
     # -------------------------------------------------------------
     pdf.add_conclusion_slide(
-        title="Beneficios y Retorno de Inversión (ROI)",
+        title="Beneficios y Retorno de Inversión (ROI) del Flujo Digital",
         left_text_blocks=[
-            ("paragraph", "La digitalización con HIT SaaS transforma radicalmente la productividad de las casas de créditos y cobros diarios:"),
+            ("paragraph", "La implementación del flujo de trabajo de HIT automatiza la operatoria diaria y previene pérdidas:"),
             ("subheading", "Ventajas de Negocio Clave:"),
-            ("bullet", "Eliminación del Fraude y Pérdidas: La auditoría GPS del cobro en efectivo y la foto obligatoria de transferencias impiden desvíos de fondos."),
-            ("bullet", "Cobranza 40% Más Rápida: Los cobradores cuentan con una ruta geolocalizada óptima y escaneo QR en vivo que acelera el recorrido."),
-            ("bullet", "Control Total e Inmediato: Monitoreo en tiempo real de la recaudación del día y métricas globales del estado de morosidad desde cualquier dispositivo."),
-            ("bullet", "Escalabilidad Empresarial: Capacidad técnica comprobada para escalar sin problemas desde carteras de 300 clientes hasta carteras de 10,000 clientes activos en la nube."),
-            ("bullet", "Cero Pérdida de Información: Copias de seguridad automáticas diarias en servidores en la nube de alta disponibilidad.")
+            ("bullet", "🔒 Control Antifraude: La auditoría GPS de visitas en efectivo y el control fotográfico de transferencias impiden desvíos de caja."),
+            ("bullet", "⚡ Aumento de la Eficiencia: Las rutas de cobro geolocalizadas reducen los tiempos muertos y traslados de cobradores en calle."),
+            ("bullet", "💬 Gestión de WhatsApp Ágil: Generación automática de comprobantes listos para enviar disminuye llamadas operativas."),
+            ("bullet", "🛡️ Resguardo de Datos: Ante robos o extravíos de ficheros de papel o celulares, toda la cartera queda a salvo en la nube de alta disponibilidad.")
         ]
     )
     
