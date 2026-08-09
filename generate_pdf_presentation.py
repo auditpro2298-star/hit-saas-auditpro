@@ -282,6 +282,7 @@ def main():
     img_admin = os.path.join(img_dir, "screenshot_admin.png")
     img_cobrador = os.path.join(img_dir, "screenshot_cliente.png")   # Vista móvil del cobrador en la calle
     img_cliente = os.path.join(img_dir, "screenshot_cobrador.png")   # Cartilla Virtual del Cliente
+    img_encargado = os.path.join(img_dir, "screenshot_encargado.png") # Interfaz del Encargado de Zona
     
     # -------------------------------------------------------------
     # SLIDE 1: PORTADA (FONDO OSCURO)
@@ -321,7 +322,9 @@ def main():
             ("subheading", "Actividades del Vendedor:"),
             ("bullet", "Registro de Datos: Recopila y carga en el sistema todos los datos personales del cliente (Nombre, DNI, teléfono y dirección georreferenciada)."),
             ("bullet", "Selección de Producto: Apunta de forma precisa la información del producto que el cliente desea comprar."),
-            ("bullet", "Envío al Administrador: Una vez completados los datos, envía la información de manera digital al Administrador para su evaluación.")
+            ("bullet", "Envío al Administrador: Una vez completados los datos, envía la información de manera digital al Administrador para su evaluación."),
+            ("subheading", "Interfaz de Inicio del Sistema:"),
+            ("paragraph", "La captura a la derecha muestra la interfaz de inicio de la aplicación. Tanto el administrador como los encargados de zona y los cobradores ingresan desde esta misma pantalla segura con su usuario y contraseña única.")
         ],
         image_path=img_login_cropped,
         is_image_vertical=False
@@ -361,8 +364,8 @@ def main():
             ("bullet", "Preaviso de Visita: Llama o escribe al cliente un par de días antes de la fecha de visita para anticipar la llegada del cobrador."),
             ("bullet", "Asignación de Cobrador: Asigna al cobrador específico de calle que realizará las cobranzas.")
         ],
-        image_path=img_cobrador,
-        is_image_vertical=True
+        image_path=img_encargado,
+        is_image_vertical=False
     )
     
     # -------------------------------------------------------------
