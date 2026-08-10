@@ -13,6 +13,30 @@ router.get('/hoja-de-ruta', async (req, res) => {
     const userRole = req.user.rol;
     const userZone = (req.user.zona_asignada || '').toLowerCase().trim();
 
+    // Lógica para reiniciar las asignaciones día a día
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const resetFilePath = path.join(__dirname, '..', 'last_reset_date.txt');
+        const todayStr = new Date().toDateString(); // Ej: "Sun Aug 10 2026"
+        
+        let lastResetDate = '';
+        if (fs.existsSync(resetFilePath)) {
+            lastResetDate = fs.readFileSync(resetFilePath, 'utf8').trim();
+        }
+        
+        if (lastResetDate !== todayStr) {
+            console.log(`🌅 ¡Es un nuevo día! Reiniciando asignaciones de ruta para todos los cobradores (${todayStr})...`);
+            // Limpiamos la asignación de cobradores en todos los ficheros activos
+            await run('UPDATE ficheros SET id_cobrador_asignado = NULL');
+            // Guardamos el nuevo día en el archivo persistente
+            fs.writeFileSync(resetFilePath, todayStr, 'utf8');
+            console.log('✅ Asignaciones reiniciadas con éxito.');
+        }
+    } catch (resetErr) {
+        console.error('Error al reiniciar asignaciones de ruta diarias:', resetErr);
+    }
+
     try {
         let sql = `
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
@@ -29,11 +53,8 @@ router.get('/hoja-de-ruta', async (req, res) => {
         const params = [id_empresa];
 
         if (userRole === 'COBRADOR') {
-            const hasGeneralZone = !userZone || userZone.includes('general') || userZone.includes('global') || userZone.includes('oficina');
-            if (!hasGeneralZone) {
-                sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL OR LOWER(COALESCE(c.barrio, '')) LIKE ? OR ? LIKE '%' || LOWER(COALESCE(c.barrio, '')) || '%')`;
-                params.push(id_usuario, `%${userZone}%`, userZone);
-            }
+            sql += ` AND f.id_cobrador_asignado = ?`;
+            params.push(id_usuario);
         }
 
         sql += ` ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC`;

@@ -652,7 +652,14 @@ class APIClient {
         // 6. COBRADOR HOJA DE RUTA
         if (endpoint === '/cobrador/hoja-de-ruta' && method === 'GET') {
             const todayStr = new Date().toISOString().split('T')[0];
-            return db.ficheros.map(f => {
+            const isCobrador = (this.user && this.user.rol === 'COBRADOR');
+            
+            let filteredFicheros = db.ficheros;
+            if (isCobrador) {
+                filteredFicheros = db.ficheros.filter(f => f.id_cobrador_asignado === this.user.id_usuario);
+            }
+            
+            return filteredFicheros.map(f => {
                 const c = db.clientes.find(cli => cli.id_cliente === f.id_cliente) || {};
                 const cuotasFichero = db.cuotas.filter(q => q.id_fichero === f.id_fichero);
                 const cuotasPagadas = cuotasFichero.filter(q => q.estado === 'PAGADO').length;
