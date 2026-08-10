@@ -28,9 +28,11 @@ async function initEmpresaPanel() {
     const btnNuevoCliente = document.querySelector('button[onclick="openNewClienteModal()"]');
     const btnNuevoFichero = document.querySelector('button[onclick="openNewFicheroModal()"]');
     const btnBackup = document.getElementById('btn-backup-db') || document.querySelector('button[onclick="descargarBackupEmpresa()"]');
+    const btnRestore = document.querySelector('button[onclick="triggerRestoreUpload()"]');
     if (btnNuevoCliente) btnNuevoCliente.style.display = '';
     if (btnNuevoFichero) btnNuevoFichero.style.display = '';
     if (btnBackup) btnBackup.style.display = '';
+    if (btnRestore) btnRestore.style.display = '';
 
     // --- Restricciones UI para el rol ENCARGADO_ZONA ---
     if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
@@ -43,6 +45,7 @@ async function initEmpresaPanel() {
         if (btnNuevoCliente) btnNuevoCliente.style.display = 'none';
         if (btnNuevoFichero) btnNuevoFichero.style.display = 'none';
         if (btnBackup) btnBackup.style.display = 'none';
+        if (btnRestore) btnRestore.style.display = 'none';
 
         const metricsDashboard = document.getElementById('empresa-metrics-dashboard');
         if (metricsDashboard) metricsDashboard.style.display = 'none';
@@ -58,6 +61,7 @@ async function initEmpresaPanel() {
         if (tabPersonal) tabPersonal.style.display = 'none';
 
         if (btnBackup) btnBackup.style.display = 'none';
+        if (btnRestore) btnRestore.style.display = 'none';
     }
     // ---------------------------------------------
 
