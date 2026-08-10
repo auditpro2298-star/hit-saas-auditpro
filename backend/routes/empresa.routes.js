@@ -1091,6 +1091,84 @@ router.get('/whatsapp-log', async (req, res) => {
     }
 });
 
+// POST /api/empresa/restore - Restaurar base de datos de la empresa desde JSON
+router.post('/restore', requireAdmin, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { backup } = req.body;
+    if (!backup) {
+        return res.status(400).json({ error: 'Archivo de copia de seguridad vacío o inválido.' });
+    }
+
+    try {
+        const { clientes, ficheros, cuotas, usuarios, auditoria } = backup;
+        if (!clientes || !ficheros || !cuotas) {
+            return res.status(400).json({ error: 'El archivo de copia de seguridad no contiene las tablas de clientes, ficheros o cuotas requeridas.' });
+        }
+
+        console.log(`⏳ Iniciando restauración completa para la empresa ID: ${id_empresa}`);
+
+        // Iniciamos restauración borrando datos en orden (integridad de claves foráneas)
+        await run('DELETE FROM cuotas WHERE id_empresa = ?', [id_empresa]);
+        await run('DELETE FROM auditoria_caja WHERE id_empresa = ?', [id_empresa]);
+        await run('DELETE FROM ficheros WHERE id_empresa = ?', [id_empresa]);
+        await run('DELETE FROM clientes WHERE id_empresa = ?', [id_empresa]);
+
+        // 1. Restaurar usuarios secundarios si están en el backup (no sobrescribimos el admin logueado)
+        if (usuarios && usuarios.length > 0) {
+            for (const u of usuarios) {
+                // Chequear si el usuario existe para no duplicarlo ni pisar credenciales activas
+                const userExists = await get('SELECT id_usuario FROM usuarios WHERE email = ?', [u.email]);
+                if (!userExists) {
+                    await run(`
+                        INSERT INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [u.id_usuario, id_empresa, u.nombre, u.email, u.password_hash || '$2a$10$tZcM8Gf/W8w6/q.345', u.rol, u.telefono, u.zona_asignada, u.activo ? 1 : 0]);
+                }
+            }
+        }
+
+        // 2. Restaurar Clientes
+        for (const c of clientes) {
+            await run(`
+                INSERT INTO clientes (id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [c.id_cliente, id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta]);
+        }
+
+        // 3. Restaurar Ficheros
+        for (const f of ficheros) {
+            await run(`
+                INSERT INTO ficheros (id_fichero, id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [f.id_fichero, f.id_cliente, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, f.id_cobrador_asignado, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0]);
+        }
+
+        // 4. Restaurar Cuotas
+        for (const q of cuotas) {
+            await run(`
+                INSERT INTO cuotas (id_cuota, id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, comprobante_img_url, motivo_no_cobro, promesa_pago_fecha, id_cobrador, nombre_cobrador)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [q.id_cuota, q.id_fichero, id_empresa, q.nro_cuota, q.monto, q.estado || 'PENDIENTE', q.fecha_vencimiento, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.id_cobrador, q.nombre_cobrador]);
+        }
+
+        // 5. Restaurar Auditoría (Cierres de Caja)
+        if (auditoria && auditoria.length > 0) {
+            for (const a of auditoria) {
+                await run(`
+                    INSERT INTO auditoria_caja (id_auditoria, id_empresa, id_cobrador, nombre_cobrador, zona_asignada, fecha_arqueo, recaudado_efectivo, recaudado_transferencia, cobros_realizados, visitas_no_cobradas, verificado, notas, fecha_creacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [a.id_auditoria, id_empresa, a.id_cobrador, a.nombre_cobrador, a.zona_asignada, a.fecha_arqueo, a.recaudado_efectivo || 0.00, a.recaudado_transferencia || 0.00, a.cobros_realizados || 0, a.visitas_no_cobradas || 0, a.verificado ? 1 : 0, a.notes || a.notas || '', a.fecha_creacion]);
+            }
+        }
+
+        console.log(`✅ Restauración exitosa completada para la empresa ID: ${id_empresa}`);
+        res.json({ success: true, message: 'La copia de seguridad se ha restaurado con éxito. La consola se recargará.' });
+    } catch (err) {
+        console.error('Error durante restauración:', err);
+        res.status(500).json({ error: 'Error durante la restauración de datos: ' + err.message });
+    }
+});
+
 module.exports = router;
 
 

@@ -225,6 +225,12 @@
                         onclick="descargarBackupEmpresa()" title="Descargar Copia de Seguridad Completa en JSON">
                         📥 Copia de Seguridad (Backup)
                     </button>
+                    <button class="btn btn-outline"
+                        style="background: rgba(255,255,255,0.08); color: var(--text-primary); border-color: rgba(255,255,255,0.2);"
+                        onclick="triggerRestoreUpload()" title="Restaurar base de datos desde una copia de seguridad (JSON)">
+                        📤 Restaurar Copia (JSON)
+                    </button>
+                    <input type="file" id="restore-file-input" style="display: none;" accept=".json" onchange="procesarRestoreBackup(event)">
                 </div>
             </div>
 
@@ -312,8 +318,12 @@
                         <div id="map-container" style="height: 380px;"></div>
                     </div>
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">👥 Listado de Clientes
-                            con Código QR</h3>
+                        <div class="flex justify-between items-center" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0;">👥 Listado de Clientes con Código QR</h3>
+                            <button class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="exportarClientesCSV()" title="Exportar Clientes a formato Excel/CSV">
+                                📥 Exportar Clientes (CSV)
+                            </button>
+                        </div>
                         <div class="table-container" style="max-height: 500px; overflow-y: auto;">
                             <table class="styled-table">
                                 <thead>
@@ -337,13 +347,18 @@
             <!-- SOLAPA 2: Ficheros -->
             <div id="tab-content-ficheros" class="empresa-tab-content hidden animate-fade">
                 <div class="glass-card">
-                    <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+                    <div class="flex justify-between items-center" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                         <div>
                             <h3 style="font-size: 1.15rem; font-weight: 800;">📑 Ficheros Digitales</h3>
                             <span style="font-size: 0.8rem; color: var(--text-secondary);">Generación de planes
                                 automáticos semanales/quincenales/mensuales</span>
                         </div>
-                        <button class="btn btn-success" onclick="openNewFicheroModal()">➕ Crear Nuevo Fichero</button>
+                        <div class="flex gap-2">
+                            <button class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="exportarFicherosCSV()" title="Exportar Ficheros de Venta a formato Excel/CSV">
+                                📥 Exportar Ficheros (CSV)
+                            </button>
+                            <button class="btn btn-success" onclick="openNewFicheroModal()">➕ Crear Nuevo Fichero</button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="styled-table">
@@ -607,8 +622,12 @@
             <div id="tab-content-auditoria" class="empresa-tab-content hidden animate-fade">
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 1rem;">💰 Rendición y Arqueo por
-                            Cobrador (Hoy)</h3>
+                        <div class="flex justify-between items-center" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0;">💰 Rendición y Arqueo por Cobrador (Hoy)</h3>
+                            <button class="btn btn-purple" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="exportarCierresCajaCSV()" title="Exportar Cierres de Caja de Hoy a formato Excel/CSV">
+                                📥 Exportar Cierres (CSV)
+                            </button>
+                        </div>
                         <div class="table-container">
                             <table class="styled-table">
                                 <thead>

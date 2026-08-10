@@ -1096,6 +1096,7 @@ function drawRouteMap(customFicherosList) {
 async function loadAuditoriaCaja() {
     try {
         const audit = await api.get('/empresa/auditoria');
+        window.currentAuditCache = audit; // Guardamos en caché para exportación
         renderAuditSummary(audit && audit.cierres_cobrador ? audit.cierres_cobrador : []);
         renderAuditDetails(audit && audit.cobros_detallados ? audit.cobros_detallados : []);
     } catch (err) {
@@ -1801,3 +1802,176 @@ window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;
 window.focusClientOnMap = focusClientOnMap;
+
+// ==========================================
+// EXPORTACIÓN A CSV (EXCEL LOCAL)
+// ==========================================
+function exportToCSV(filename, headers, rows) {
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(val => {
+            const escaped = ('' + (val ?? '')).replace(/"/g, '""');
+            return `"${escaped}"`;
+        }).join(','))
+    ].join('\n');
+    
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function exportarClientesCSV() {
+    const clientes = window.currentClientesCache || [];
+    if (clientes.length === 0) {
+        showAlert('No hay clientes cargados para exportar.');
+        return;
+    }
+    const headers = ['ID Cliente', 'Nombre y Apellido', 'DNI', 'Telefono', 'Direccion', 'Barrio', 'Piso/Depto', 'Fecha de Pago (Ref)', 'Calificacion', 'Encargado de Zona', 'Fecha de Alta'];
+    const rows = clientes.map(c => [
+        c.id_cliente,
+        c.nombre_apellido,
+        c.dni,
+        c.telefono,
+        c.direccion,
+        c.barrio,
+        c.piso_dpto,
+        c.referencia_domicilio,
+        c.calificacion,
+        c.encargado_zona,
+        c.fecha_alta
+    ]);
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV(`reporte_clientes_${dateStr}.csv`, headers, rows);
+}
+
+function exportarFicherosCSV() {
+    const ficheros = window.currentFicherosCache || [];
+    if (ficheros.length === 0) {
+        showAlert('No hay ficheros de venta cargados para exportar.');
+        return;
+    }
+    const headers = ['ID Fichero', 'ID Cliente', 'Cliente', 'Producto', 'Cantidad Cuotas', 'Valor Cuota', 'Monto Total', 'Cuotas Pagadas', 'Cuotas Pendientes', 'Cobrador Asignado', 'Encargado/Zona', 'Fecha de Entrega', 'Estado', 'Fecha de Creacion'];
+    const rows = ficheros.map(f => [
+        f.id_fichero,
+        f.id_cliente,
+        f.cliente_nombre,
+        f.producto_nombre,
+        f.cantidad_cuotas,
+        f.valor_cuota,
+        f.monto_total,
+        f.cuotas_pagadas,
+        f.cuotas_pendientes,
+        f.cobrador_nombre,
+        f.encargado_zona,
+        f.fecha_entrega,
+        f.estado,
+        f.fecha_creacion
+    ]);
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV(`reporte_ficheros_${dateStr}.csv`, headers, rows);
+}
+
+function exportarCierresCajaCSV() {
+    const audit = window.currentAuditCache;
+    const cierres = audit && audit.cierres_cobrador ? audit.cierres_cobrador : [];
+    if (cierres.length === 0) {
+        showAlert('No hay cierres de caja registrados para exportar hoy.');
+        return;
+    }
+    const headers = ['Cobrador', 'Zona Asignada', 'Efectivo en Mano', 'Transferencias', 'Cantidad Cobros', 'Visitas Rechazadas'];
+    const rows = cierres.map(c => [
+        c.cobrador_nombre,
+        c.zona_asignada,
+        c.recaudado_efectivo,
+        c.recaudado_transferencia,
+        c.cobros_realizados,
+        c.visitas_no_cobradas
+    ]);
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV(`reporte_cierre_caja_${dateStr}.csv`, headers, rows);
+}
+
+// ==========================================
+// RESTAURACIÓN DE COPIA DE SEGURIDAD (JSON)
+// ==========================================
+function triggerRestoreUpload() {
+    const fileInput = document.getElementById('restore-file-input');
+    if (fileInput) fileInput.click();
+}
+
+function procesarRestoreBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const backupObj = JSON.parse(e.target.result);
+            
+            // Validar que sea un archivo de backup de HIT válido
+            if (!backupObj.clientes || !backupObj.ficheros || !backupObj.cuotas) {
+                await showAlert('❌ Archivo de copia de seguridad inválido. Debe contener clientes, ficheros y cuotas.');
+                return;
+            }
+
+            const totalClientes = backupObj.clientes.length;
+            const totalFicheros = backupObj.ficheros.length;
+
+            const confirmacion = await confirmAction(
+                `¿Estás absolutamente seguro de restaurar esta copia de seguridad?\n\n` +
+                `⚠️ ADVERTENCIA: Esta acción BORRARÁ permanentemente todos los clientes, ficheros, cuotas y cierres de caja actuales en la aplicación y los reemplazará con los de este archivo.\n\n` +
+                `Registros a restaurar:\n` +
+                `- Clientes: ${totalClientes}\n` +
+                `- Ficheros: ${totalFicheros}\n` +
+                `- Fecha de Exportación: ${backupObj.fecha_exportacion || 'Desconocida'}`
+            );
+
+            if (!confirmacion) {
+                event.target.value = '';
+                return;
+            }
+
+            showLoading(true);
+
+            const token = localStorage.getItem('hit_token');
+            const res = await fetch('/api/empresa/restore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ backup: backupObj })
+            });
+
+            showLoading(false);
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Error del servidor al restaurar.');
+            }
+
+            const data = await res.json();
+            await showAlert('✅ ' + data.message);
+            window.location.reload();
+
+        } catch (err) {
+            showLoading(false);
+            await showAlert('❌ Error al restaurar la copia de seguridad: ' + err.message);
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Exponer funciones utilitarias en window
+window.exportarClientesCSV = exportarClientesCSV;
+window.exportarFicherosCSV = exportarFicherosCSV;
+window.exportarCierresCajaCSV = exportarCierresCajaCSV;
+window.triggerRestoreUpload = triggerRestoreUpload;
+window.procesarRestoreBackup = procesarRestoreBackup;
