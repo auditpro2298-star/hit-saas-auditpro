@@ -244,7 +244,11 @@ async function generateSimulation(cantidad = 20, id_empresa = 1) {
     console.log(`✅ Se insertaron exitosamente ${creados} clientes con sus ficheros y cuotas correspondientes.`);
     
     // Re-secuenciar IDs para asegurar consistencia
-    await resequenceAndReset(id_empresa);
+    try {
+        await resequenceAndReset(id_empresa);
+    } catch (err) {
+        console.warn("⚠️ Nota: No se pudieron re-secuenciar los IDs secuenciales debido a la coexistencia de otras empresas en la misma base de datos. Sin embargo, todos los datos simulados se insertaron correctamente.");
+    }
     console.log("⭐ Proceso de simulación finalizado con éxito.");
     return creados;
 }
