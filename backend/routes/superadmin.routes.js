@@ -157,4 +157,44 @@ router.put('/tenants/:id/logo', async (req, res) => {
     }
 });
 
+// PUT /api/superadmin/tenants/:id/password - Actualizar contraseña de administrador de la empresa (Tenant)
+router.put('/tenants/:id/password', async (req, res) => {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.trim().length === 0) {
+        return res.status(400).json({ error: 'La nueva contraseña no puede estar vacía.' });
+    }
+
+    try {
+        const empresa = await get('SELECT nombre_comercial FROM empresas WHERE id_empresa = ?', [id]);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa no encontrada.' });
+        }
+
+        const bcrypt = require('bcryptjs');
+        const passHash = await bcrypt.hash(password, 10);
+
+        // Actualizar la contraseña de todos los usuarios con rol ADMIN_EMPRESA de esa empresa
+        const result = await run(
+            "UPDATE usuarios SET password_hash = ? WHERE id_empresa = ? AND rol = 'ADMIN_EMPRESA'",
+            [passHash, id]
+        );
+
+        if (result.changes === 0) {
+            return res.status(400).json({ 
+                error: `No se encontró un usuario administrador (ADMIN_EMPRESA) activo para la empresa "${empresa.nombre_comercial}".` 
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `🔑 Contraseña del administrador de "${empresa.nombre_comercial}" actualizada con éxito.`
+        });
+    } catch (err) {
+        console.error('Error al actualizar contraseña de empresa:', err);
+        res.status(500).json({ error: 'Error al actualizar la contraseña del administrador.' });
+    }
+});
+
 module.exports = router;

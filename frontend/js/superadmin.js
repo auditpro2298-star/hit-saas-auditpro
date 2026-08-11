@@ -70,6 +70,9 @@ function renderTenantsTable(tenants) {
                     <button class="btn ${actionBtnClass}" style="font-size: 0.78rem; padding: 0.35rem 0.6rem;" onclick="toggleTenantStatus(${t.id_empresa}, '${nextStatus}', '${t.nombre_comercial}')">
                         ${actionBtnText}
                     </button>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.6rem; border-color: #f59e0b; color: #d97706;" title="Cambiar contraseña de administrador" onclick="changeTenantPassword(${t.id_empresa}, '${t.nombre_comercial}')">
+                        🔑 Clave
+                    </button>
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.6rem;" title="Editar logo" onclick="changeTenantLogo(${t.id_empresa}, '${t.nombre_comercial}', '${t.logo_url}')">
                         🖼️ Logo
                     </button>
@@ -167,6 +170,22 @@ async function deleteTenant(id_empresa, nombre) {
     }
 }
 
+async function changeTenantPassword(id_empresa, nombre) {
+    const newPassword = prompt(`🔑 Cambiar contraseña de administrador para "${nombre}":\n\nIngrese la nueva contraseña:`);
+    if (newPassword === null) return; // Cancelado
+    if (newPassword.trim() === '') {
+        alert('Debe especificar una contraseña válida.');
+        return;
+    }
+
+    try {
+        const res = await api.put(`/superadmin/tenants/${id_empresa}/password`, { password: newPassword.trim() });
+        alert(res.message);
+    } catch (err) {
+        alert('Error al actualizar contraseña: ' + err.message);
+    }
+}
+
 async function submitNewTenantForm(event) {
     event.preventDefault();
     const payload = {
@@ -217,5 +236,6 @@ function renderSaaSChart(metrics) {
 window.initSuperAdminPanel = initSuperAdminPanel;
 window.toggleTenantStatus = toggleTenantStatus;
 window.changeTenantLogo = changeTenantLogo;
+window.changeTenantPassword = changeTenantPassword;
 window.deleteTenant = deleteTenant;
 window.submitNewTenantForm = submitNewTenantForm;
