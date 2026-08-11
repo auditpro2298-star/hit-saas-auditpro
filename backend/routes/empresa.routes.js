@@ -179,6 +179,38 @@ router.post('/clientes', async (req, res) => {
             return res.status(400).json({ error: `Ya existe un cliente registrado con el DNI ${cleanDni} (${existente.nombre_apellido}).` });
         }
 
+        // Verificar duplicado de teléfono en esta empresa
+        const cleanTelefono = (telefono || '').toString().trim().replace(/[^0-9]/g, '');
+        if (cleanTelefono) {
+            const existenteTel = await get(`
+                SELECT id_cliente, nombre_apellido, telefono 
+                FROM clientes 
+                WHERE id_empresa = ? 
+                  AND REPLACE(REPLACE(REPLACE(REPLACE(telefono, ' ', ''), '-', ''), '(', ''), ')', '') = ?
+            `, [id_empresa, cleanTelefono]);
+            if (existenteTel) {
+                return res.status(400).json({ error: `Ya existe un cliente registrado con el teléfono "${existenteTel.telefono}" (${existenteTel.nombre_apellido}).` });
+            }
+        }
+
+        // Verificar duplicado de dirección completa (Calle/Altura + Barrio + Piso/Depto)
+        const cleanDireccion = (direccion || '').trim().toLowerCase();
+        const cleanBarrio = (barrio || '').trim().toLowerCase();
+        const cleanPisoDpto = (piso_dpto || '').trim().toLowerCase();
+        
+        const existenteDir = await get(`
+            SELECT id_cliente, nombre_apellido, direccion, barrio, piso_dpto 
+            FROM clientes 
+            WHERE id_empresa = ? 
+              AND LOWER(direccion) = ? 
+              AND LOWER(barrio) = ? 
+              AND LOWER(COALESCE(piso_dpto, '')) = ?
+        `, [id_empresa, cleanDireccion, cleanBarrio, cleanPisoDpto]);
+        if (existenteDir) {
+            const pisoInfo = cleanPisoDpto ? ` (Piso/Depto: ${existenteDir.piso_dpto})` : '';
+            return res.status(400).json({ error: `Ya existe un cliente registrado en la misma dirección: "${existenteDir.direccion}, ${existenteDir.barrio}"${pisoInfo} (${existenteDir.nombre_apellido}).` });
+        }
+
         const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
         
         let lat = (latitud !== undefined && latitud !== null && latitud !== '') ? parseFloat(latitud) : null;
@@ -228,6 +260,40 @@ router.put('/clientes/:id', async (req, res) => {
         const cliente = await get('SELECT * FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
+        }
+
+        // Verificar duplicado de teléfono (excluyendo el cliente actual)
+        const cleanTelefono = (telefono || '').toString().trim().replace(/[^0-9]/g, '');
+        if (cleanTelefono) {
+            const existenteTel = await get(`
+                SELECT id_cliente, nombre_apellido, telefono 
+                FROM clientes 
+                WHERE id_empresa = ? 
+                  AND id_cliente != ?
+                  AND REPLACE(REPLACE(REPLACE(REPLACE(telefono, ' ', ''), '-', ''), '(', ''), ')', '') = ?
+            `, [id_empresa, id, cleanTelefono]);
+            if (existenteTel) {
+                return res.status(400).json({ error: `Ya existe otro cliente registrado con el teléfono "${existenteTel.telefono}" (${existenteTel.nombre_apellido}).` });
+            }
+        }
+
+        // Verificar duplicado de dirección (excluyendo el cliente actual)
+        const cleanDireccion = (direccion || '').trim().toLowerCase();
+        const cleanBarrio = (barrio || '').trim().toLowerCase();
+        const cleanPisoDpto = (piso_dpto !== undefined ? piso_dpto : cliente.piso_dpto || '').trim().toLowerCase();
+        
+        const existenteDir = await get(`
+            SELECT id_cliente, nombre_apellido, direccion, barrio, piso_dpto 
+            FROM clientes 
+            WHERE id_empresa = ? 
+              AND id_cliente != ?
+              AND LOWER(direccion) = ? 
+              AND LOWER(barrio) = ? 
+              AND LOWER(COALESCE(piso_dpto, '')) = ?
+        `, [id_empresa, id, cleanDireccion, cleanBarrio, cleanPisoDpto]);
+        if (existenteDir) {
+            const pisoInfo = cleanPisoDpto ? ` (Piso/Depto: ${existenteDir.piso_dpto})` : '';
+            return res.status(400).json({ error: `Ya existe otro cliente registrado en la misma dirección: "${existenteDir.direccion}, ${existenteDir.barrio}"${pisoInfo} (${existenteDir.nombre_apellido}).` });
         }
 
         let lat = (latitud !== undefined && latitud !== null && latitud !== '') ? parseFloat(latitud) : null;

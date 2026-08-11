@@ -446,6 +446,25 @@ class APIClient {
         }
 
         if (endpoint === '/empresa/clientes' && method === 'POST') {
+            const cleanDni = body.dni.toString().trim().replace(/[^0-9]/g, '');
+            if (db.clientes.some(c => c.dni === cleanDni)) {
+                throw new Error(`Ya existe un cliente registrado con el DNI ${cleanDni}.`);
+            }
+
+            const cleanTel = (body.telefono || '').toString().trim().replace(/[^0-9]/g, '');
+            if (cleanTel && db.clientes.some(c => (c.telefono || '').toString().replace(/[^0-9]/g, '') === cleanTel)) {
+                throw new Error(`Ya existe un cliente registrado con el teléfono "${body.telefono}".`);
+            }
+
+            const cleanDir = body.direccion.trim().toLowerCase();
+            const cleanBar = body.barrio.trim().toLowerCase();
+            const cleanPiso = (body.piso_dpto || '').trim().toLowerCase();
+            const dupeDir = db.clientes.find(c => c.direccion.trim().toLowerCase() === cleanDir && c.barrio.trim().toLowerCase() === cleanBar && (c.piso_dpto || '').trim().toLowerCase() === cleanPiso);
+            if (dupeDir) {
+                const pisoText = cleanPiso ? ` (Piso/Depto: ${body.piso_dpto})` : '';
+                throw new Error(`Ya existe un cliente registrado en la misma dirección: "${body.direccion}, ${body.barrio}"${pisoText} (${dupeDir.nombre_apellido}).`);
+            }
+
             const tipo = (body.tipo_cliente || 'particular').toLowerCase();
             const maxId = db.clientes.reduce((max, c) => (c.id_cliente < 1000000 ? Math.max(max, c.id_cliente) : max), 0);
             const newClient = {
@@ -455,7 +474,7 @@ class APIClient {
                 razon_social: tipo === 'empresa' ? (body.razon_social || body.nombre_apellido) : null,
                 cuit: tipo === 'empresa' ? (body.cuit || body.dni) : null,
                 nombre_apellido: body.nombre_apellido,
-                dni: body.dni,
+                dni: cleanDni,
                 telefono: body.telefono || '',
                 direccion: body.direccion,
                 barrio: body.barrio,
