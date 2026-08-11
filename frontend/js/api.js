@@ -442,7 +442,18 @@ class APIClient {
 
         // 3. CLIENTES
         if (endpoint === '/empresa/clientes' && method === 'GET') {
-            return db.clientes;
+            return db.clientes.map(c => {
+                const activeFicheros = db.ficheros.filter(f => f.id_cliente === c.id_cliente && f.estado === 'ACTIVO');
+                const activeFicIds = activeFicheros.map(f => f.id_fichero);
+                const cuotasPendientes = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PENDIENTE').length;
+                const cuotasTotales = activeFicheros.reduce((sum, f) => sum + f.cantidad_cuotas, 0);
+                return {
+                    ...c,
+                    ficheros_activos: activeFicheros.length,
+                    cuotas_pendientes: cuotasPendientes,
+                    cuotas_totales: cuotasTotales
+                };
+            });
         }
 
         if (endpoint === '/empresa/clientes' && method === 'POST') {

@@ -187,6 +187,13 @@ function renderClientesTable(clientes) {
             </select>
         `;
 
+        let estadoDeudaHtml = '';
+        if (c.ficheros_activos > 0) {
+            estadoDeudaHtml = `<div style="font-size: 0.73rem; color: #10b981; font-weight: 700; margin-left: 1.1rem; margin-top: 0.15rem;">🟢 Activo (Restan ${c.cuotas_pendientes || 0} cuotas)</div>`;
+        } else {
+            estadoDeudaHtml = `<div style="font-size: 0.73rem; color: var(--text-muted); margin-left: 1.1rem; margin-top: 0.15rem;">⚪ Inactivo (Sin deuda)</div>`;
+        }
+
         tr.innerHTML = `
             <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong></td>
             <td>
@@ -196,6 +203,7 @@ function renderClientesTable(clientes) {
                     📍 ${nombreDisplay}
                 </strong>
                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">${docLabel}: ${docValue}</div>
+                ${estadoDeudaHtml}
             </td>
             <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>

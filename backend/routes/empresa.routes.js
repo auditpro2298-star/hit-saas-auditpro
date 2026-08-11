@@ -147,7 +147,9 @@ router.get('/clientes', async (req, res) => {
     try {
         const clientes = await query(`
             SELECT c.*, 
-                   (SELECT COUNT(*) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as ficheros_activos
+                   (SELECT COUNT(*) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as ficheros_activos,
+                   (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado = 'PENDIENTE') as cuotas_pendientes,
+                   (SELECT SUM(f.cantidad_cuotas) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as cuotas_totales
             FROM clientes c 
             WHERE c.id_empresa = ? 
             ORDER BY c.nombre_apellido ASC
