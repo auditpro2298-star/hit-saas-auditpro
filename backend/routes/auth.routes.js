@@ -17,6 +17,20 @@ router.get('/seed-demo', async (req, res) => {
     }
 });
 
+// GET /api/auth/seed-simulation - Forzar generación de clientes de simulación en la nube (Render / PostgreSQL)
+router.get('/seed-simulation', async (req, res) => {
+    try {
+        const cant = parseInt(req.query.cant, 10) || 500;
+        const empresaId = parseInt(req.query.id_empresa, 10) || 1;
+        const { generateSimulation } = require('../populate_simulation');
+        const count = await generateSimulation(cant, empresaId);
+        res.json({ success: true, message: `✅ Se generaron con éxito ${count} clientes de simulación para la empresa ID ${empresaId} en Render.` });
+    } catch (err) {
+        console.error('Error al forzar simulación:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
