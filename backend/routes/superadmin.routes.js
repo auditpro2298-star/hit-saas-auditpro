@@ -108,7 +108,7 @@ router.put('/tenants/:id/status', async (req, res) => {
     }
 });
 
-// DELETE /api/superadmin/tenants/:id - Eliminar empresa por completo (en cascada)
+// DELETE /api/superadmin/tenants/:id - Eliminar empresa por completo (en cascada manual para máxima compatibilidad)
 router.delete('/tenants/:id', async (req, res) => {
     const { id } = req.params;
 
@@ -118,7 +118,18 @@ router.delete('/tenants/:id', async (req, res) => {
             return res.status(404).json({ error: 'Empresa no encontrada.' });
         }
 
+        console.log(`🗑️ Iniciando borrado manual secuencial de datos vinculados para empresa ID ${id} (${empresa.nombre_comercial})...`);
+        
+        // Borrar registros en orden inverso de dependencias para evitar violaciones de clave foránea
+        await run('DELETE FROM whatsapp_notifications WHERE id_empresa = ?', [id]);
+        await run('DELETE FROM auditoria_caja WHERE id_empresa = ?', [id]);
+        await run('DELETE FROM cuotas WHERE id_empresa = ?', [id]);
+        await run('DELETE FROM ficheros WHERE id_empresa = ?', [id]);
+        await run('DELETE FROM clientes WHERE id_empresa = ?', [id]);
+        await run('DELETE FROM usuarios WHERE id_empresa = ?', [id]);
         await run('DELETE FROM empresas WHERE id_empresa = ?', [id]);
+
+        console.log(`✅ Borrado de empresa ID ${id} finalizado.`);
 
         res.json({
             success: true,
@@ -126,7 +137,7 @@ router.delete('/tenants/:id', async (req, res) => {
         });
     } catch (err) {
         console.error('Error al eliminar empresa:', err);
-        res.status(500).json({ error: 'Error al eliminar la empresa.' });
+        res.status(500).json({ error: 'Error al eliminar la empresa: ' + (err.message || err) });
     }
 });
 

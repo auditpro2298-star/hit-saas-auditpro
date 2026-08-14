@@ -122,7 +122,7 @@ async function changeTenantLogo(id_empresa, nombre, currentLogoUrl) {
 async function deleteTenant(id_empresa, nombre) {
     const confirmMsg = `⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de ELIMINAR COMPLETAMENTE a la empresa "${nombre}"?\n\nEsta acción borrará irreversiblemente todos los clientes, cobradores, ficheros, cuotas y registros históricos asociados a esta empresa.\n\nEscriba la palabra "ELIMINAR" para confirmar:`;
     const input = prompt(confirmMsg);
-    if (input !== 'ELIMINAR') {
+    if (!input || input.trim().toUpperCase() !== 'ELIMINAR') {
         if (input !== null) await showAlert('Eliminación cancelada. Confirmación incorrecta.');
         return;
     }
@@ -133,40 +133,6 @@ async function deleteTenant(id_empresa, nombre) {
         initSuperAdminPanel();
     } catch (err) {
         await showAlert('Error al eliminar empresa: ' + err.message);
-    }
-}
-
-async function changeTenantLogo(id_empresa, nombre, currentLogoUrl) {
-    const newLogoUrl = prompt(`🖼️ Cambiar logotipo de "${nombre}":\n\nIngrese la URL de la nueva imagen para el logo:`, currentLogoUrl);
-    if (newLogoUrl === null) return; // Cancelado
-    if (newLogoUrl.trim() === '') {
-        alert('Debe especificar una URL válida.');
-        return;
-    }
-
-    try {
-        const res = await api.put(`/superadmin/tenants/${id_empresa}/logo`, { logo_url: newLogoUrl.trim() });
-        alert(res.message);
-        initSuperAdminPanel();
-    } catch (err) {
-        alert('Error al cambiar logo: ' + err.message);
-    }
-}
-
-async function deleteTenant(id_empresa, nombre) {
-    const confirmMsg = `⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de ELIMINAR COMPLETAMENTE a la empresa "${nombre}"?\n\nEsta acción borrará irreversiblemente todos los clientes, cobradores, ficheros, cuotas y registros históricos asociados a esta empresa.\n\nEscriba la palabra "ELIMINAR" para confirmar:`;
-    const input = prompt(confirmMsg);
-    if (input !== 'ELIMINAR') {
-        if (input !== null) alert('Eliminación cancelada. Confirmación incorrecta.');
-        return;
-    }
-
-    try {
-        const res = await api.delete(`/superadmin/tenants/${id_empresa}`);
-        alert(res.message);
-        initSuperAdminPanel();
-    } catch (err) {
-        alert('Error al eliminar empresa: ' + err.message);
     }
 }
 
