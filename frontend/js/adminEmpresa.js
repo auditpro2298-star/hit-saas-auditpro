@@ -884,10 +884,31 @@ function filtrarRutasPorBarrioYTexto() {
 
 function formatFechaSimple(dateStr) {
     if (!dateStr) return '';
-    const parts = dateStr.split('-');
+    
+    // Ensure we are working with a string representation
+    const str = String(dateStr).trim();
+    
+    // Match YYYY-MM-DD (optionally followed by T or space and time)
+    const yyyymmddMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (yyyymmddMatch) {
+        const [, year, month, day] = yyyymmddMatch;
+        return `${day}/${month}/${year}`;
+    }
+    
+    // Match DD/MM/YYYY or DD-MM-YYYY
+    const ddmmyyyyMatch = str.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+    if (ddmmyyyyMatch) {
+        const [, day, month, year] = ddmmyyyyMatch;
+        return `${day}/${month}/${year}`;
+    }
+    
+    // Fallback: try parsing cleanDate with split if it is standard YYYY-MM-DD
+    const cleanDate = str.includes('T') ? str.split('T')[0] : str.split(' ')[0];
+    const parts = cleanDate.split('-');
     if (parts.length === 3) {
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
+    
     return dateStr;
 }
 
