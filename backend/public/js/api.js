@@ -301,6 +301,20 @@ class APIClient {
             return { error: 'Empresa no encontrada.' };
         }
 
+        if (endpoint.startsWith('/superadmin/tenants/') && method === 'PUT' && endpoint.endsWith('/password')) {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            const emp = db.empresas.find(e => e.id_empresa === id);
+            if (emp) {
+                const adminUser = db.usuarios.find(u => u.id_empresa === id && u.rol === 'ADMIN_EMPRESA');
+                if (adminUser) {
+                    adminUser.password = body.password;
+                }
+                saveMockDB(db);
+                return { success: true, message: `🔑 Contraseña de administrador para "${emp.nombre_comercial}" actualizada con éxito (Modo Demo).` };
+            }
+            return { error: 'Empresa no encontrada.' };
+        }
+
         if (endpoint.startsWith('/superadmin/tenants/') && method === 'DELETE') {
             const id = parseInt(endpoint.split('/')[3], 10);
             db.empresas = db.empresas.filter(e => e.id_empresa !== id);
@@ -543,6 +557,7 @@ class APIClient {
                     cliente_nombre: cli.nombre_apellido || 'Cliente Desconocido',
                     direccion: cli.direccion || '',
                     barrio: cli.barrio || 'General',
+                    referencia_domicilio: cli.referencia_domicilio || '',
                     qr_token: cli.qr_token || 'HIT-QR-DEMO',
                     latitud: cli.latitud,
                     longitud: cli.longitud,

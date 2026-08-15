@@ -1774,9 +1774,10 @@ async function loadControlOperativoDiario() {
                     proxNota = `Promesa: ${promesaFichero.promesa_pago_fecha ? new Date(promesaFichero.promesa_pago_fecha).toLocaleDateString() : 'Pendiente'}`;
                 }
 
+                const refStr = f.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${f.referencia_domicilio}</span>` : '';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><strong>#${f.id_fichero}</strong> — ${f.cliente_nombre || 'Cliente'}</td>
+                    <td><strong>#${f.id_fichero}</strong> — ${f.cliente_nombre || 'Cliente'}${refStr}</td>
                     <td>📍 ${f.direccion || ''} <br><span style="font-size:0.75rem; color:var(--text-secondary);">${f.barrio || ''}</span></td>
                     <td>🛵 <strong>${f.cobrador_nombre || f.encargado_zona || 'Sin Asignar'}</strong></td>
                     <td>${estadoHtml}</td>

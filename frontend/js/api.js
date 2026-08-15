@@ -557,6 +557,7 @@ class APIClient {
                     cliente_nombre: cli.nombre_apellido || 'Cliente Desconocido',
                     direccion: cli.direccion || '',
                     barrio: cli.barrio || 'General',
+                    referencia_domicilio: cli.referencia_domicilio || '',
                     qr_token: cli.qr_token || 'HIT-QR-DEMO',
                     latitud: cli.latitud,
                     longitud: cli.longitud,
