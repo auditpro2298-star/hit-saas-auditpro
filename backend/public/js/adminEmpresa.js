@@ -719,6 +719,8 @@ function renderFicherosTable(ficheros) {
             `;
         }
 
+        const refStr = f.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${f.referencia_domicilio}</div>` : '';
+
         tr.innerHTML = `
             <td><strong>#${f.id_fichero}</strong></td>
             <td>
@@ -727,6 +729,7 @@ function renderFicherosTable(ficheros) {
             <td>
                 <strong>${f.cliente_nombre}</strong>
                 <div style="font-size: 0.75rem;">📍 ${f.barrio}</div>
+                ${refStr}
             </td>
             <td>${f.cantidad_cuotas} cuotas de <strong>$${Number(f.valor_cuota).toLocaleString('es-AR')}</strong></td>
             <td><strong>$${Number(f.monto_total).toLocaleString('es-AR')}</strong></td>
