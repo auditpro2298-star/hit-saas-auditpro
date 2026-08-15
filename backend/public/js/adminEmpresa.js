@@ -1966,7 +1966,7 @@ function procesarRestoreBackup(event) {
             const totalClientes = backupObj.clientes.length;
             const totalFicheros = backupObj.ficheros.length;
 
-            const confirmacion = await confirmAction(
+            const confirmacion = await showConfirm(
                 `¿Estás absolutamente seguro de restaurar esta copia de seguridad?\n\n` +
                 `⚠️ ADVERTENCIA: Esta acción BORRARÁ permanentemente todos los clientes, ficheros, cuotas y cierres de caja actuales en la aplicación y los reemplazará con los de este archivo.\n\n` +
                 `Registros a restaurar:\n` +
