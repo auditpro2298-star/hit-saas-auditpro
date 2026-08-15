@@ -933,8 +933,15 @@ function renderAsignacionTable(ficheros, cobradores) {
             optionsHtml += `<option value="${cb.id_usuario}" ${selected}>🛵 ${cb.nombre}</option>`;
         });
 
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dd = String(tomorrow.getDate()).padStart(2, '0');
+        const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const yy = String(tomorrow.getFullYear()).slice(-2);
+        const fechaRecordatorio = `${dd}/${mm}/${yy}`;
+
         const cleanPhone = (f.cliente_telefono || '').replace(/\D/g, '');
-        const waMsg = `Hola *${f.cliente_nombre}*, te recordamos que el cobrador pasará a cobrar tu cuota de *${f.producto_nombre}* el día *${f.proximo_vencimiento ? formatFechaSimple(f.proximo_vencimiento) : 'próximo'}*. ¡Muchas gracias!`;
+        const waMsg = `Hola *${f.cliente_nombre}*, te recordamos que el cobrador pasará a cobrar tu cuota de *${f.producto_nombre}* el día *${fechaRecordatorio}*. ¡Muchas gracias!`;
         const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}` : '#';
 
         tr.innerHTML = `
