@@ -1980,8 +1980,6 @@ function procesarRestoreBackup(event) {
                 return;
             }
 
-            showLoading(true);
-
             const token = localStorage.getItem('hit_token');
             const res = await fetch('/api/empresa/restore', {
                 method: 'POST',
@@ -1991,8 +1989,6 @@ function procesarRestoreBackup(event) {
                 },
                 body: JSON.stringify({ backup: backupObj })
             });
-
-            showLoading(false);
 
             if (!res.ok) {
                 const errData = await res.json();
@@ -2004,7 +2000,6 @@ function procesarRestoreBackup(event) {
             window.location.reload();
 
         } catch (err) {
-            showLoading(false);
             await showAlert('❌ Error al restaurar la copia de seguridad: ' + err.message);
         } finally {
             event.target.value = '';
