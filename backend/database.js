@@ -302,6 +302,22 @@ async function runSchemaMigrations() {
         if (isPostgres && pgPool) {
             await pgPool.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
             await pgPool.query("ALTER TABLE ficheros ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
+            
+            // Drop global unique constraints if they exist
+            try {
+                await pgPool.query("ALTER TABLE clientes DROP CONSTRAINT IF EXISTS clientes_dni_key;");
+            } catch (e) {}
+            try {
+                await pgPool.query("ALTER TABLE clientes DROP CONSTRAINT IF EXISTS clientes_qr_token_key;");
+            } catch (e) {}
+            
+            // Add composite unique constraints scoped per company (multi-tenant safety)
+            try {
+                await pgPool.query("ALTER TABLE clientes ADD CONSTRAINT clientes_empresa_dni_unique UNIQUE (id_empresa, dni);");
+            } catch (e) {}
+            try {
+                await pgPool.query("ALTER TABLE clientes ADD CONSTRAINT clientes_empresa_qr_token_unique UNIQUE (id_empresa, qr_token);");
+            } catch (e) {}
         } else if (db) {
             db.run("ALTER TABLE clientes ADD COLUMN encargado_zona VARCHAR(120)", () => {});
             db.run("ALTER TABLE ficheros ADD COLUMN encargado_zona VARCHAR(120)", () => {});
@@ -425,56 +441,81 @@ async function restoreBackup(id_empresa, backup) {
         try {
             await client.query("BEGIN");
             
-            // Delete existing
+            // Delete existing records for this tenant
             await client.query('DELETE FROM cuotas WHERE id_empresa = $1', [id_empresa]);
             await client.query('DELETE FROM auditoria_caja WHERE id_empresa = $1', [id_empresa]);
             await client.query('DELETE FROM ficheros WHERE id_empresa = $1', [id_empresa]);
             await client.query('DELETE FROM clientes WHERE id_empresa = $1', [id_empresa]);
             
-            // 1. Usuarios
+            // Map old user IDs to new user IDs
+            const oldToNewUserId = {};
             if (usuarios && usuarios.length > 0) {
                 for (const u of usuarios) {
                     const resUser = await client.query('SELECT id_usuario FROM usuarios WHERE email = $1', [u.email]);
-                    if (resUser.rows.length === 0) {
-                        await client.query(`
-                            INSERT INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                        `, [u.id_usuario, id_empresa, u.nombre, u.email, u.password_hash || '$2a$10$tZcM8Gf/W8w6/q.345', u.rol, u.telefono, u.zona_asignada, !!u.activo].map(x => x === undefined ? null : x));
+                    if (resUser.rows.length > 0) {
+                        oldToNewUserId[u.id_usuario] = resUser.rows[0].id_usuario;
+                    } else {
+                        const resInsert = await client.query(`
+                            INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                            RETURNING id_usuario
+                        `, [id_empresa, u.nombre, u.email, u.password_hash || '$2a$10$tZcM8Gf/W8w6/q.345', u.rol, u.telefono, u.zona_asignada, !!u.activo].map(x => x === undefined ? null : x));
+                        
+                        const newUserId = resInsert.rows[0].id_usuario;
+                        oldToNewUserId[u.id_usuario] = newUserId;
                     }
                 }
             }
             
-            // 2. Clientes
+            // Map old client IDs to new client IDs
+            const oldToNewClientId = {};
             for (const c of clientes) {
-                await client.query(`
-                    INSERT INTO clientes (id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                `, [c.id_cliente, id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
-            }
-            
-            // 3. Ficheros
-            for (const f of ficheros) {
-                await client.query(`
-                    INSERT INTO ficheros (id_fichero, id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                `, [f.id_fichero, f.id_cliente, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, f.id_cobrador_asignado, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
-            }
-            
-            // 4. Cuotas
-            for (const q of cuotas) {
-                await client.query(`
-                    INSERT INTO cuotas (id_cuota, id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, comprobante_img_url, motivo_no_cobro, promesa_pago_fecha, id_cobrador, nombre_cobrador)
+                const resInsert = await client.query(`
+                    INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-                `, [q.id_cuota, q.id_fichero, id_empresa, q.nro_cuota, q.monto, q.estado || 'PENDIENTE', q.fecha_vencimiento, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.id_cobrador, q.nombre_cobrador].map(x => x === undefined ? null : x));
+                    RETURNING id_cliente
+                `, [id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
+                
+                const newClientId = resInsert.rows[0].id_cliente;
+                oldToNewClientId[c.id_cliente] = newClientId;
             }
             
-            // 5. Auditoria
+            // Map old fichero IDs to new fichero IDs
+            const oldToNewFicheroId = {};
+            for (const f of ficheros) {
+                const newClientId = oldToNewClientId[f.id_cliente];
+                const newCobradorId = oldToNewUserId[f.id_cobrador_asignado] || null;
+                
+                const resInsert = await client.query(`
+                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                    RETURNING id_fichero
+                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
+                
+                const newFicheroId = resInsert.rows[0].id_fichero;
+                oldToNewFicheroId[f.id_fichero] = newFicheroId;
+            }
+            
+            // Insert Cuotas mapping to the new Fichero ID and Cobrador ID
+            for (const q of cuotas) {
+                const newFicheroId = oldToNewFicheroId[q.id_fichero];
+                const newCobradorId = oldToNewUserId[q.id_cobrador] || null;
+                
+                await client.query(`
+                    INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, comprobante_img_url, motivo_no_cobro, promesa_pago_fecha, id_cobrador, nombre_cobrador)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                `, [newFicheroId, id_empresa, q.nro_cuota, q.monto, q.estado || 'PENDIENTE', q.fecha_vencimiento, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, newCobradorId, q.nombre_cobrador].map(x => x === undefined ? null : x));
+            }
+            
+            // Insert Auditoria mapping to the new Cobrador ID
             if (auditoria && auditoria.length > 0) {
                 for (const a of auditoria) {
+                    const newCobradorId = oldToNewUserId[a.id_cobrador] || null;
+                    
                     await client.query(`
-                        INSERT INTO auditoria_caja (id_caja, id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    `, [a.id_caja || a.id_auditoria, id_empresa, a.id_cobrador, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
+                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
                 }
             }
             
@@ -494,45 +535,64 @@ async function restoreBackup(id_empresa, backup) {
             await run('DELETE FROM ficheros WHERE id_empresa = ?', [id_empresa]);
             await run('DELETE FROM clientes WHERE id_empresa = ?', [id_empresa]);
             
+            const oldToNewUserId = {};
             if (usuarios && usuarios.length > 0) {
                 for (const u of usuarios) {
-                    const userExists = await get('SELECT id_usuario FROM usuarios WHERE email = ?', [u.email]);
-                    if (!userExists) {
-                        await run(`
-                            INSERT INTO usuarios (id_usuario, id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `, [u.id_usuario, id_empresa, u.nombre, u.email, u.password_hash || '$2a$10$tZcM8Gf/W8w6/q.345', u.rol, u.telefono, u.zona_asignada, u.activo ? 1 : 0].map(x => x === undefined ? null : x));
+                    const resUser = await get('SELECT id_usuario FROM usuarios WHERE email = ?', [u.email]);
+                    if (resUser) {
+                        oldToNewUserId[u.id_usuario] = resUser.id_usuario;
+                    } else {
+                        const insertRes = await run(`
+                            INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        `, [id_empresa, u.nombre, u.email, u.password_hash || '$2a$10$tZcM8Gf/W8w6/q.345', u.rol, u.telefono, u.zona_asignada, u.activo ? 1 : 0].map(x => x === undefined ? null : x));
+                        
+                        oldToNewUserId[u.id_usuario] = insertRes.lastID;
                     }
                 }
             }
             
+            const oldToNewClientId = {};
             for (const c of clientes) {
-                await run(`
-                    INSERT INTO clientes (id_cliente, id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [c.id_cliente, id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
+                const insertRes = await run(`
+                    INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
+                
+                oldToNewClientId[c.id_cliente] = insertRes.lastID;
             }
             
+            const oldToNewFicheroId = {};
             for (const f of ficheros) {
-                await run(`
-                    INSERT INTO ficheros (id_fichero, id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [f.id_fichero, f.id_cliente, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, f.id_cobrador_asignado, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
+                const newClientId = oldToNewClientId[f.id_cliente];
+                const newCobradorId = oldToNewUserId[f.id_cobrador_asignado] || null;
+                
+                const insertRes = await run(`
+                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
+                
+                oldToNewFicheroId[f.id_fichero] = insertRes.lastID;
             }
             
             for (const q of cuotas) {
+                const newFicheroId = oldToNewFicheroId[q.id_fichero];
+                const newCobradorId = oldToNewUserId[q.id_cobrador] || null;
+                
                 await run(`
-                    INSERT INTO cuotas (id_cuota, id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, comprobante_img_url, motivo_no_cobro, promesa_pago_fecha, id_cobrador, nombre_cobrador)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [q.id_cuota, q.id_fichero, id_empresa, q.nro_cuota, q.monto, q.estado || 'PENDIENTE', q.fecha_vencimiento, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.id_cobrador, q.nombre_cobrador].map(x => x === undefined ? null : x));
+                    INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, comprobante_img_url, motivo_no_cobro, promesa_pago_fecha, id_cobrador, nombre_cobrador)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [newFicheroId, id_empresa, q.nro_cuota, q.monto, q.estado || 'PENDIENTE', q.fecha_vencimiento, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, newCobradorId, q.nombre_cobrador].map(x => x === undefined ? null : x));
             }
             
             if (auditoria && auditoria.length > 0) {
                 for (const a of auditoria) {
+                    const newCobradorId = oldToNewUserId[a.id_cobrador] || null;
+                    
                     await run(`
-                        INSERT INTO auditoria_caja (id_caja, id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `, [a.id_caja || a.id_auditoria, id_empresa, a.id_cobrador, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
+                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
                 }
             }
             
