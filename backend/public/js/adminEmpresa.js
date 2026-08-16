@@ -1991,8 +1991,21 @@ function procesarRestoreBackup(event) {
             });
 
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || 'Error del servidor al restaurar.');
+                let errMsg = 'Error del servidor al restaurar.';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch (e) {
+                    try {
+                        const text = await res.text();
+                        if (text) {
+                            // Extraer texto legible si es una página HTML de error
+                            const match = text.match(/<pre>([\s\S]*?)<\/pre>/i) || text.match(/<h1>([\s\S]*?)<\/h1>/i);
+                            errMsg = match ? match[1].trim() : text.substring(0, 200);
+                        }
+                    } catch (e2) {}
+                }
+                throw new Error(errMsg);
             }
 
             const data = await res.json();
