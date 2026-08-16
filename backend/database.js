@@ -469,12 +469,32 @@ async function restoreBackup(id_empresa, backup) {
             
             // Map old client IDs to new client IDs
             const oldToNewClientId = {};
+            const insertedDnis = new Set();
+            const insertedQrTokens = new Set();
+            
             for (const c of clientes) {
+                let uniqueDni = c.dni;
+                if (!uniqueDni) {
+                    uniqueDni = 'DNI_' + Math.random().toString(36).substring(2, 9);
+                }
+                while (insertedDnis.has(uniqueDni)) {
+                    uniqueDni = uniqueDni + '_' + Math.floor(Math.random() * 100);
+                }
+                insertedDnis.add(uniqueDni);
+                
+                let uniqueQrToken = c.qr_token;
+                if (uniqueQrToken) {
+                    while (insertedQrTokens.has(uniqueQrToken)) {
+                        uniqueQrToken = uniqueQrToken + '_' + Math.floor(Math.random() * 100);
+                    }
+                    insertedQrTokens.add(uniqueQrToken);
+                }
+                
                 const resInsert = await client.query(`
                     INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                     RETURNING id_cliente
-                `, [id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
+                `, [id_empresa, c.nombre_apellido, uniqueDni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, uniqueQrToken, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
                 
                 const newClientId = resInsert.rows[0].id_cliente;
                 oldToNewClientId[c.id_cliente] = newClientId;
@@ -553,11 +573,31 @@ async function restoreBackup(id_empresa, backup) {
             }
             
             const oldToNewClientId = {};
+            const insertedDnis = new Set();
+            const insertedQrTokens = new Set();
+            
             for (const c of clientes) {
+                let uniqueDni = c.dni;
+                if (!uniqueDni) {
+                    uniqueDni = 'DNI_' + Math.random().toString(36).substring(2, 9);
+                }
+                while (insertedDnis.has(uniqueDni)) {
+                    uniqueDni = uniqueDni + '_' + Math.floor(Math.random() * 100);
+                }
+                insertedDnis.add(uniqueDni);
+                
+                let uniqueQrToken = c.qr_token;
+                if (uniqueQrToken) {
+                    while (insertedQrTokens.has(uniqueQrToken)) {
+                        uniqueQrToken = uniqueQrToken + '_' + Math.floor(Math.random() * 100);
+                    }
+                    insertedQrTokens.add(uniqueQrToken);
+                }
+                
                 const insertRes = await run(`
                     INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, fecha_alta)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [id_empresa, c.nombre_apellido, c.dni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, c.qr_token, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
+                `, [id_empresa, c.nombre_apellido, uniqueDni, c.telefono, c.direccion, c.barrio, c.piso_dpto, c.referencia_domicilio, c.latitud, c.longitud, uniqueQrToken, c.calificacion || 'BUENO', c.encargado_zona, c.fecha_alta].map(x => x === undefined ? null : x));
                 
                 oldToNewClientId[c.id_cliente] = insertRes.lastID;
             }
