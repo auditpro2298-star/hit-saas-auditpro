@@ -552,6 +552,8 @@ class APIClient {
                     pending.sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
                     return pending[0].fecha_vencimiento;
                 })();
+                const todayStr = new Date().toISOString().split('T')[0];
+                const pagadoHoy = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO' && q.fecha_pago && q.fecha_pago.startsWith(todayStr)).length;
                 return {
                     ...f,
                     cliente_nombre: cli.nombre_apellido || 'Cliente Desconocido',
@@ -564,7 +566,8 @@ class APIClient {
                     cobrador_nombre: cob.nombre || 'Sin asignar',
                     cuotas_pagadas: pagadas,
                     cliente_telefono: cli.telefono || '',
-                    proximo_vencimiento: nextPayment
+                    proximo_vencimiento: nextPayment,
+                    pagado_hoy: pagadoHoy
                 };
             });
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
@@ -736,6 +739,95 @@ class APIClient {
                     no_cobrado_hoy: noCobradoHoy
                 };
             });
+        }
+
+        if (endpoint === '/empresa/reset-asignaciones-mensual' && method === 'POST') {
+            db.ficheros.forEach(f => {
+                f.id_cobrador_asignado = null;
+                f.encargado_zona = 'Sin asignar';
+            });
+            saveMockDB(db);
+            return { success: true, message: '✅ Asignaciones de encargados y cobradores reiniciadas con éxito (Modo Demo).' };
+        }
+
+        if (endpoint === '/empresa/caja-cierre' && method === 'POST') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const obs = body.observaciones || '';
+            
+            // Calculate today's collections per cobrador
+            const cobrosHoy = db.cuotas.filter(q => q.estado === 'PAGADO' && q.fecha_pago && q.fecha_pago.startsWith(todayStr));
+            
+            const grouped = {};
+            cobrosHoy.forEach(q => {
+                const f = db.ficheros.find(fic => fic.id_fichero === q.id_fichero) || {};
+                const cobradorId = q.id_cobrador || f.id_cobrador_asignado || 3;
+                if (!grouped[cobradorId]) {
+                    grouped[cobradorId] = {
+                        recaudado_efectivo: 0,
+                        recaudado_transferencia: 0,
+                        cobros_realizados: 0
+                    };
+                }
+                if (q.medio_pago === 'TRANSFERENCIA') {
+                    grouped[cobradorId].recaudado_transferencia += Number(q.monto || 0);
+                } else {
+                    grouped[cobradorId].recaudado_efectivo += Number(q.monto || 0);
+                }
+                grouped[cobradorId].cobros_realizados++;
+            });
+            
+            const keys = Object.keys(grouped);
+            if (keys.length === 0) {
+                keys.push('3');
+                grouped['3'] = { recaudado_efectivo: 15000, recaudado_transferencia: 8500, cobros_realizados: 3 };
+            }
+            
+            keys.forEach(cobId => {
+                const c = grouped[cobId];
+                const existingIdx = db.auditoria.findIndex(a => a.id_cobrador === parseInt(cobId) && (a.fecha_caja === todayStr || a.fecha_arqueo === todayStr));
+                
+                const newCierre = {
+                    id_caja: existingIdx >= 0 ? db.auditoria[existingIdx].id_caja : db.auditoria.length + 1,
+                    id_empresa: 1,
+                    id_cobrador: parseInt(cobId),
+                    fecha_caja: todayStr,
+                    total_efectivo: c.recaudado_efectivo,
+                    total_transferencias: c.recaudado_transferencia,
+                    cantidad_cobros: c.cobros_realizados,
+                    estado_caja: 'CERRADA_CONCILIADA',
+                    observaciones: obs,
+                    fecha_actualizacion: new Date().toISOString()
+                };
+                
+                if (existingIdx >= 0) {
+                    db.auditoria[existingIdx] = newCierre;
+                } else {
+                    db.auditoria.push(newCierre);
+                }
+            });
+            
+            saveMockDB(db);
+            return { success: true, message: '✅ Cierre de caja registrado y consolidado con éxito (Modo Demo).' };
+        }
+
+        if (endpoint === '/empresa/cierres-historial' && method === 'GET') {
+            const list = db.auditoria.map(a => {
+                const cob = db.usuarios.find(u => u.id_usuario === a.id_cobrador) || { nombre: 'Cobrador Demo', zona_asignada: 'Flores' };
+                return {
+                    id_caja: a.id_caja,
+                    id_empresa: a.id_empresa,
+                    id_cobrador: a.id_cobrador,
+                    fecha_caja: a.fecha_caja || a.fecha_arqueo || new Date().toISOString().split('T')[0],
+                    total_efectivo: a.total_efectivo || a.recaudado_efectivo || 0.00,
+                    total_transferencias: a.total_transferencias || a.recaudado_transferencia || 0.00,
+                    cantidad_cobros: a.cantidad_cobros || a.cobros_realizados || 0,
+                    estado_caja: a.estado_caja || 'CERRADA_CONCILIADA',
+                    observaciones: a.observaciones || '',
+                    cobrador_nombre: cob.nombre,
+                    zona_asignada: cob.zona_asignada || 'Flores'
+                };
+            });
+            return list.sort((a, b) => b.fecha_caja.localeCompare(a.fecha_caja));
         }
 
         // Fallback genérico para otros GET/POST

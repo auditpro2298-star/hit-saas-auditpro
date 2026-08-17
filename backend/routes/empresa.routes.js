@@ -372,20 +372,36 @@ router.patch('/clientes/:id/calificacion', async (req, res) => {
 // GET /api/empresa/ficheros - Listado completo de ficheros
 router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
+    
+    // Check if we need to reset monthly assignments
+    const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
     try {
+        const emp = await get("SELECT mes_ultimo_reset FROM empresas WHERE id_empresa = ?", [id_empresa]);
+        if (emp && emp.mes_ultimo_reset !== currentMonth) {
+            console.log(`🔄 Nuevo mes detectado (${currentMonth}). Reiniciando asignaciones de encargados/cobradores para la empresa ID ${id_empresa}...`);
+            await run("UPDATE ficheros SET id_cobrador_asignado = NULL, encargado_zona = 'Sin asignar' WHERE id_empresa = ?", [id_empresa]);
+            await run("UPDATE empresas SET mes_ultimo_reset = ? WHERE id_empresa = ?", [currentMonth, id_empresa]);
+        }
+    } catch (e) {
+        console.error("Error resetting monthly assignments:", e);
+    }
+
+    try {
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.referencia_domicilio,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as pagado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
         `;
-        const params = [id_empresa];
+        const params = [todayStr, id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
             const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
@@ -1181,6 +1197,94 @@ router.post('/restore', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Error durante restauración:', err);
         res.status(500).json({ error: 'Error durante la restauración de datos: ' + err.message });
+    }
+});
+
+// POST /api/empresa/reset-asignaciones-mensual - Reiniciar manualmente las asignaciones del mes
+router.post('/reset-asignaciones-mensual', requireAdmin, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    try {
+        await run("UPDATE ficheros SET id_cobrador_asignado = NULL, encargado_zona = 'Sin asignar' WHERE id_empresa = ?", [id_empresa]);
+        await run("UPDATE empresas SET mes_ultimo_reset = ? WHERE id_empresa = ?", [currentMonth, id_empresa]);
+        res.json({ success: true, message: '✅ Asignaciones de encargados y cobradores reiniciadas con éxito.' });
+    } catch (err) {
+        console.error('Error al reiniciar asignaciones:', err);
+        res.status(500).json({ error: 'Error al reiniciar asignaciones.' });
+    }
+});
+
+// POST /api/empresa/caja-cierre - Registrar el cierre de caja de hoy (consolida en auditoria_caja)
+router.post('/caja-cierre', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { observaciones } = req.body;
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local time
+    try {
+        // Encontrar cobros agrupados por cobrador hoy
+        const sql = `
+            SELECT q.id_cobrador,
+                   SUM(CASE WHEN q.medio_pago = 'EFECTIVO' AND q.estado = 'PAGADO' THEN q.monto ELSE 0 END) as recaudado_efectivo,
+                   SUM(CASE WHEN q.medio_pago = 'TRANSFERENCIA' AND q.estado = 'PAGADO' THEN q.monto ELSE 0 END) as recaudado_transferencia,
+                   COUNT(CASE WHEN q.estado = 'PAGADO' THEN 1 END) as cobros_realizados
+            FROM cuotas q
+            WHERE q.id_empresa = ? AND date(q.fecha_pago) = ?
+            GROUP BY q.id_cobrador
+        `;
+        const cobrosHoy = await query(sql, [id_empresa, todayStr]);
+        
+        if (cobrosHoy.length === 0) {
+            return res.status(400).json({ error: 'No se encontraron cobros registrados hoy para realizar el cierre de caja.' });
+        }
+        
+        for (const c of cobrosHoy) {
+            const cobrador_id = c.id_cobrador;
+            if (!cobrador_id) continue;
+            
+            // Check if there is already a closure for this cobrador and date
+            const existing = await get(`
+                SELECT id_caja FROM auditoria_caja 
+                WHERE id_empresa = ? AND id_cobrador = ? AND fecha_caja = ?
+            `, [id_empresa, cobrador_id, todayStr]);
+            
+            if (existing) {
+                // Update existing closure
+                await run(`
+                    UPDATE auditoria_caja 
+                    SET total_efectivo = ?, total_transferencias = ?, cantidad_cobros = ?, estado_caja = 'CERRADA_CONCILIADA', observaciones = ?, fecha_actualizacion = CURRENT_TIMESTAMP
+                    WHERE id_caja = ?
+                `, [c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados, observaciones || '', existing.id_caja]);
+            } else {
+                // Insert new closure
+                await run(`
+                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                    VALUES (?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', ?, CURRENT_TIMESTAMP)
+                `, [id_empresa, cobrador_id, todayStr, c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados, observaciones || '']);
+            }
+        }
+        
+        res.json({ success: true, message: '✅ Cierre de caja registrado y consolidado con éxito.' });
+    } catch (err) {
+        console.error('Error en cierre de caja:', err);
+        res.status(500).json({ error: 'Error al consolidar cierre de caja.' });
+    }
+});
+
+// GET /api/empresa/cierres-historial - Historial de cierres de caja (auditoria_caja)
+router.get('/cierres-historial', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        const sql = `
+            SELECT a.*, u.nombre as cobrador_nombre, u.zona_asignada
+            FROM auditoria_caja a
+            JOIN usuarios u ON a.id_cobrador = u.id_usuario
+            WHERE a.id_empresa = ?
+            ORDER BY a.fecha_caja DESC, a.id_caja DESC
+        `;
+        const cierres = await query(sql, [id_empresa]);
+        res.json(cierres);
+    } catch (err) {
+        console.error('Error listando historial de cierres:', err);
+        res.status(500).json({ error: 'Error al obtener historial de cierres.' });
     }
 });
 

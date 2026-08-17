@@ -571,6 +571,11 @@
                             <option value="ALL">📍 Todas las Zonas / Barrios</option>
                         </select>
                     </div>
+                    <div style="margin-top: 1.25rem;" id="container-reset-mensual">
+                        <button class="btn btn-danger" id="btn-reset-mensual" style="font-size: 0.82rem; padding: 0.5rem 1rem;" onclick="resetAsignacionesMensual()" title="Reiniciar todas las asignaciones del mes (cobradores y encargados)">
+                            🔄 Rotar Asignaciones Mensuales
+                        </button>
+                    </div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 1.5rem;">
@@ -753,6 +758,7 @@
                         </div>
                         <div class="flex gap-2 items-center">
                             <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="loadControlOperativoDiario()">🔄 Actualizar Rendición</button>
+                            <button class="btn btn-success" style="font-size: 0.8rem;" onclick="registrarCierreJornada()" title="Consolidar y registrar el cierre de caja de hoy">🔐 Cerrar Caja de Hoy</button>
                         </div>
                     </div>
 
@@ -799,6 +805,39 @@
                                 </tr>
                             </thead>
                             <tbody id="tbody-control-operativo"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Historial de Cierres Consolidados (Diarios / Semanales) -->
+                <div class="glass-card" style="margin-top: 1.5rem; border-top: 4px solid var(--success);">
+                    <div class="flex justify-between items-center flex-wrap gap-2" style="margin-bottom: 1rem;">
+                        <div>
+                            <h4 style="font-size: 1.15rem; font-weight: 800; color: var(--success);">📊 Historial de Cierres de Caja Semanales & Diarios</h4>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary);">
+                                Visualice los arqueos consolidados por semana del año. Descargue el historial completo para auditoría externa en Excel.
+                            </p>
+                        </div>
+                        <button class="btn btn-purple" style="font-size: 0.78rem;" onclick="exportarHistorialCierresCSV()" title="Descargar reporte completo en formato CSV compatible con Excel">
+                            📥 Descargar Historial (CSV)
+                        </button>
+                    </div>
+                    <div class="table-container" style="max-height: 380px; overflow-y: auto;">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Semana ISO</th>
+                                    <th>Fecha Cierre</th>
+                                    <th>Cobrador / Zona</th>
+                                    <th>Efectivo Rendido</th>
+                                    <th>Transferencias</th>
+                                    <th>Cant. Cobros</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-historial-cierres">
+                                <!-- Dinámico -->
+                            </tbody>
                         </table>
                     </div>
                 </div>

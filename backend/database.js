@@ -302,6 +302,7 @@ async function runSchemaMigrations() {
         if (isPostgres && pgPool) {
             await pgPool.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
             await pgPool.query("ALTER TABLE ficheros ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
+            await pgPool.query("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS mes_ultimo_reset VARCHAR(7);");
             
             // Drop global unique constraints if they exist
             try {
@@ -321,6 +322,7 @@ async function runSchemaMigrations() {
         } else if (db) {
             db.run("ALTER TABLE clientes ADD COLUMN encargado_zona VARCHAR(120)", () => {});
             db.run("ALTER TABLE ficheros ADD COLUMN encargado_zona VARCHAR(120)", () => {});
+            db.run("ALTER TABLE empresas ADD COLUMN mes_ultimo_reset VARCHAR(7)", () => {});
         }
     } catch (e) {
         // Ignorar si ya existe

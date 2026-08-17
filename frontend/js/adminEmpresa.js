@@ -46,6 +46,8 @@ async function initEmpresaPanel() {
         if (btnNuevoFichero) btnNuevoFichero.style.display = 'none';
         if (btnBackup) btnBackup.style.display = 'none';
         if (btnRestore) btnRestore.style.display = 'none';
+        const containerReset = document.getElementById('container-reset-mensual');
+        if (containerReset) containerReset.style.display = 'none';
 
         const metricsDashboard = document.getElementById('empresa-metrics-dashboard');
         if (metricsDashboard) metricsDashboard.style.display = 'none';
@@ -107,6 +109,7 @@ async function switchEmpresaTab(tabName) {
             await loadWhatsappLog();
         } else if (tabName === 'operativo') {
             await loadControlOperativoDiario();
+            await cargarHistorialCierres();
         }
     } catch (err) {
         console.error(`Error al cargar datos de solapa "${tabName}":`, err);
@@ -956,6 +959,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                 <strong>${f.cliente_nombre}</strong>
                 <div style="font-size:0.75rem; color:var(--text-secondary);">📍 ${f.direccion} (${f.barrio})</div>
                 <div style="font-size:0.75rem; color:var(--primary); font-weight:600;">📦 ${f.producto_nombre}</div>
+                ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.72rem; font-weight:700; background-color: var(--success); color: white;">✅ YA PAGÓ HOY</span></div>` : ''}
             </td>
             <td>
                 <div class="flex items-center gap-2">
@@ -1196,7 +1200,16 @@ function renderAuditDetails(cobros) {
             comprobanteBtn = `<span style="font-size:0.75rem; color:#ef4444;">⚠️ ${q.motivo_no_cobro || 'Rechazo'}</span>`;
         }
 
-        const fechaStr = q.fecha_pago ? new Date(q.fecha_pago).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+        let fechaStr = '-';
+        if (q.fecha_pago) {
+            const dateObj = new Date(q.fecha_pago);
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const yyyy = dateObj.getFullYear();
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const min = String(dateObj.getMinutes()).padStart(2, '0');
+            fechaStr = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+        }
 
         tr.innerHTML = `
             <td><strong>${fechaStr}</strong></td>
@@ -2027,3 +2040,114 @@ window.exportarFicherosCSV = exportarFicherosCSV;
 window.exportarCierresCajaCSV = exportarCierresCajaCSV;
 window.triggerRestoreUpload = triggerRestoreUpload;
 window.procesarRestoreBackup = procesarRestoreBackup;
+
+async function resetAsignacionesMensual() {
+    const confirm = window.confirm("⚠️ ¿Está seguro de que desea reiniciar todas las asignaciones del mes? Esto desasignará a los cobradores y encargados de todos los ficheros.");
+    if (!confirm) return;
+    
+    try {
+        const res = await api.post('/empresa/reset-asignaciones-mensual');
+        await showAlert(res.message || '✅ Asignaciones reiniciadas con éxito.');
+        await loadAsignacionRutas();
+    } catch (err) {
+        console.error('Error al reiniciar asignaciones:', err);
+        await showAlert(err.message || '❌ Error al reiniciar asignaciones.');
+    }
+}
+
+async function registrarCierreJornada() {
+    const confirm = window.confirm("¿Está seguro de que desea registrar el cierre de caja de hoy? Esto consolidará las métricas de cobro actuales.");
+    if (!confirm) return;
+    
+    const obs = window.prompt("Ingrese observaciones o notas adicionales sobre el cierre de hoy (opcional):", "");
+    if (obs === null) return; // cancelado
+    
+    try {
+        const res = await api.post('/empresa/caja-cierre', { observaciones: obs });
+        await showAlert(res.message || '✅ Cierre de caja registrado correctamente.');
+        await loadControlOperativoDiario();
+        await cargarHistorialCierres();
+    } catch (err) {
+        console.error('Error al registrar cierre:', err);
+        await showAlert(err.message || '❌ Error al registrar cierre de caja.');
+    }
+}
+
+async function cargarHistorialCierres() {
+    try {
+        const cierres = await api.get('/empresa/cierres-historial') || [];
+        window.currentCierresHistorialCache = cierres;
+        
+        const tbody = document.getElementById('tbody-historial-cierres');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        if (cierres.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Aún no se han registrado cierres de caja consolidados.</td></tr>`;
+            return;
+        }
+        
+        cierres.forEach(c => {
+            const dateObj = new Date(c.fecha_caja);
+            const weekStr = getWeekNumber(dateObj);
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge badge-purple" style="font-weight: 700;">${weekStr}</span></td>
+                <td><strong>${formatFechaSimple(c.fecha_caja)}</strong></td>
+                <td>
+                    <strong>🛵 ${c.cobrador_nombre}</strong>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${c.zona_asignada || 'General'}</div>
+                </td>
+                <td><strong>$${Number(c.total_efectivo || 0).toLocaleString('es-AR')}</strong></td>
+                <td><strong>$${Number(c.total_transferencias || 0).toLocaleString('es-AR')}</strong></td>
+                <td><span class="badge badge-success">${c.cantidad_cobros || 0} cuotas</span></td>
+                <td style="font-size:0.8rem; color:var(--text-secondary); max-width: 250px; white-space: normal; word-break: break-word;">
+                    ${c.observaciones || '<span class="text-muted">—</span>'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error al cargar historial de cierres:', err);
+    }
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function exportarHistorialCierresCSV() {
+    const cierres = window.currentCierresHistorialCache || [];
+    if (cierres.length === 0) {
+        showAlert('No hay historial de cierres registrado para exportar.');
+        return;
+    }
+    const headers = ['Semana ISO', 'Fecha Cierre', 'Cobrador', 'Zona', 'Efectivo Rendido', 'Transferencias', 'Cant. Cobros', 'Observaciones'];
+    const rows = cierres.map(c => {
+        const dateObj = new Date(c.fecha_caja);
+        const weekStr = getWeekNumber(dateObj);
+        return [
+            weekStr,
+            c.fecha_caja,
+            c.cobrador_nombre,
+            c.zona_asignada || 'General',
+            c.total_efectivo || 0,
+            c.total_transferencias || 0,
+            c.cantidad_cobros || 0,
+            c.observaciones || ''
+        ];
+    });
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV(`historial_cierres_caja_${dateStr}.csv`, headers, rows);
+}
+
+// Exponer en window
+window.resetAsignacionesMensual = resetAsignacionesMensual;
+window.registrarCierreJornada = registrarCierreJornada;
+window.cargarHistorialCierres = cargarHistorialCierres;
+window.exportarHistorialCierresCSV = exportarHistorialCierresCSV;
