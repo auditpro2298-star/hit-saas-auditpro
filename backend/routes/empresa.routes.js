@@ -759,7 +759,7 @@ router.get('/auditoria', async (req, res) => {
 
         // Últimos cobros con o sin comprobante + cobrador histórico
         let cobrosSql = `
-            SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.estado,
+            SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.estado, q.notas,
                    c.nombre_apellido as cliente_nombre, c.direccion, c.barrio,
                    COALESCE(q.nombre_cobrador, u.nombre, 'Desconocido') as cobrador_nombre, f.id_fichero, f.producto_nombre, f.encargado_zona
             FROM cuotas q

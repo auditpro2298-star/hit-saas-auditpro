@@ -366,6 +366,7 @@ class APIClient {
                         motivo_no_cobro: q.motivo_no_cobro || null,
                         promesa_pago_fecha: q.promesa_pago_fecha || null,
                         estado: q.estado,
+                        notas: q.notas || null,
                         cliente_nombre: c.nombre_apellido || 'Marcelo Gómez',
                         direccion: c.direccion || 'Av. San Martín 1234',
                         barrio: c.barrio || 'Flores',

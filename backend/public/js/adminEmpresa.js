@@ -1211,9 +1211,13 @@ function renderAuditDetails(cobros) {
             fechaStr = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
         }
 
+        const notasStr = q.notas ? `<div style="font-size:0.75rem; color:#854d0e; font-weight:600; margin-top:3px; background: #fef9c3; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Cobrador: ${q.notas}</div>` : '';
         tr.innerHTML = `
             <td><strong>${fechaStr}</strong></td>
-            <td><strong>${q.cliente_nombre}</strong> (${q.barrio})</td>
+            <td>
+                <strong>${q.cliente_nombre}</strong> (${q.barrio})
+                ${notasStr}
+            </td>
             <td>Fichero #${q.id_fichero} - <strong>Cuota #${q.nro_cuota}</strong></td>
             <td><strong>$${Number(q.monto).toLocaleString('es-AR')}</strong></td>
             <td><span class="badge ${badgeMedio}">${q.medio_pago || 'NO COBRADO'}</span></td>
@@ -1787,6 +1791,10 @@ async function loadControlOperativoDiario() {
                         totalPromesas++;
                         estadoHtml = `<span class="badge badge-danger">❌ NO COBRADO</span>`;
                         proxNota = `Motivo: ${ultimoCobro.motivo_no_cobro || 'Ausente'}`;
+                    }
+                    
+                    if (ultimoCobro.notas) {
+                        proxNota += `<br><span style="color:#854d0e; font-weight:600;">📝 Cobrador: ${ultimoCobro.notas}</span>`;
                     }
                 } else if (promesaFichero) {
                     totalPromesas++;
