@@ -360,6 +360,33 @@
                             <button class="btn btn-success" onclick="openNewFicheroModal()">➕ Crear Nuevo Fichero</button>
                         </div>
                     </div>
+
+                    <!-- Barra de Búsqueda y Filtros de Estado para Ficheros -->
+                    <div class="flex gap-2 items-center flex-wrap"
+                        style="margin-bottom: 1.25rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <div style="flex: 1; min-width: 220px;">
+                            <label
+                                style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🔍
+                                Buscar Fichero</label>
+                            <input type="text" id="input-search-ficheros" class="form-control"
+                                placeholder="Buscar por ID (#), cliente, producto, encargado o barrio..."
+                                style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarFicheros()">
+                        </div>
+                        <div style="min-width: 200px;">
+                            <label
+                                style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">📊
+                                Filtrar por Estado</label>
+                            <select id="select-filter-ficheros-estado" class="form-control"
+                                style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarFicheros()">
+                                <option value="ALL">📍 Todos los Ficheros</option>
+                                <option value="ACTIVO">🟢 Activos</option>
+                                <option value="FINALIZADO">🟣 Finalizados (Totalmente Pagados)</option>
+                                <option value="CANCELADO">🔴 Cancelados</option>
+                                <option value="MOROSO">🟡 Morosos</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="table-container">
                         <table class="styled-table">
                             <thead>

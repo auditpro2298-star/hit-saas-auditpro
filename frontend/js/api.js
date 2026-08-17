@@ -543,15 +543,23 @@ class APIClient {
 
         // 4. FICHEROS (VENTAS)
         if (endpoint === '/empresa/ficheros' && method === 'GET') {
+            let dbChanged = false;
             let list = db.ficheros.map(f => {
                 const cli = db.clientes.find(c => c.id_cliente === f.id_cliente) || {};
                 const cob = db.usuarios.find(u => u.id_usuario === f.id_cobrador_asignado) || {};
                 const pagadas = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO').length;
+                const pendingCuotas = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PENDIENTE');
+                
+                // Auto-finalize in mock
+                if (pendingCuotas.length === 0 && f.estado === 'ACTIVO') {
+                    f.estado = 'FINALIZADO';
+                    dbChanged = true;
+                }
+
                 const nextPayment = (() => {
-                    const pending = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PENDIENTE');
-                    if (!pending.length) return null;
-                    pending.sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
-                    return pending[0].fecha_vencimiento;
+                    if (!pendingCuotas.length) return null;
+                    const sortedPending = [...pendingCuotas].sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
+                    return sortedPending[0].fecha_vencimiento;
                 })();
                 const todayStr = new Date().toISOString().split('T')[0];
                 const pagadoHoy = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO' && q.fecha_pago && q.fecha_pago.startsWith(todayStr)).length;
@@ -566,11 +574,15 @@ class APIClient {
                     longitud: cli.longitud,
                     cobrador_nombre: cob.nombre || 'Sin asignar',
                     cuotas_pagadas: pagadas,
+                    cuotas_pendientes: pendingCuotas.length,
                     cliente_telefono: cli.telefono || '',
                     proximo_vencimiento: nextPayment,
                     pagado_hoy: pagadoHoy
                 };
             });
+            if (dbChanged) {
+                saveMockDB(db);
+            }
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
                 const userName = (this.user.nombre || '').toLowerCase().trim();
                 list = list.filter(item => {
@@ -579,7 +591,13 @@ class APIClient {
                            (item.id_cobrador_asignado === this.user.id_usuario);
                 });
             }
-            return list.sort((a, b) => b.id_fichero - a.id_fichero);
+            return list.sort((a, b) => {
+                const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || a.encargado_zona === 'Sin asignar';
+                const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || b.encargado_zona === 'Sin asignar';
+                if (aUnassigned && !bUnassigned) return -1;
+                if (!aUnassigned && bUnassigned) return 1;
+                return b.id_fichero - a.id_fichero;
+            });
         }
 
         if (endpoint.startsWith('/empresa/ficheros/') && endpoint.endsWith('/asignar') && method === 'PUT') {

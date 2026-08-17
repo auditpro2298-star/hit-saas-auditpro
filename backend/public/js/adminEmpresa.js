@@ -663,7 +663,8 @@ async function loadFicheros() {
     }
 
     const ficheros = await api.get('/empresa/ficheros');
-    renderFicherosTable(ficheros);
+    window.currentFicherosListCache = ficheros;
+    filtrarFicheros();
 
     // Cargar clientes en el select para el modal de nuevo fichero
     const clientes = await api.get('/empresa/clientes');
@@ -705,7 +706,10 @@ function renderFicherosTable(ficheros) {
 
     ficheros.forEach(f => {
         const tr = document.createElement('tr');
-        const badgeStatus = f.estado === 'ACTIVO' ? 'badge-success' : 'badge-warning';
+        let badgeStatus = 'badge-success';
+        if (f.estado === 'FINALIZADO') badgeStatus = 'badge-purple';
+        else if (f.estado === 'CANCELADO') badgeStatus = 'badge-danger';
+        else if (f.estado === 'MOROSO') badgeStatus = 'badge-warning';
 
         let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
         
@@ -2159,3 +2163,21 @@ window.resetAsignacionesMensual = resetAsignacionesMensual;
 window.registrarCierreJornada = registrarCierreJornada;
 window.cargarHistorialCierres = cargarHistorialCierres;
 window.exportarHistorialCierresCSV = exportarHistorialCierresCSV;
+
+function filtrarFicheros() {
+    if (!window.currentFicherosListCache) return;
+    
+    const queryStr = (document.getElementById('input-search-ficheros')?.value || '').toLowerCase().trim();
+    const selectedEstado = document.getElementById('select-filter-ficheros-estado')?.value || 'ALL';
+    
+    const filtered = window.currentFicherosListCache.filter(f => {
+        const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
+        const fullText = `${f.id_fichero} ${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.encargado_zona || ''}`.toLowerCase();
+        const matchText = !queryStr || fullText.includes(queryStr);
+        return matchEstado && matchText;
+    });
+    
+    renderFicherosTable(filtered);
+}
+
+window.filtrarFicheros = filtrarFicheros;

@@ -386,6 +386,29 @@ router.get('/ficheros', async (req, res) => {
         console.error("Error resetting monthly assignments:", e);
     }
 
+    // Auto-finalize ficheros that have 0 pending cuotas
+    try {
+        if (isPostgres && pgPool) {
+            await pgPool.query(`
+                UPDATE ficheros 
+                SET estado = 'FINALIZADO' 
+                WHERE id_empresa = $1 AND estado = 'ACTIVO' AND id_fichero NOT IN (
+                    SELECT DISTINCT id_fichero FROM cuotas WHERE id_empresa = $1 AND estado = 'PENDIENTE'
+                )
+            `, [id_empresa]);
+        } else {
+            await run(`
+                UPDATE ficheros 
+                SET estado = 'FINALIZADO' 
+                WHERE id_empresa = ? AND estado = 'ACTIVO' AND id_fichero NOT IN (
+                    SELECT DISTINCT id_fichero FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'
+                )
+            `, [id_empresa, id_empresa]);
+        }
+    } catch (e) {
+        console.error("Error auto-finalizing files:", e);
+    }
+
     try {
         const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
         let sql = `
@@ -407,7 +430,7 @@ router.get('/ficheros', async (req, res) => {
             const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
             params.push(req.user.id_usuario, userName);
         }
-        sql += ` ORDER BY f.id_fichero DESC`;
+        sql += ` ORDER BY (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 ELSE 1 END) ASC, f.id_fichero DESC`;
         
         const ficheros = await query(sql, params);
         res.json(ficheros);
