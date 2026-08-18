@@ -517,6 +517,22 @@ class APIClient {
             return { success: true, cliente: newClient, message: `✅ Cliente "${newClient.nombre_apellido}" registrado con éxito.` };
         }
 
+        if (endpoint.startsWith('/empresa/clientes/') && method === 'PUT') {
+            const parts = endpoint.split('/');
+            const id = parseInt(parts[3]);
+            const target = db.clientes.find(c => c.id_cliente === id);
+            if (target) {
+                target.direccion = body.direccion || target.direccion;
+                target.barrio = body.barrio || target.barrio;
+                target.telefono = body.telefono || target.telefono;
+                target.referencia_domicilio = body.referencia_domicilio !== undefined ? body.referencia_domicilio : target.referencia_domicilio;
+                if (body.latitud) target.latitud = body.latitud;
+                if (body.longitud) target.longitud = body.longitud;
+            }
+            saveMockDB(db);
+            return { success: true, message: `✅ Datos de cliente actualizados correctamente.` };
+        }
+
         if (endpoint.startsWith('/empresa/clientes/') && method === 'DELETE') {
             const id = parseInt(endpoint.split('/')[3]);
             const activeFicheros = db.ficheros.filter(f => f.id_cliente === id && (f.estado === 'ACTIVO' || f.estado === 'MOROSO'));

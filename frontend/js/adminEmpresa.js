@@ -217,8 +217,8 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick='showQrModal(${clientJsonStr})'>
                         📱 Ver QR
                     </button>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}')" title="Actualizar dirección por mudanza">
-                        ✏️ Mudanza
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}', '${(c.referencia_domicilio || '').replace(/'/g, "\\'")}')" title="Actualizar datos del cliente (dirección, teléfono, fecha de pago)">
+                        ✏️ Editar Datos
                     </button>
                     ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
                     <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Eliminar cliente por error o cuando termina de pagar todo">
@@ -1618,25 +1618,30 @@ async function toggleActivoEmpleado(id_usuario, nombre) {
     }
 }
 
-async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual, telActual) {
-    const nuevaDir = prompt(`🏠 MUDANZA / CAMBIO DE DOMICILIO DE "${nombre}":\n\nIngrese la nueva calle y número:`, dirActual);
-    if (!nuevaDir || !nuevaDir.trim()) return;
+async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual, telActual, refActual) {
+    const nuevaDir = prompt(`🏠 EDITAR DATOS DE "${nombre}":\n\nIngrese la nueva calle y número:`, dirActual);
+    if (nuevaDir === null) return;
 
-    const nuevoBarrio = prompt(`📍 Ingrese el nuevo Barrio o Zona:`, barrioActual);
-    if (!nuevoBarrio || !nuevoBarrio.trim()) return;
+    const nuevoBarrio = prompt(`📍 Ingrese el Barrio o Zona:`, barrioActual);
+    if (nuevoBarrio === null) return;
 
-    const nuevoTel = prompt(`📞 Ingrese el nuevo Teléfono de contacto:`, telActual || '');
+    const nuevoTel = prompt(`📞 Ingrese el Teléfono de contacto:`, telActual || '');
+    if (nuevoTel === null) return;
+
+    const nuevaRef = prompt(`📅 Ingrese la Fecha de Pago o Referencia (ej: 12 de cada mes):`, refActual || '');
+    if (nuevaRef === null) return;
 
     try {
         const res = await api.put(`/empresa/clientes/${id_cliente}`, {
-            direccion: nuevaDir.trim(),
-            barrio: nuevoBarrio.trim(),
-            telefono: nuevoTel ? nuevoTel.trim() : telActual
+            direccion: nuevaDir.trim() || dirActual,
+            barrio: nuevoBarrio.trim() || barrioActual,
+            telefono: nuevoTel.trim() || telActual,
+            referencia_domicilio: nuevaRef.trim() || refActual
         });
         await showAlert(res.message);
         loadClientesAndMap();
     } catch (err) {
-        await showAlert('Error al actualizar domicilio: ' + err.message);
+        await showAlert('Error al actualizar datos del cliente: ' + err.message);
     }
 }
 
