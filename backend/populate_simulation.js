@@ -91,161 +91,162 @@ async function generateSimulation(cantidad = 20, id_empresa = 1) {
     await run("BEGIN TRANSACTION");
     try {
         for (let i = 0; i < cantidad; i++) {
-        const nombre = nombresMezclados[i % nombresMezclados.length] + (Math.floor(i / nombresMezclados.length) > 0 ? ` ${Math.floor(i / nombresMezclados.length) + 1}` : "");
-        const dni = (25000000 + Math.floor(Math.random() * 20000000)).toString();
-        const telefono = `+54 9 11 ${1000 + Math.floor(Math.random() * 9000)}-${1000 + Math.floor(Math.random() * 9000)}`;
-        
-        const calle = calles[Math.floor(Math.random() * calles.length)];
-        const altura = 100 + Math.floor(Math.random() * 4500);
-        const direccion = `${calle} ${altura}`;
-        
-        const barrioObj = barrios[Math.floor(Math.random() * barrios.length)];
-        const barrio = barrioObj.nombre;
-        
-        // Coordenadas con pequeña dispersión alrededor del centro del barrio
-        const lat = barrioObj.lat + (Math.random() - 0.5) * 0.015;
-        const lng = barrioObj.lng + (Math.random() - 0.5) * 0.015;
-        
-        const piso_dpto = Math.random() > 0.6 ? `${Math.floor(Math.random() * 10) + 1} ${String.fromCharCode(65 + Math.floor(Math.random() * 6))}` : "PB";
-        const referencia = Math.random() > 0.4 ? `Frente a ${Math.random() > 0.5 ? 'la plaza' : 'un portón verde'} / Casa color ${['azul', 'blanca', 'ladrillo', 'crema'][Math.floor(Math.random() * 4)]}` : "";
-        
-        const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-sim-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-        
-        // Calificación aleatoria ponderada (más Buenos y Excelentes que Morosos)
-        const randCalif = Math.random();
-        let calificacion = "BUENO";
-        if (randCalif < 0.2) calificacion = "EXCELENTE";
-        else if (randCalif > 0.85) calificacion = "MOROSO";
-        else if (randCalif > 0.7) calificacion = "REGULAR";
+            const nombre = nombresMezclados[i % nombresMezclados.length] + (Math.floor(i / nombresMezclados.length) > 0 ? ` ${Math.floor(i / nombresMezclados.length) + 1}` : "");
+            const dni = (25000000 + Math.floor(Math.random() * 20000000)).toString();
+            const telefono = `+54 9 11 ${1000 + Math.floor(Math.random() * 9000)}-${1000 + Math.floor(Math.random() * 9000)}`;
+            
+            const calle = calles[Math.floor(Math.random() * calles.length)];
+            const altura = 100 + Math.floor(Math.random() * 4500);
+            const direccion = `${calle} ${altura}`;
+            
+            const barrioObj = barrios[Math.floor(Math.random() * barrios.length)];
+            const barrio = barrioObj.nombre;
+            
+            // Coordenadas con pequeña dispersión alrededor del centro del barrio
+            const lat = barrioObj.lat + (Math.random() - 0.5) * 0.015;
+            const lng = barrioObj.lng + (Math.random() - 0.5) * 0.015;
+            
+            const piso_dpto = Math.random() > 0.6 ? `${Math.floor(Math.random() * 10) + 1} ${String.fromCharCode(65 + Math.floor(Math.random() * 6))}` : "PB";
+            const referencia = Math.random() > 0.4 ? `Frente a ${Math.random() > 0.5 ? 'la plaza' : 'un portón verde'} / Casa color ${['azul', 'blanca', 'ladrillo', 'crema'][Math.floor(Math.random() * 4)]}` : "";
+            
+            const qr_token = crypto.randomUUID ? crypto.randomUUID() : `uuid-sim-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+            
+            // Calificación aleatoria ponderada (más Buenos y Excelentes que Morosos)
+            const randCalif = Math.random();
+            let calificacion = "BUENO";
+            if (randCalif < 0.2) calificacion = "EXCELENTE";
+            else if (randCalif > 0.85) calificacion = "MOROSO";
+            else if (randCalif > 0.7) calificacion = "REGULAR";
 
-        const cobradorAsignadoId = cobradoresIds.includes(barrioObj.cobrador_id) ? barrioObj.cobrador_id : (cobradoresIds[0] || null);
+            const cobradorAsignadoId = cobradoresIds.includes(barrioObj.cobrador_id) ? barrioObj.cobrador_id : (cobradoresIds[0] || null);
 
-        // 1. Insertar Cliente
-        const resultCli = await run(
-            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [id_empresa, nombre, dni, telefono, direccion, barrio, piso_dpto, referencia, lat, lng, qr_token, calificacion, barrioObj.encargado]
-        );
-        const id_cliente = resultCli.lastID;
+            // 1. Insertar Cliente
+            const resultCli = await run(
+                "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [id_empresa, nombre, dni, telefono, direccion, barrio, piso_dpto, referencia, lat, lng, qr_token, calificacion, barrioObj.encargado]
+            );
+            const id_cliente = resultCli.lastID;
 
-        // 2. Insertar Fichero Digital (Contrato/Plan)
-        const prod = productos[Math.floor(Math.random() * productos.length)];
-        const cantidad_cuotas = prod.cuotas;
-        const valor_cuota = prod.valor;
-        const monto_total = cantidad_cuotas * valor_cuota;
-        
-        // Vendedor aleatorio
-        const vendedor = ["Milagros", "Carlos", "General"][Math.floor(Math.random() * 3)];
-        
-        // Fecha de entrega simulada en el pasado (entre 5 y 15 semanas atrás para tener historial de cuotas)
-        const semanasAtras = 3 + Math.floor(Math.random() * 12);
-        const fechaEntregaDate = new Date();
-        fechaEntregaDate.setDate(fechaEntregaDate.getDate() - (semanasAtras * 7));
-        const fecha_entrega = fechaEntregaDate.toISOString().split('T')[0];
+            // 2. Insertar Fichero Digital (Contrato/Plan)
+            const prod = productos[Math.floor(Math.random() * productos.length)];
+            const cantidad_cuotas = prod.cuotas;
+            const valor_cuota = prod.valor;
+            const monto_total = cantidad_cuotas * valor_cuota;
+            
+            // Vendedor aleatorio
+            const vendedor = ["Milagros", "Carlos", "General"][Math.floor(Math.random() * 3)];
+            
+            // Fecha de entrega simulada en el pasado (entre 5 y 15 semanas atrás para tener historial de cuotas)
+            const semanasAtras = 3 + Math.floor(Math.random() * 12);
+            const fechaEntregaDate = new Date();
+            fechaEntregaDate.setDate(fechaEntregaDate.getDate() - (semanasAtras * 7));
+            const fecha_entrega = fechaEntregaDate.toISOString().split('T')[0];
 
-        // Estado del fichero según calificación
-        let estadoFichero = "ACTIVO";
-        if (calificacion === "MOROSO" && Math.random() > 0.5) {
-            estadoFichero = "MOROSO";
-        }
+            // Estado del fichero según calificación
+            let estadoFichero = "ACTIVO";
+            if (calificacion === "MOROSO" && Math.random() > 0.5) {
+                estadoFichero = "MOROSO";
+            }
 
-        const ordenVisita = Math.floor(Math.random() * 15) + 1;
+            const ordenVisita = Math.floor(Math.random() * 15) + 1;
 
-        const resultFic = await run(
-            "INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, orden_visita) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [id_cliente, id_empresa, prod.nombre, cantidad_cuotas, valor_cuota, prod.frecuencia, monto_total, vendedor, barrioObj.encargado, cobradorAsignadoId, fecha_entrega, estadoFichero, ordenVisita]
-        );
-        const id_fichero = resultFic.lastID;
+            const resultFic = await run(
+                "INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, orden_visita) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [id_cliente, id_empresa, prod.nombre, cantidad_cuotas, valor_cuota, prod.frecuencia, monto_total, vendedor, barrioObj.encargado, cobradorAsignadoId, fecha_entrega, estadoFichero, ordenVisita]
+            );
+            const id_fichero = resultFic.lastID;
 
-        // 3. Insertar Cuotas (casilleros de pagos)
-        let fechaActual = new Date(fechaEntregaDate);
-        
-        for (let n = 1; n <= cantidad_cuotas; n++) {
-            // Calcular fecha de vencimiento sumando 7 días por cuota semanal
-            fechaActual.setDate(fechaActual.getDate() + 7);
-            const fechaVencimiento = fechaActual.toISOString().split('T')[0];
-            const esVencida = fechaActual < new Date();
+            // 3. Insertar Cuotas (casilleros de pagos)
+            let fechaActual = new Date(fechaEntregaDate);
+            
+            for (let n = 1; n <= cantidad_cuotas; n++) {
+                // Calcular fecha de vencimiento sumando 7 días por cuota semanal
+                fechaActual.setDate(fechaActual.getDate() + 7);
+                const fechaVencimiento = fechaActual.toISOString().split('T')[0];
+                const esVencida = fechaActual < new Date();
 
-            let estadoCuota = "PENDIENTE";
-            let fechaPago = null;
-            let medioPago = null;
-            let motivoNoCobroVal = null;
-            let compUrl = null;
+                let estadoCuota = "PENDIENTE";
+                let fechaPago = null;
+                let medioPago = null;
+                let motivoNoCobroVal = null;
+                let compUrl = null;
 
-            if (esVencida) {
-                const randEstado = Math.random();
-                
-                if (calificacion === "EXCELENTE") {
-                    // Paga casi siempre a tiempo
-                    estadoCuota = "PAGADO";
-                    medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
-                    fechaPago = new Date(fechaActual);
-                    // Pagar en el mismo día o 1-2 días de retraso
-                    fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 3));
-                    fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
-                } else if (calificacion === "BUENO") {
-                    // Paga la mayoría, algunas se le pasan
-                    if (randEstado > 0.15) {
+                if (esVencida) {
+                    const randEstado = Math.random();
+                    
+                    if (calificacion === "EXCELENTE") {
+                        // Paga casi siempre a tiempo
                         estadoCuota = "PAGADO";
                         medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
                         fechaPago = new Date(fechaActual);
-                        fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 5));
+                        // Pagar en el mismo día o 1-2 días de retraso
+                        fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 3));
                         fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
-                    } else if (randEstado > 0.05) {
-                        estadoCuota = "NO_COBRADO";
-                        motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
+                    } else if (calificacion === "BUENO") {
+                        // Paga la mayoría, algunas se le pasan
+                        if (randEstado > 0.15) {
+                            estadoCuota = "PAGADO";
+                            medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
+                            fechaPago = new Date(fechaActual);
+                            fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 5));
+                            fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
+                        } else if (randEstado > 0.05) {
+                            estadoCuota = "NO_COBRADO";
+                            motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
+                        } else {
+                            estadoCuota = "PENDIENTE";
+                        }
+                    } else if (calificacion === "REGULAR") {
+                        // Paga el 50%, tiene varios no cobrados o pendientes
+                        if (randEstado > 0.5) {
+                            estadoCuota = "PAGADO";
+                            medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
+                            fechaPago = new Date(fechaActual);
+                            fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 10));
+                            fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
+                        } else if (randEstado > 0.25) {
+                            estadoCuota = "NO_COBRADO";
+                            motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
+                        } else {
+                            estadoCuota = "PENDIENTE";
+                        }
                     } else {
-                        estadoCuota = "PENDIENTE";
-                    }
-                } else if (calificacion === "REGULAR") {
-                    // Paga el 50%, tiene varios no cobrados o pendientes
-                    if (randEstado > 0.5) {
-                        estadoCuota = "PAGADO";
-                        medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
-                        fechaPago = new Date(fechaActual);
-                        fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 10));
-                        fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
-                    } else if (randEstado > 0.25) {
-                        estadoCuota = "NO_COBRADO";
-                        motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
-                    } else {
-                        estadoCuota = "PENDIENTE";
-                    }
-                } else {
-                    // MOROSO: Paga muy poco, la mayoría pendiente o no cobrado
-                    if (randEstado > 0.85) {
-                        estadoCuota = "PAGADO";
-                        medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
-                        fechaPago = new Date(fechaActual);
-                        fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 15));
-                        fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
-                    } else if (randEstado > 0.4) {
-                        estadoCuota = "NO_COBRADO";
-                        motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
-                    } else {
-                        estadoCuota = "PENDIENTE";
+                        // MOROSO: Paga muy poco, la mayoría pendiente o no cobrado
+                        if (randEstado > 0.85) {
+                            estadoCuota = "PAGADO";
+                            medioPago = mediosPago[Math.floor(Math.random() * mediosPago.length)];
+                            fechaPago = new Date(fechaActual);
+                            fechaPago.setDate(fechaPago.getDate() + Math.floor(Math.random() * 15));
+                            fechaPago = fechaPago.toISOString().replace('T', ' ').substring(0, 19);
+                        } else if (randEstado > 0.4) {
+                            estadoCuota = "NO_COBRADO";
+                            motivoNoCobroVal = motivosNoCobro[Math.floor(Math.random() * motivosNoCobro.length)];
+                        } else {
+                            estadoCuota = "PENDIENTE";
+                        }
                     }
                 }
+
+                // Imagen comprobante si es por transferencia
+                if (estadoCuota === "PAGADO" && medioPago === "TRANSFERENCIA") {
+                    compUrl = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400";
+                }
+
+                const nombreCobrador = cobradoresRegistrados.find(c => c.id_usuario === cobradorAsignadoId)?.nombre || "Nico Cobrador";
+
+                await run(
+                    "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, motivo_no_cobro, comprobante_img_url, id_cobrador, nombre_cobrador) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [id_fichero, id_empresa, n, valor_cuota, estadoCuota, fechaVencimiento, fechaPago, medioPago, motivoNoCobroVal, compUrl, cobradorAsignadoId, nombreCobrador]
+                );
             }
-
-            // Imagen comprobante si es por transferencia
-            if (estadoCuota === "PAGADO" && medioPago === "TRANSFERENCIA") {
-                compUrl = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400";
-            }
-
-            const nombreCobrador = cobradoresRegistrados.find(c => c.id_usuario === cobradorAsignadoId)?.nombre || "Nico Cobrador";
-
-            await run(
-                "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, motivo_no_cobro, comprobante_img_url, id_cobrador, nombre_cobrador) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [id_fichero, id_empresa, n, valor_cuota, estadoCuota, fechaVencimiento, fechaPago, medioPago, motivoNoCobroVal, compUrl, cobradorAsignadoId, nombreCobrador]
-            );
-        }
 
             creados++;
         }
         await run("COMMIT");
-    } catch (e) {
-        try { await run("ROLLBACK"); } catch (err) {}
-        throw e;
+    } catch (err) {
+        console.error("❌ Error durante la generación de la simulación, haciendo ROLLBACK...", err);
+        try { await run("ROLLBACK"); } catch (rollbackErr) {}
+        throw err;
     }
 
     console.log(`✅ Se insertaron exitosamente ${creados} clientes con sus ficheros y cuotas correspondientes.`);
