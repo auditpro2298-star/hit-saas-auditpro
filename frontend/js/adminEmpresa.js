@@ -18,7 +18,7 @@ async function loadEmpresaDashboard() {
 
 async function initEmpresaPanel() {
     console.log('🏢 Inicializando Panel Admin de Empresa...');
-    
+
     // Resetear visibilidad por defecto
     const tabs = ['clientes', 'ficheros', 'personal', 'rutas', 'auditoria', 'promesas', 'whatsapp'];
     tabs.forEach(t => {
@@ -248,7 +248,7 @@ function initMap(clientes) {
 
     if (!mapInstance) {
         mapInstance = L.map('map-container').setView([-34.6250, -58.4550], 13);
-        
+
         // Capa Esri World Street Map HD (Máxima nitidez con numeración y etiquetas de calles claras para Argentina)
         const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Powered by Esri'
@@ -281,7 +281,7 @@ function initMap(clientes) {
             const lng = parseFloat(c.longitud);
             const marker = L.marker([lat, lng]).addTo(mapInstance);
             marker.id_cliente = c.id_cliente;
-            
+
             const pisoStr = c.piso_dpto ? `<br><span>🏢 Piso/Dpto: ${c.piso_dpto}</span>` : '';
             const refStr = c.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706;">🏠 Ref: ${c.referencia_domicilio}</span>` : '';
 
@@ -324,7 +324,7 @@ function showQrModal(nombreOrCliente, tokenArg) {
 
     const tokenElem = document.getElementById('modal-qr-token-text');
     if (tokenElem) tokenElem.innerText = token;
-    
+
     // Generar código QR apuntando a la URL pública de la Cartilla del Cliente
     const fullPublicUrl = `${window.location.origin}/?qr_cartilla=${token}`;
     const qrImage = document.getElementById('modal-qr-image');
@@ -395,7 +395,7 @@ async function verificarDireccionEnMapa() {
     const rawCalle = document.getElementById('new-cli-calle').value.trim();
     const rawAltura = document.getElementById('new-cli-altura').value.trim();
     const rawBarrio = document.getElementById('new-cli-barrio').value.trim();
-    
+
     if (!rawCalle || !rawAltura || !rawBarrio) {
         await showAlert('Por favor, complete primero la calle, la altura y el barrio.');
         return;
@@ -494,10 +494,10 @@ function abrirBusquedaGoogleMaps() {
     const calle = document.getElementById('new-cli-calle').value.trim();
     const altura = document.getElementById('new-cli-altura').value.trim();
     const barrio = document.getElementById('new-cli-barrio').value.trim();
-    
+
     let query = `${calle} ${altura} ${barrio}`.trim();
     if (!query) query = 'Berazategui Buenos Aires';
-    
+
     const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
     window.open(gmapsUrl, '_blank');
 }
@@ -585,8 +585,8 @@ function mostrarMapaVerificacion(lat, lng) {
         modalMapMarker.setLatLng([lat, lng]);
     } else {
         modalMapMarker = L.marker([lat, lng], { draggable: true }).addTo(modalMapInstance);
-        
-        modalMapMarker.on('dragend', function() {
+
+        modalMapMarker.on('dragend', function () {
             const pos = modalMapMarker.getLatLng();
             window.tempClientLat = pos.lat;
             window.tempClientLng = pos.lng;
@@ -635,7 +635,7 @@ async function submitNewClienteForm(event) {
         await showAlert('✅ Cliente registrado e indexado geográficamente con éxito.');
         document.getElementById('modal-new-cliente').classList.add('hidden');
         document.getElementById('form-new-cliente').reset();
-        
+
         // Limpiar temporales
         window.tempClientLat = null;
         window.tempClientLng = null;
@@ -734,7 +734,7 @@ function renderFicherosTable(ficheros) {
         else if (f.estado === 'MOROSO') badgeStatus = 'badge-warning';
 
         let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
-        
+
         if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
@@ -868,7 +868,7 @@ let routeMapLines = [];
 async function loadAsignacionRutas() {
     const ficheros = await api.get('/empresa/ficheros');
     const cobradores = await api.get('/empresa/cobradores');
-    
+
     // Guardar en caché global para el trazador de mapas
     window.currentFicherosCache = ficheros;
     window.currentCobradoresCache = cobradores;
@@ -914,31 +914,31 @@ function filtrarRutasPorBarrioYTexto() {
 
 function formatFechaSimple(dateStr) {
     if (!dateStr) return '';
-    
+
     // Ensure we are working with a string representation
     const str = String(dateStr).trim();
-    
+
     // Match YYYY-MM-DD (optionally followed by T or space and time)
     const yyyymmddMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (yyyymmddMatch) {
         const [, year, month, day] = yyyymmddMatch;
         return `${day}/${month}/${year}`;
     }
-    
+
     // Match DD/MM/YYYY or DD-MM-YYYY
     const ddmmyyyyMatch = str.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
     if (ddmmyyyyMatch) {
         const [, day, month, year] = ddmmyyyyMatch;
         return `${day}/${month}/${year}`;
     }
-    
+
     // Fallback: try parsing cleanDate with split if it is standard YYYY-MM-DD
     const cleanDate = str.includes('T') ? str.split('T')[0] : str.split(' ')[0];
     const parts = cleanDate.split('-');
     if (parts.length === 3) {
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
-    
+
     return dateStr;
 }
 
@@ -955,7 +955,7 @@ function renderAsignacionTable(ficheros, cobradores) {
 
     activos.forEach(f => {
         const tr = document.createElement('tr');
-        
+
         // Construir select de cobradores
         let optionsHtml = `<option value="">-- Sin asignar --</option>`;
         cobradores.forEach(cb => {
@@ -1030,7 +1030,7 @@ async function updateFicheroOrden(id_fichero, nuevoOrden) {
     try {
         const res = await api.put(`/empresa/ficheros/${id_fichero}/orden`, { orden_visita: parseInt(nuevoOrden) || 0 });
         console.log('Orden guardado:', res.message);
-        
+
         if (window.currentFicherosCache) {
             const fIdx = window.currentFicherosCache.findIndex(x => x.id_fichero === id_fichero);
             if (fIdx >= 0) {
@@ -1049,7 +1049,7 @@ function drawRouteMap(customFicherosList) {
 
     if (!routeMapInstance) {
         routeMapInstance = L.map('route-map-container').setView([-34.62, -58.45], 11);
-        
+
         // Capa Esri World Street Map HD para mapa secuencial de rutas
         const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Powered by Esri'
@@ -1219,7 +1219,7 @@ function renderAuditDetails(cobros) {
     cobros.forEach(q => {
         const tr = document.createElement('tr');
         const badgeMedio = q.medio_pago === 'EFECTIVO' ? 'badge-success' : (q.medio_pago === 'TRANSFERENCIA' ? 'badge-purple' : 'badge-danger');
-        
+
         let comprobanteBtn = '-';
         if (q.comprobante_img_url) {
             comprobanteBtn = `<button class="btn btn-purple" style="font-size:0.72rem; padding:0.25rem 0.6rem;" onclick="showComprobanteModal('${q.comprobante_img_url}', 'Fichero #${q.id_fichero} - Cuota #${q.nro_cuota} (${q.cliente_nombre})')">📸 Ver Recibo</button>`;
@@ -1372,11 +1372,11 @@ async function loadVendedoresRanking() {
             else if (index === 2 && v.monto_total_vendido > 0) medalla = '🥉 3º';
 
             const badgeEstado = v.activo ? '<span class="badge badge-success">🟢 Activo</span>' : '<span class="badge badge-danger">🔴 Bloqueado</span>';
-            const btnBloqueo = v.id_usuario 
+            const btnBloqueo = v.id_usuario
                 ? `<button class="btn ${v.activo ? 'btn-danger' : 'btn-success'}" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="toggleActivoEmpleado(${v.id_usuario}, '${v.nombre}')">${v.activo ? '🛑 Bloquear App' : '🟢 Desbloquear'}</button>`
                 : `<span style="font-size:0.75rem; color:var(--text-muted);">Ventas Calle</span>`;
 
-            const btnBorrarVend = v.id_usuario 
+            const btnBorrarVend = v.id_usuario
                 ? `<button class="btn btn-danger" style="padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="eliminarEmpleadoConfirmado(${v.id_usuario}, '${v.nombre}', 'VENDEDOR')" title="Eliminar Vendedor">🗑️ Eliminar</button>`
                 : '';
 
@@ -1730,7 +1730,7 @@ async function buscarClientePorIdODni() {
     const searchVal = document.getElementById('new-fich-buscar-cliente-id').value.trim();
     const infoPreview = document.getElementById('new-fich-cliente-info-preview');
     const selectCliente = document.getElementById('new-fich-cliente');
-    
+
     if (!searchVal) {
         if (infoPreview) infoPreview.innerHTML = '<span style="color:#ef4444;">Por favor, ingrese un ID o DNI.</span>';
         return;
@@ -1824,7 +1824,7 @@ async function loadControlOperativoDiario() {
                         estadoHtml = `<span class="badge badge-danger">❌ NO COBRADO</span>`;
                         proxNota = `Motivo: ${ultimoCobro.motivo_no_cobro || 'Ausente'}`;
                     }
-                    
+
                     if (ultimoCobro.notas) {
                         proxNota += `<br><span style="color:#854d0e; font-weight:600;">📝 Cobrador: ${ultimoCobro.notas}</span>`;
                     }
@@ -1911,7 +1911,7 @@ function exportToCSV(filename, headers, rows) {
             return `"${escaped}"`;
         }).join(','))
     ].join('\n');
-    
+
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2006,10 +2006,10 @@ function procesarRestoreBackup(event) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = async function (e) {
         try {
             const backupObj = JSON.parse(e.target.result);
-            
+
             // Validar que sea un archivo de backup de HIT válido
             if (!backupObj.clientes || !backupObj.ficheros || !backupObj.cuotas) {
                 await showAlert('❌ Archivo de copia de seguridad inválido. Debe contener clientes, ficheros y cuotas.');
@@ -2056,7 +2056,7 @@ function procesarRestoreBackup(event) {
                             const match = text.match(/<pre>([\s\S]*?)<\/pre>/i) || text.match(/<h1>([\s\S]*?)<\/h1>/i);
                             errMsg = match ? match[1].trim() : text.substring(0, 200);
                         }
-                    } catch (e2) {}
+                    } catch (e2) { }
                 }
                 throw new Error(errMsg);
             }
@@ -2084,7 +2084,7 @@ window.procesarRestoreBackup = procesarRestoreBackup;
 async function resetAsignacionesMensual() {
     const confirm = window.confirm("⚠️ ¿Está seguro de que desea reiniciar todas las asignaciones del mes? Esto desasignará a los cobradores y encargados de todos los ficheros.");
     if (!confirm) return;
-    
+
     try {
         const res = await api.post('/empresa/reset-asignaciones-mensual');
         await showAlert(res.message || '✅ Asignaciones reiniciadas con éxito.');
@@ -2098,10 +2098,10 @@ async function resetAsignacionesMensual() {
 async function registrarCierreJornada() {
     const confirm = window.confirm("¿Está seguro de que desea registrar el cierre de caja de hoy? Esto consolidará las métricas de cobro actuales.");
     if (!confirm) return;
-    
+
     const obs = window.prompt("Ingrese observaciones o notas adicionales sobre el cierre de hoy (opcional):", "");
     if (obs === null) return; // cancelado
-    
+
     try {
         const res = await api.post('/empresa/caja-cierre', { observaciones: obs });
         await showAlert(res.message || '✅ Cierre de caja registrado correctamente.');
@@ -2117,20 +2117,20 @@ async function cargarHistorialCierres() {
     try {
         const cierres = await api.get('/empresa/cierres-historial') || [];
         window.currentCierresHistorialCache = cierres;
-        
+
         const tbody = document.getElementById('tbody-historial-cierres');
         if (!tbody) return;
         tbody.innerHTML = '';
-        
+
         if (cierres.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Aún no se han registrado cierres de caja consolidados.</td></tr>`;
             return;
         }
-        
+
         cierres.forEach(c => {
             const dateObj = new Date(c.fecha_caja);
             const weekStr = getWeekNumber(dateObj);
-            
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><span class="badge badge-purple" style="font-weight: 700;">${weekStr}</span></td>
@@ -2156,8 +2156,8 @@ async function cargarHistorialCierres() {
 function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
@@ -2194,17 +2194,17 @@ window.exportarHistorialCierresCSV = exportarHistorialCierresCSV;
 
 function filtrarFicheros() {
     if (!window.currentFicherosListCache) return;
-    
+
     const queryStr = (document.getElementById('input-search-ficheros')?.value || '').toLowerCase().trim();
     const selectedEstado = document.getElementById('select-filter-ficheros-estado')?.value || 'ALL';
-    
+
     const filtered = window.currentFicherosListCache.filter(f => {
         const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
         const fullText = `${f.id_fichero} ${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.encargado_zona || ''}`.toLowerCase();
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchEstado && matchText;
     });
-    
+
     renderFicherosTable(filtered);
 }
 

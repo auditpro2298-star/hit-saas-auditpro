@@ -88,7 +88,9 @@ async function generateSimulation(cantidad = 20, id_empresa = 1) {
     const nombresMezclados = shuffle(nombresOriginales);
     let creados = 0;
 
-    for (let i = 0; i < cantidad; i++) {
+    await run("BEGIN TRANSACTION");
+    try {
+        for (let i = 0; i < cantidad; i++) {
         const nombre = nombresMezclados[i % nombresMezclados.length] + (Math.floor(i / nombresMezclados.length) > 0 ? ` ${Math.floor(i / nombresMezclados.length) + 1}` : "");
         const dni = (25000000 + Math.floor(Math.random() * 20000000)).toString();
         const telefono = `+54 9 11 ${1000 + Math.floor(Math.random() * 9000)}-${1000 + Math.floor(Math.random() * 9000)}`;
@@ -238,7 +240,12 @@ async function generateSimulation(cantidad = 20, id_empresa = 1) {
             );
         }
 
-        creados++;
+            creados++;
+        }
+        await run("COMMIT");
+    } catch (e) {
+        try { await run("ROLLBACK"); } catch (err) {}
+        throw e;
     }
 
     console.log(`✅ Se insertaron exitosamente ${creados} clientes con sus ficheros y cuotas correspondientes.`);
