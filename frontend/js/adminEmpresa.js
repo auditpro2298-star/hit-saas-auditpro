@@ -147,6 +147,9 @@ function filtrarClientesPorBarrioYTexto() {
         return matchBarrio && matchText;
     });
 
+    // Reset rendering limit when search/filter changes to avoid lag
+    window.clientesRenderLimit = 100;
+
     renderClientesTable(filtered);
     initMap(filtered);
 }
@@ -161,7 +164,10 @@ function renderClientesTable(clientes) {
         return;
     }
 
-    clientes.forEach(c => {
+    const limit = window.clientesRenderLimit || 100;
+    const visibleClientes = clientes.slice(0, limit);
+
+    visibleClientes.forEach(c => {
         const tr = document.createElement('tr');
         const pisoStr = c.piso_dpto ? `<span style="color:#8b5cf6; font-weight:700;"> [🏢 ${c.piso_dpto}]</span>` : '';
         const refStr = c.referencia_domicilio ? `<div style="font-size:0.75rem; color:#d97706; font-weight:600;">🏠 Ref: ${c.referencia_domicilio}</div>` : '';
@@ -230,6 +236,59 @@ function renderClientesTable(clientes) {
         `;
         tbody.appendChild(tr);
     });
+
+    if (clientes.length > limit) {
+        const loadMoreTr = document.createElement('tr');
+        loadMoreTr.id = 'tr-load-more-clientes';
+        loadMoreTr.innerHTML = `
+            <td colspan="7" class="text-center" style="padding: 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
+                <div class="flex justify-center items-center gap-3">
+                    <span class="text-muted" style="font-size:0.88rem; font-weight:600;">Mostrando ${limit} de ${clientes.length} clientes.</span>
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadMoreClientes()">
+                        📥 Cargar 100 más
+                    </button>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadAllClientes()">
+                        🚀 Cargar todos (puede tardar)
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(loadMoreTr);
+    }
+}
+
+function loadMoreClientes() {
+    window.clientesRenderLimit = (window.clientesRenderLimit || 100) + 100;
+    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
+    const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
+
+    const filtered = window.currentClientesCache.filter(c => {
+        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
+        const matchText = !queryStr || fullText.includes(queryStr);
+        return matchBarrio && matchText;
+    });
+
+    renderClientesTable(filtered);
+}
+
+function loadAllClientes() {
+    window.clientesRenderLimit = 999999;
+    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
+    const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
+
+    const filtered = window.currentClientesCache.filter(c => {
+        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
+        const matchText = !queryStr || fullText.includes(queryStr);
+        return matchBarrio && matchText;
+    });
+
+    renderClientesTable(filtered);
+}
+
+window.loadMoreClientes = loadMoreClientes;
+window.loadAllClientes = loadAllClientes;
 }
 
 function focusClientOnMap(id_cliente) {
@@ -275,26 +334,29 @@ function initMap(clientes) {
 
     const bounds = [];
 
-    clientes.forEach(c => {
-        if (c.latitud && c.longitud) {
-            const lat = parseFloat(c.latitud);
-            const lng = parseFloat(c.longitud);
-            const marker = L.marker([lat, lng]).addTo(mapInstance);
-            marker.id_cliente = c.id_cliente;
+    // Limitar el renderizado de marcadores en el mapa para evitar congelamiento
+    const maxMarkers = 200;
+    const clisWithCoords = clientes.filter(c => c.latitud && c.longitud);
+    const visibleClis = clisWithCoords.slice(0, maxMarkers);
 
-            const pisoStr = c.piso_dpto ? `<br><span>🏢 Piso/Dpto: ${c.piso_dpto}</span>` : '';
-            const refStr = c.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706;">🏠 Ref: ${c.referencia_domicilio}</span>` : '';
+    visibleClis.forEach(c => {
+        const lat = parseFloat(c.latitud);
+        const lng = parseFloat(c.longitud);
+        const marker = L.marker([lat, lng]).addTo(mapInstance);
+        marker.id_cliente = c.id_cliente;
 
-            marker.bindPopup(`
-                <div style="font-family: Inter, sans-serif;">
-                    <strong style="color:var(--primary); font-size:0.95rem;">${c.nombre_apellido}</strong><br>
-                    <span>📍 ${c.direccion}${pisoStr} (${c.barrio})</span>${refStr}<br>
-                    <span style="font-size:0.75rem; color:#6366f1;">QR Token: ${c.qr_token}</span>
-                </div>
-            `);
-            mapMarkers.push(marker);
-            bounds.push([lat, lng]);
-        }
+        const pisoStr = c.piso_dpto ? `<br><span>🏢 Piso/Dpto: ${c.piso_dpto}</span>` : '';
+        const refStr = c.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706;">🏠 Ref: ${c.referencia_domicilio}</span>` : '';
+
+        marker.bindPopup(`
+            <div style="font-family: Inter, sans-serif;">
+                <strong style="color:var(--primary); font-size:0.95rem;">${c.nombre_apellido}</strong><br>
+                <span>📍 ${c.direccion}${pisoStr} (${c.barrio})</span>${refStr}<br>
+                <span style="font-size:0.75rem; color:#6366f1;">QR Token: ${c.qr_token}</span>
+            </div>
+        `);
+        mapMarkers.push(marker);
+        bounds.push([lat, lng]);
     });
 
     if (bounds.length > 0) {
@@ -725,8 +787,10 @@ function renderFicherosTable(ficheros) {
     }
 
     const encargadosList = window.allEncargadosCache || [];
+    const limit = window.ficherosRenderLimit || 100;
+    const visibleFicheros = ficheros.slice(0, limit);
 
-    ficheros.forEach(f => {
+    visibleFicheros.forEach(f => {
         const tr = document.createElement('tr');
         let badgeStatus = 'badge-success';
         if (f.estado === 'FINALIZADO') badgeStatus = 'badge-purple';
@@ -780,6 +844,39 @@ function renderFicherosTable(ficheros) {
         `;
         tbody.appendChild(tr);
     });
+
+    if (ficheros.length > limit) {
+        const loadMoreTr = document.createElement('tr');
+        loadMoreTr.id = 'tr-load-more-ficheros';
+        loadMoreTr.innerHTML = `
+            <td colspan="9" class="text-center" style="padding: 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
+                <div class="flex justify-center items-center gap-3">
+                    <span class="text-muted" style="font-size:0.88rem; font-weight:600;">Mostrando ${limit} de ${ficheros.length} ficheros.</span>
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadMoreFicheros()">
+                        📥 Cargar 100 más
+                    </button>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadAllFicheros()">
+                        🚀 Cargar todos (puede tardar)
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(loadMoreTr);
+    }
+}
+
+function loadMoreFicheros() {
+    window.ficherosRenderLimit = (window.ficherosRenderLimit || 100) + 100;
+    filtrarFicheros();
+}
+
+function loadAllFicheros() {
+    window.ficherosRenderLimit = 999999;
+    filtrarFicheros();
+}
+
+window.loadMoreFicheros = loadMoreFicheros;
+window.loadAllFicheros = loadAllFicheros;
 }
 
 async function cambiarEncargadoFichero(id_fichero, val) {
@@ -2204,6 +2301,9 @@ function filtrarFicheros() {
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchEstado && matchText;
     });
+
+    // Reset render limit when search/filter changes to avoid lag
+    window.ficherosRenderLimit = 100;
 
     renderFicherosTable(filtered);
 }
