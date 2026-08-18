@@ -125,10 +125,11 @@ async function loadClientesAndMap() {
     const selectBarrio = document.getElementById('select-filter-barrio-map');
     if (selectBarrio) {
         const barrios = [...new Set(clientes.map(c => c.barrio).filter(Boolean))].sort();
-        selectBarrio.innerHTML = '<option value="ALL">📍 Todos los Barrios / Zonas</option>';
+        let html = '<option value="ALL">📍 Todos los Barrios / Zonas</option>';
         barrios.forEach(b => {
-            selectBarrio.innerHTML += `<option value="${b}">🏘️ ${b}</option>`;
+            html += `<option value="${b}">🏘️ ${b}</option>`;
         });
+        selectBarrio.innerHTML = html;
     }
 
     filtrarClientesPorBarrioYTexto();
@@ -750,24 +751,30 @@ async function loadFicheros() {
     window.currentFicherosListCache = ficheros;
     filtrarFicheros();
 
-    // Cargar clientes en el select para el modal de nuevo fichero
-    const clientes = await api.get('/empresa/clientes');
+    // Cargar clientes en el select para el modal de nuevo fichero (reutilizando caché si existe)
+    let clientes = window.currentClientesCache;
+    if (!clientes) {
+        clientes = await api.get('/empresa/clientes');
+        window.currentClientesCache = clientes;
+    }
     const select = document.getElementById('new-fich-cliente');
     if (select) {
-        select.innerHTML = '<option value="">-- Seleccionar Cliente --</option>';
+        let html = '<option value="">-- Seleccionar Cliente --</option>';
         clientes.forEach(c => {
-            select.innerHTML += `<option value="${c.id_cliente}">${c.nombre_apellido} (${c.dni}) - ${c.barrio}</option>`;
+            html += `<option value="${c.id_cliente}">${c.nombre_apellido} (${c.dni}) - ${c.barrio}</option>`;
         });
+        select.innerHTML = html;
     }
 
     const vendedores = await api.get('/empresa/vendedores');
     const selectVend = document.getElementById('new-fich-vendedor');
     if (selectVend) {
-        selectVend.innerHTML = '<option value="General">-- General / Sin Especif. --</option>';
+        let html = '<option value="General">-- General / Sin Especif. --</option>';
         vendedores.forEach(vd => {
-            selectVend.innerHTML += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
+            html += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
         });
-        selectVend.innerHTML += '<option value="Otro">Otro Vendedor</option>';
+        html += '<option value="Otro">Otro Vendedor</option>';
+        selectVend.innerHTML = html;
     }
 }
 

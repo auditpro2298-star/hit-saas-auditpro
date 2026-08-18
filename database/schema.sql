@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS empresas (
     logo_url VARCHAR(500) DEFAULT 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150',
     monto_abono_mensual DECIMAL(12,2) DEFAULT 35000.00,
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ultimo_pago TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ultimo_pago TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    mes_ultimo_reset VARCHAR(7) DEFAULT NULL,
+    dia_ultimo_reset VARCHAR(30) DEFAULT NULL
 );
 
 -- ----------------------------------------------------------------------------
@@ -149,3 +151,7 @@ CREATE INDEX IF NOT EXISTS idx_cuotas_fichero ON cuotas(id_fichero);
 CREATE INDEX IF NOT EXISTS idx_cuotas_empresa ON cuotas(id_empresa);
 CREATE INDEX IF NOT EXISTS idx_cuotas_promesa ON cuotas(promesa_pago_fecha);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_empresa ON whatsapp_notifications(id_empresa);
+CREATE INDEX IF NOT EXISTS idx_ficheros_cliente ON ficheros(id_cliente);
+CREATE INDEX IF NOT EXISTS idx_cuotas_fichero_estado ON cuotas(id_fichero, estado);
+CREATE INDEX IF NOT EXISTS idx_clientes_nombre_apellido ON clientes(nombre_apellido);
+CREATE INDEX IF NOT EXISTS idx_cuotas_fecha_pago ON cuotas(fecha_pago);

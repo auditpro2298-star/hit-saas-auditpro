@@ -39,6 +39,14 @@ if (isPostgres) {
                 db.run("ALTER TABLE clientes ADD COLUMN piso_dpto TEXT", () => {});
                 db.run("ALTER TABLE clientes ADD COLUMN referencia_domicilio TEXT", () => {});
                 db.run("ALTER TABLE clientes ADD COLUMN encargado_zona TEXT", () => {});
+                db.run("ALTER TABLE empresas ADD COLUMN mes_ultimo_reset VARCHAR(7)", () => {});
+                db.run("ALTER TABLE empresas ADD COLUMN dia_ultimo_reset VARCHAR(30)", () => {});
+                
+                // Asegurar índices de alto rendimiento para desarrollo
+                db.run("CREATE INDEX IF NOT EXISTS idx_ficheros_cliente ON ficheros(id_cliente)", () => {});
+                db.run("CREATE INDEX IF NOT EXISTS idx_cuotas_fichero_estado ON cuotas(id_fichero, estado)", () => {});
+                db.run("CREATE INDEX IF NOT EXISTS idx_clientes_nombre_apellido ON clientes(nombre_apellido)", () => {});
+                db.run("CREATE INDEX IF NOT EXISTS idx_cuotas_fecha_pago ON cuotas(fecha_pago)", () => {});
             }
         }
     });
@@ -303,6 +311,13 @@ async function runSchemaMigrations() {
             await pgPool.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
             await pgPool.query("ALTER TABLE ficheros ADD COLUMN IF NOT EXISTS encargado_zona VARCHAR(120);");
             await pgPool.query("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS mes_ultimo_reset VARCHAR(7);");
+            await pgPool.query("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS dia_ultimo_reset VARCHAR(30);");
+            
+            // Asegurar índices de alto rendimiento para PostgreSQL
+            await pgPool.query("CREATE INDEX IF NOT EXISTS idx_ficheros_cliente ON ficheros(id_cliente);");
+            await pgPool.query("CREATE INDEX IF NOT EXISTS idx_cuotas_fichero_estado ON cuotas(id_fichero, estado);");
+            await pgPool.query("CREATE INDEX IF NOT EXISTS idx_clientes_nombre_apellido ON clientes(nombre_apellido);");
+            await pgPool.query("CREATE INDEX IF NOT EXISTS idx_cuotas_fecha_pago ON cuotas(fecha_pago);");
             
             // Drop global unique constraints if they exist
             try {
@@ -323,6 +338,13 @@ async function runSchemaMigrations() {
             db.run("ALTER TABLE clientes ADD COLUMN encargado_zona VARCHAR(120)", () => {});
             db.run("ALTER TABLE ficheros ADD COLUMN encargado_zona VARCHAR(120)", () => {});
             db.run("ALTER TABLE empresas ADD COLUMN mes_ultimo_reset VARCHAR(7)", () => {});
+            db.run("ALTER TABLE empresas ADD COLUMN dia_ultimo_reset VARCHAR(30)", () => {});
+            
+            // Asegurar índices de alto rendimiento para SQLite
+            db.run("CREATE INDEX IF NOT EXISTS idx_ficheros_cliente ON ficheros(id_cliente)", () => {});
+            db.run("CREATE INDEX IF NOT EXISTS idx_cuotas_fichero_estado ON cuotas(id_fichero, estado)", () => {});
+            db.run("CREATE INDEX IF NOT EXISTS idx_clientes_nombre_apellido ON clientes(nombre_apellido)", () => {});
+            db.run("CREATE INDEX IF NOT EXISTS idx_cuotas_fecha_pago ON cuotas(fecha_pago)", () => {});
         }
     } catch (e) {
         // Ignorar si ya existe

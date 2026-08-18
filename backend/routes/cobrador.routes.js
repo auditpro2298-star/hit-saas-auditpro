@@ -13,25 +13,18 @@ router.get('/hoja-de-ruta', async (req, res) => {
     const userRole = req.user.rol;
     const userZone = (req.user.zona_asignada || '').toLowerCase().trim();
 
-    // Lógica para reiniciar las asignaciones día a día
+    // Lógica para reiniciar las asignaciones día a día de forma aislada por empresa
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const resetFilePath = path.join(__dirname, '..', 'last_reset_date.txt');
-        const todayStr = new Date().toDateString(); // Ej: "Sun Aug 10 2026"
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+        const emp = await get("SELECT dia_ultimo_reset FROM empresas WHERE id_empresa = ?", [id_empresa]);
         
-        let lastResetDate = '';
-        if (fs.existsSync(resetFilePath)) {
-            lastResetDate = fs.readFileSync(resetFilePath, 'utf8').trim();
-        }
-        
-        if (lastResetDate !== todayStr) {
-            console.log(`🌅 ¡Es un nuevo día! Reiniciando asignaciones de ruta para todos los cobradores (${todayStr})...`);
-            // Limpiamos la asignación de cobradores en todos los ficheros activos
-            await run('UPDATE ficheros SET id_cobrador_asignado = NULL');
-            // Guardamos el nuevo día en el archivo persistente
-            fs.writeFileSync(resetFilePath, todayStr, 'utf8');
-            console.log('✅ Asignaciones reiniciadas con éxito.');
+        if (emp && emp.dia_ultimo_reset !== todayStr) {
+            console.log(`🌅 ¡Es un nuevo día! Reiniciando asignaciones de ruta para cobradores de la empresa ID ${id_empresa} (${todayStr})...`);
+            // Limpiamos la asignación de cobradores de forma aislada por empresa
+            await run('UPDATE ficheros SET id_cobrador_asignado = NULL WHERE id_empresa = ?', [id_empresa]);
+            // Guardamos el nuevo día en la base de datos
+            await run('UPDATE empresas SET dia_ultimo_reset = ? WHERE id_empresa = ?', [todayStr, id_empresa]);
+            console.log(`✅ Asignaciones reiniciadas con éxito para la empresa ID ${id_empresa}.`);
         }
     } catch (resetErr) {
         console.error('Error al reiniciar asignaciones de ruta diarias:', resetErr);
