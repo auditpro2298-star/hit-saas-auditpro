@@ -337,7 +337,7 @@ router.put('/clientes/:id', async (req, res) => {
         `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
-        res.json({ success: true, message: `Domicilio de "${actualizado.nombre_apellido}" actualizado por mudanza.`, cliente: actualizado });
+        res.json({ success: true, message: `Datos de "${actualizado.nombre_apellido}" actualizados con éxito.`, cliente: actualizado });
     } catch (err) {
         console.error('Error al editar cliente:', err);
         res.status(500).json({ error: 'Error al actualizar datos del cliente: ' + (err.message || 'Error interno') });

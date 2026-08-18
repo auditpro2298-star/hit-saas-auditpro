@@ -530,7 +530,7 @@ class APIClient {
                 if (body.longitud) target.longitud = body.longitud;
             }
             saveMockDB(db);
-            return { success: true, message: `✅ Datos de cliente actualizados correctamente.` };
+            return { success: true, message: `Datos de "${target.nombre_apellido}" actualizados con éxito.` };
         }
 
         if (endpoint.startsWith('/empresa/clientes/') && method === 'DELETE') {

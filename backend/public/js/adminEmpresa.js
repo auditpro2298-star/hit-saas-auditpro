@@ -654,12 +654,34 @@ async function submitNewClienteForm(event) {
 
 // SOLAPA 2: FICHEROS Y VENTAS
 async function loadFicheros() {
-    // 1. Cargar únicamente encargados de zona
+    // 1. Cargar encargados de zona y cobradores
     try {
-        const encargados = await api.get('/empresa/encargados').catch(() => []);
-        window.allEncargadosCache = (encargados || []).filter(e => e.rol === 'ENCARGADO_ZONA' || !e.rol);
+        const [encargados, cobradores] = await Promise.all([
+            api.get('/empresa/encargados').catch(() => []),
+            api.get('/empresa/cobradores').catch(() => [])
+        ]);
+        const combined = [];
+        (encargados || []).forEach(e => {
+            combined.push({
+                id_usuario: e.id_usuario,
+                nombre: e.nombre,
+                rol: 'ENCARGADO_ZONA',
+                zona_asignada: e.zona_asignada
+            });
+        });
+        (cobradores || []).forEach(c => {
+            if (!combined.some(x => x.id_usuario === c.id_usuario)) {
+                combined.push({
+                    id_usuario: c.id_usuario,
+                    nombre: c.nombre,
+                    rol: 'COBRADOR',
+                    zona_asignada: c.zona_asignada
+                });
+            }
+        });
+        window.allEncargadosCache = combined;
     } catch (e) {
-        console.error('Error cargando encargados de zona:', e);
+        console.error('Error cargando encargados/cobradores:', e);
     }
 
     const ficheros = await api.get('/empresa/ficheros');
@@ -717,7 +739,8 @@ function renderFicherosTable(ficheros) {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
                 const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
-                optionsHtml += `<option value="${enc.id_usuario}" ${isSelected ? 'selected' : ''}>${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+                const prefix = enc.rol === 'COBRADOR' ? '🛵' : '👤';
+                optionsHtml += `<option value="${enc.id_usuario}" ${isSelected ? 'selected' : ''}>${prefix} ${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
             });
             encargadoTdContent = `
                 <select class="form-control" style="font-size:0.78rem; padding:0.25rem 0.4rem; font-weight:600; border:1px solid #8b5cf6; border-radius: var(--radius-md); max-width: 170px;" onchange="cambiarEncargadoFichero(${f.id_fichero}, this.value)">
