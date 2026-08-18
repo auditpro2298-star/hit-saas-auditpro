@@ -199,9 +199,27 @@ function renderSaaSChart(metrics) {
     });
 }
 
+async function wipeAllDatabaseTenants() {
+    const confirmMsg = `⚠️ ADVERTENCIA MÁXIMA DE RESET:\n\n¿Estás seguro de que deseas ELIMINAR TODAS LAS EMPRESAS y todos sus datos del sistema?\n\nEsta acción es irreversible y borrará absolutamente todo (clientes, cobradores, ficheros, cuotas, auditorías) de todas las empresas. Se mantendrá únicamente tu cuenta de Súper Admin.\n\nEscribe la palabra "RESET" en mayúsculas para confirmar:`;
+    const input = prompt(confirmMsg);
+    if (!input || input.trim().toUpperCase() !== 'RESET') {
+        if (input !== null) await showAlert('Operación cancelada. Confirmación incorrecta.');
+        return;
+    }
+
+    try {
+        const res = await api.post('/superadmin/wipe-db');
+        await showAlert(res.message);
+        window.location.reload();
+    } catch (err) {
+        await showAlert('Error al resetear base de datos: ' + err.message);
+    }
+}
+
 window.initSuperAdminPanel = initSuperAdminPanel;
 window.toggleTenantStatus = toggleTenantStatus;
 window.changeTenantLogo = changeTenantLogo;
 window.changeTenantPassword = changeTenantPassword;
 window.deleteTenant = deleteTenant;
 window.submitNewTenantForm = submitNewTenantForm;
+window.wipeAllDatabaseTenants = wipeAllDatabaseTenants;

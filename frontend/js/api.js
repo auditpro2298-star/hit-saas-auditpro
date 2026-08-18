@@ -202,6 +202,20 @@ class APIClient {
             return { success: true, message: `🗑️ Empresa ID #${id} eliminada con éxito (Modo Demo).` };
         }
 
+        if (endpoint === '/superadmin/wipe-db' && method === 'POST') {
+            db.empresas = [];
+            db.usuarios = [
+                { id_usuario: 1, id_empresa: null, nombre: "Martín (Súper Admin SaaS)", email: "admin@hitsaas.com", rol: "SUPER_ADMIN", activo: 1, zona_asignada: "Global" }
+            ];
+            db.vendedores = [];
+            db.clientes = [];
+            db.ficheros = [];
+            db.cuotas = [];
+            db.whatsapp_notifications = [];
+            saveMockDB(db);
+            return { success: true, message: '🗑️ Todas las empresas y sus datos asociados fueron eliminados. El sistema se ha reiniciado de cero.' };
+        }
+
         // 2. DASHBOARD EMPRESA
         if (endpoint === '/empresa/dashboard' && method === 'GET') {
             const activosCount = db.ficheros.filter(f => f.estado === 'ACTIVO').length;

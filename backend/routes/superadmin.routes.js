@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query, run, get } = require('../database');
+const { query, run, get, wipeDatabase } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints requieren autenticación y rol SUPER_ADMIN
@@ -205,6 +205,20 @@ router.put('/tenants/:id/password', async (req, res) => {
     } catch (err) {
         console.error('Error al actualizar contraseña de empresa:', err);
         res.status(500).json({ error: 'Error al actualizar la contraseña del administrador.' });
+    }
+});
+
+// POST /api/superadmin/wipe-db - Borrar todas las empresas y empezar de cero (preservando súper admin)
+router.post('/wipe-db', async (req, res) => {
+    try {
+        await wipeDatabase();
+        res.json({
+            success: true,
+            message: '🗑️ Todas las empresas y sus datos asociados fueron eliminados del servidor. El sistema se ha reiniciado de cero.'
+        });
+    } catch (err) {
+        console.error('Error al vaciar base de datos en superadmin:', err);
+        res.status(500).json({ error: 'Error al vaciar la base de datos: ' + (err.message || err) });
     }
 });
 

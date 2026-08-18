@@ -43,8 +43,9 @@ router.post('/login', async (req, res) => {
         let usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);
         
         // Auto-recuperación en la nube (Render): si la base de datos se creó sin usuarios iniciales
-        if (!usuario) {
-            console.log(`🌱 Usuario "${cleanEmail}" no encontrado. Ejecutando verificación de esquema y datos semilla...`);
+        const userCount = await get('SELECT COUNT(*) as count FROM usuarios');
+        if (!usuario && (!userCount || userCount.count === 0)) {
+            console.log(`🌱 Usuario "${cleanEmail}" no encontrado y base de datos vacía. Ejecutando verificación de esquema y datos semilla...`);
             const { initDatabase } = require('../database');
             await initDatabase();
             usuario = await get('SELECT * FROM usuarios WHERE LOWER(email) = ?', [cleanEmail]);

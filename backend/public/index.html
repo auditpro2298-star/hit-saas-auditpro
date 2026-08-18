@@ -140,10 +140,15 @@
                     <p style="color: var(--text-secondary); font-size: 0.95rem;">Monitoreo universal, facturación (MRR),
                         alta y bloqueo de empresas inquilinas en 1 clic.</p>
                 </div>
-                <button class="btn btn-purple"
-                    onclick="document.getElementById('modal-new-tenant').classList.remove('hidden')">
-                    ➕ Alta de Nueva Empresa (Tenant)
-                </button>
+                <div class="flex gap-2">
+                    <button class="btn btn-danger" onclick="wipeAllDatabaseTenants()" title="Borrar todas las empresas y empezar de cero">
+                        ⚠️ Resetear SaaS (Empezar de cero)
+                    </button>
+                    <button class="btn btn-purple"
+                        onclick="document.getElementById('modal-new-tenant').classList.remove('hidden')">
+                        ➕ Alta de Nueva Empresa (Tenant)
+                    </button>
+                </div>
             </div>
 
             <!-- Metrics Grid -->

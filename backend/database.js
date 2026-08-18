@@ -637,12 +637,41 @@ async function restoreBackup(id_empresa, backup) {
                     `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
                 }
             }
-            
             await run("COMMIT");
         } catch (e) {
             try { await run("ROLLBACK"); } catch (err) {}
             throw e;
         }
+    }
+}
+
+async function wipeDatabase() {
+    if (isPostgres && pgPool) {
+        await pgPool.query("TRUNCATE TABLE whatsapp_notifications, auditoria_caja, cuotas, ficheros, clientes, usuarios, empresas RESTART IDENTITY CASCADE");
+        // Re-crear el súper admin inicial
+        const bcrypt = require('bcryptjs');
+        const adminHash = bcrypt.hashSync('admin123', 10);
+        await pgPool.query(`
+            INSERT INTO usuarios (id_empresa, nombre, email, password_hash, rol, telefono, zona_asignada, activo)
+            VALUES (NULL, 'Martín (Súper Admin SaaS)', 'admin@hitsaas.com', $1, 'SUPER_ADMIN', '+54 9 11 0000-0000', 'Global', true)
+        `, [adminHash]);
+        await syncSequences();
+    } else if (db) {
+        await new Promise((resolve, reject) => {
+            db.serialize(() => {
+                db.run("DELETE FROM whatsapp_notifications");
+                db.run("DELETE FROM auditoria_caja");
+                db.run("DELETE FROM cuotas");
+                db.run("DELETE FROM ficheros");
+                db.run("DELETE FROM clientes");
+                db.run("DELETE FROM usuarios WHERE rol <> 'SUPER_ADMIN'");
+                db.run("DELETE FROM empresas");
+                db.run("DELETE FROM sqlite_sequence", (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        });
     }
 }
 
@@ -656,5 +685,6 @@ module.exports = {
     initDatabase,
     syncSequences,
     resequenceAndReset,
-    restoreBackup
+    restoreBackup,
+    wipeDatabase
 };
