@@ -290,7 +290,6 @@ function loadAllClientes() {
 
 window.loadMoreClientes = loadMoreClientes;
 window.loadAllClientes = loadAllClientes;
-}
 
 function focusClientOnMap(id_cliente) {
     if (!mapInstance || !mapMarkers) return;
@@ -884,7 +883,6 @@ function loadAllFicheros() {
 
 window.loadMoreFicheros = loadMoreFicheros;
 window.loadAllFicheros = loadAllFicheros;
-}
 
 async function cambiarEncargadoFichero(id_fichero, val) {
     const id_cobrador = val ? parseInt(val) : null;
