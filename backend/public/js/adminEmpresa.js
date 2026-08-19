@@ -135,8 +135,29 @@ async function loadClientesAndMap() {
     filtrarClientesPorBarrioYTexto();
 }
 
-function filtrarClientesPorBarrioYTexto() {
+window.clientesPage = 1;
+window.clientesPageSize = 100;
+
+function setClientesPage(page) {
+    window.clientesPage = page;
+    filtrarClientesPorBarrioYTexto(false);
+}
+
+function setClientesPageSize(size) {
+    window.clientesPageSize = parseInt(size, 10) || 100;
+    window.clientesPage = 1;
+    filtrarClientesPorBarrioYTexto(false);
+}
+
+window.setClientesPage = setClientesPage;
+window.setClientesPageSize = setClientesPageSize;
+
+function filtrarClientesPorBarrioYTexto(resetPage = true) {
     if (!window.currentClientesCache) return;
+
+    if (resetPage) {
+        window.clientesPage = 1;
+    }
 
     const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
     const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
@@ -147,9 +168,6 @@ function filtrarClientesPorBarrioYTexto() {
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchBarrio && matchText;
     });
-
-    // Reset rendering limit when search/filter changes to avoid lag
-    window.clientesRenderLimit = 100;
 
     renderClientesTable(filtered);
     initMap(filtered);
@@ -165,8 +183,15 @@ function renderClientesTable(clientes) {
         return;
     }
 
-    const limit = window.clientesRenderLimit || 100;
-    const visibleClientes = clientes.slice(0, limit);
+    const pageSize = window.clientesPageSize || 100;
+    const totalPages = Math.ceil(clientes.length / pageSize) || 1;
+    if (window.clientesPage > totalPages) window.clientesPage = totalPages;
+    if (window.clientesPage < 1) window.clientesPage = 1;
+    const currentPage = window.clientesPage;
+
+    const fromIndex = (currentPage - 1) * pageSize;
+    const toIndex = Math.min(fromIndex + pageSize, clientes.length);
+    const visibleClientes = clientes.slice(fromIndex, toIndex);
 
     visibleClientes.forEach(c => {
         const tr = document.createElement('tr');
@@ -238,58 +263,38 @@ function renderClientesTable(clientes) {
         tbody.appendChild(tr);
     });
 
-    if (clientes.length > limit) {
-        const loadMoreTr = document.createElement('tr');
-        loadMoreTr.id = 'tr-load-more-clientes';
-        loadMoreTr.innerHTML = `
-            <td colspan="7" class="text-center" style="padding: 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
-                <div class="flex justify-center items-center gap-3">
-                    <span class="text-muted" style="font-size:0.88rem; font-weight:600;">Mostrando ${limit} de ${clientes.length} clientes.</span>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadMoreClientes()">
-                        📥 Cargar 100 más
+    // Paginador moderno por páginas
+    const paginationTr = document.createElement('tr');
+    paginationTr.id = 'tr-pagination-clientes';
+    paginationTr.innerHTML = `
+        <td colspan="7" class="text-center" style="padding: 0.9rem 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+                <div class="text-muted" style="font-size:0.88rem; font-weight:600;">
+                    Mostrando <strong>${fromIndex + 1} - ${toIndex}</strong> de <strong>${clientes.length}</strong> clientes.
+                </div>
+                <div class="flex items-center gap-2">
+                    <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">Ver:</span>
+                    <select class="form-control" style="font-size:0.8rem; padding:0.25rem 0.5rem; width:auto; border-radius: 6px;" onchange="setClientesPageSize(this.value)">
+                        <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 por pág</option>
+                        <option value="200" ${pageSize === 200 ? 'selected' : ''}>200 por pág</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setClientesPage(${currentPage - 1})">
+                        ◀ Anterior
                     </button>
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadAllClientes()">
-                        🚀 Cargar todos (puede tardar)
+                    <span style="font-size:0.88rem; font-weight:700; color:var(--saas-purple); padding: 0 0.4rem;">
+                        Página ${currentPage} de ${totalPages}
+                    </span>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setClientesPage(${currentPage + 1})">
+                        Siguiente ▶
                     </button>
                 </div>
-            </td>
-        `;
-        tbody.appendChild(loadMoreTr);
-    }
+            </div>
+        </td>
+    `;
+    tbody.appendChild(paginationTr);
 }
-
-function loadMoreClientes() {
-    window.clientesRenderLimit = (window.clientesRenderLimit || 100) + 100;
-    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
-    const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
-
-    const filtered = window.currentClientesCache.filter(c => {
-        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
-        const matchText = !queryStr || fullText.includes(queryStr);
-        return matchBarrio && matchText;
-    });
-
-    renderClientesTable(filtered);
-}
-
-function loadAllClientes() {
-    window.clientesRenderLimit = 999999;
-    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
-    const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
-
-    const filtered = window.currentClientesCache.filter(c => {
-        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
-        const matchText = !queryStr || fullText.includes(queryStr);
-        return matchBarrio && matchText;
-    });
-
-    renderClientesTable(filtered);
-}
-
-window.loadMoreClientes = loadMoreClientes;
-window.loadAllClientes = loadAllClientes;
 
 function focusClientOnMap(id_cliente) {
     if (!mapInstance || !mapMarkers) return;
@@ -782,6 +787,23 @@ function openNewFicheroModal() {
     loadFicheros();
 }
 
+window.ficherosPage = 1;
+window.ficherosPageSize = 100;
+
+function setFicherosPage(page) {
+    window.ficherosPage = page;
+    filtrarFicheros(false);
+}
+
+function setFicherosPageSize(size) {
+    window.ficherosPageSize = parseInt(size, 10) || 100;
+    window.ficherosPage = 1;
+    filtrarFicheros(false);
+}
+
+window.setFicherosPage = setFicherosPage;
+window.setFicherosPageSize = setFicherosPageSize;
+
 function renderFicherosTable(ficheros) {
     const tbody = document.getElementById('tbody-ficheros');
     if (!tbody) return;
@@ -792,9 +814,17 @@ function renderFicherosTable(ficheros) {
         return;
     }
 
+    const pageSize = window.ficherosPageSize || 100;
+    const totalPages = Math.ceil(ficheros.length / pageSize) || 1;
+    if (window.ficherosPage > totalPages) window.ficherosPage = totalPages;
+    if (window.ficherosPage < 1) window.ficherosPage = 1;
+    const currentPage = window.ficherosPage;
+
+    const fromIndex = (currentPage - 1) * pageSize;
+    const toIndex = Math.min(fromIndex + pageSize, ficheros.length);
+    const visibleFicheros = ficheros.slice(fromIndex, toIndex);
+
     const encargadosList = window.allEncargadosCache || [];
-    const limit = window.ficherosRenderLimit || 100;
-    const visibleFicheros = ficheros.slice(0, limit);
 
     visibleFicheros.forEach(f => {
         const tr = document.createElement('tr');
@@ -851,29 +881,37 @@ function renderFicherosTable(ficheros) {
         tbody.appendChild(tr);
     });
 
-    if (ficheros.length > limit) {
-        const loadMoreTr = document.createElement('tr');
-        loadMoreTr.id = 'tr-load-more-ficheros';
-        loadMoreTr.innerHTML = `
-            <td colspan="9" class="text-center" style="padding: 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
-                <div class="flex justify-center items-center gap-3">
-                    <span class="text-muted" style="font-size:0.88rem; font-weight:600;">Mostrando ${limit} de ${ficheros.length} ficheros.</span>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadMoreFicheros()">
-                        📥 Cargar 100 más
+    // Paginador moderno por páginas
+    const paginationTr = document.createElement('tr');
+    paginationTr.id = 'tr-pagination-ficheros';
+    paginationTr.innerHTML = `
+        <td colspan="9" class="text-center" style="padding: 0.9rem 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+                <div class="text-muted" style="font-size:0.88rem; font-weight:600;">
+                    Mostrando <strong>${fromIndex + 1} - ${toIndex}</strong> de <strong>${ficheros.length}</strong> ficheros.
+                </div>
+                <div class="flex items-center gap-2">
+                    <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">Ver:</span>
+                    <select class="form-control" style="font-size:0.8rem; padding:0.25rem 0.5rem; width:auto; border-radius: 6px;" onchange="setFicherosPageSize(this.value)">
+                        <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 por pág</option>
+                        <option value="200" ${pageSize === 200 ? 'selected' : ''}>200 por pág</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setFicherosPage(${currentPage - 1})">
+                        ◀ Anterior
                     </button>
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;" onclick="loadAllFicheros()">
-                        🚀 Cargar todos (puede tardar)
+                    <span style="font-size:0.88rem; font-weight:700; color:var(--saas-purple); padding: 0 0.4rem;">
+                        Página ${currentPage} de ${totalPages}
+                    </span>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setFicherosPage(${currentPage + 1})">
+                        Siguiente ▶
                     </button>
                 </div>
-            </td>
-        `;
-        tbody.appendChild(loadMoreTr);
-    }
-}
-
-function loadMoreFicheros() {
-    window.ficherosRenderLimit = (window.ficherosRenderLimit || 100) + 100;
-    filtrarFicheros();
+            </div>
+        </td>
+    `;
+    tbody.appendChild(paginationTr);
 }
 
 function loadAllFicheros() {
@@ -2294,8 +2332,12 @@ window.registrarCierreJornada = registrarCierreJornada;
 window.cargarHistorialCierres = cargarHistorialCierres;
 window.exportarHistorialCierresCSV = exportarHistorialCierresCSV;
 
-function filtrarFicheros() {
+function filtrarFicheros(resetPage = true) {
     if (!window.currentFicherosListCache) return;
+
+    if (resetPage) {
+        window.ficherosPage = 1;
+    }
 
     const queryStr = (document.getElementById('input-search-ficheros')?.value || '').toLowerCase().trim();
     const selectedEstado = document.getElementById('select-filter-ficheros-estado')?.value || 'ALL';
@@ -2306,9 +2348,6 @@ function filtrarFicheros() {
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchEstado && matchText;
     });
-
-    // Reset render limit when search/filter changes to avoid lag
-    window.ficherosRenderLimit = 100;
 
     renderFicherosTable(filtered);
 }
