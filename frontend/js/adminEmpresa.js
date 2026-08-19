@@ -170,7 +170,15 @@ function filtrarClientesPorBarrioYTexto(resetPage = true) {
     });
 
     renderClientesTable(filtered);
-    initMap(filtered);
+
+    // Solo cargar los pines en el mapa si hay una búsqueda activa
+    const hasActiveFilter = queryStr !== '' || selectedBarrio !== 'ALL';
+    if (hasActiveFilter) {
+        initMap(filtered);
+    } else {
+        // Si no hay búsqueda o filtro activo, limpiar el mapa de marcadores
+        initMap([]);
+    }
 }
 
 function renderClientesTable(clientes) {
@@ -297,12 +305,54 @@ function renderClientesTable(clientes) {
 }
 
 function focusClientOnMap(id_cliente) {
-    if (!mapInstance || !mapMarkers) return;
-    const marker = mapMarkers.find(m => m.id_cliente === id_cliente);
+    if (!mapInstance) return;
+
+    // Buscar si el marcador ya existe en el mapa
+    let marker = mapMarkers.find(m => m.id_cliente === id_cliente);
+
+    // Si no existe, crearlo dinámicamente y agregarlo al mapa
+    if (!marker && window.currentClientesCache) {
+        const c = window.currentClientesCache.find(item => item.id_cliente === id_cliente);
+        if (c && c.latitud && c.longitud) {
+            const lat = parseFloat(c.latitud);
+            const lng = parseFloat(c.longitud);
+
+            const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
+            const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
+            const hasActiveFilter = queryStr !== '' || selectedBarrio !== 'ALL';
+
+            // Si no hay filtro activo de búsqueda, limpiar otros marcadores previos de selección individual
+            if (!hasActiveFilter) {
+                mapMarkers.forEach(m => mapInstance.removeLayer(m));
+                mapMarkers = [];
+            }
+
+            marker = L.marker([lat, lng]).addTo(mapInstance);
+            marker.id_cliente = c.id_cliente;
+
+            const pisoStr = c.piso_dpto ? `<br><span>🏢 Piso/Dpto: ${c.piso_dpto}</span>` : '';
+            const refStr = c.referencia_domicilio ? `<br><span style="font-size:0.75rem; color:#d97706;">🏠 Ref: ${c.referencia_domicilio}</span>` : '';
+
+            marker.bindPopup(`
+                <div style="font-family: Inter, sans-serif;">
+                    <strong style="color:var(--primary); font-size:0.95rem;">${c.nombre_apellido}</strong><br>
+                    <span>📍 ${c.direccion}${pisoStr} (${c.barrio})</span>${refStr}<br>
+                    <span style="font-size:0.75rem; color:#6366f1;">QR Token: ${c.qr_token}</span>
+                </div>
+            `);
+            mapMarkers.push(marker);
+        }
+    }
+
     if (marker) {
         mapInstance.setView(marker.getLatLng(), 16);
         marker.openPopup();
-        document.getElementById('map-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const mapContainer = document.getElementById('map-container');
+        if (mapContainer) {
+            mapContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    } else {
+        showAlert('El cliente seleccionado no posee coordenadas de geolocalización registradas.');
     }
 }
 
