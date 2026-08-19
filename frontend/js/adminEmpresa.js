@@ -914,14 +914,6 @@ function renderFicherosTable(ficheros) {
     tbody.appendChild(paginationTr);
 }
 
-function loadAllFicheros() {
-    window.ficherosRenderLimit = 999999;
-    filtrarFicheros();
-}
-
-window.loadMoreFicheros = loadMoreFicheros;
-window.loadAllFicheros = loadAllFicheros;
-
 async function cambiarEncargadoFichero(id_fichero, val) {
     const id_cobrador = val ? parseInt(val) : null;
     const selectedEnc = (window.allEncargadosCache || []).find(e => e.id_usuario === id_cobrador);
