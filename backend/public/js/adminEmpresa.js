@@ -1077,7 +1077,8 @@ async function submitNewFicheroForm(event) {
         vendedor: document.getElementById('new-fich-vendedor')?.value || '',
         encargado_zona: 'Sin asignar',
         id_cobrador_asignado: null,
-        fecha_entrega: document.getElementById('new-fich-fecha').value || new Date().toISOString().split('T')[0]
+        fecha_entrega: document.getElementById('new-fich-fecha').value || new Date().toISOString().split('T')[0],
+        cuotas_ya_pagadas: parseInt(document.getElementById('new-fich-ya-pagadas')?.value || 0, 10)
     };
 
     try {
@@ -2039,16 +2040,18 @@ async function loadControlOperativoDiario() {
                         montoCobrado += Number(ultimoCobro.monto || 0);
                         montoStr = `$${Number(ultimoCobro.monto || 0).toLocaleString('es-AR')}`;
 
-                        // Extraer tags de descuento aplicado o saldo a favor generado en las notas
+                        // Extraer tags de descuento aplicado, deuda cubierta, saldo a favor generado, nueva deuda generada en las notas
                         let descuentoAplicado = 0;
-                        if (ultimoCobro.notas && ultimoCobro.notas.includes('[DESCUENTO_APLICADO:')) {
-                            const match = ultimoCobro.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
-                            if (match) {
-                                descuentoAplicado = parseFloat(match[1]) || 0;
-                            }
+                        let deudaCubierta = 0;
+                        if (ultimoCobro.notas) {
+                            const matchDesc = ultimoCobro.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
+                            if (matchDesc) descuentoAplicado = parseFloat(matchDesc[1]) || 0;
+                            
+                            const matchDeuda = ultimoCobro.notas.match(/\[DEUDA_CUBIERTA:(\d+(\.\d+)?)\]/);
+                            if (matchDeuda) deudaCubierta = parseFloat(matchDeuda[1]) || 0;
                         }
 
-                        const totalAcreditado = Number(ultimoCobro.monto || 0) + descuentoAplicado;
+                        const totalAcreditado = Number(ultimoCobro.monto || 0) + descuentoAplicado - deudaCubierta;
 
                         if (totalAcreditado > Number(f.valor_cuota || 0)) {
                             const favor = totalAcreditado - Number(f.valor_cuota);
@@ -2074,6 +2077,8 @@ async function loadControlOperativoDiario() {
                         let displayNotas = ultimoCobro.notas
                             .replace(/\[DESCUENTO_APLICADO:\d+(\.\d+)?\]/g, '')
                             .replace(/\[SALDO_A_FAVOR_GENERADO:\d+(\.\d+)?\]/g, '')
+                            .replace(/\[DEUDA_CUBIERTA:\d+(\.\d+)?\]/g, '')
+                            .replace(/\[NUEVA_DEUDA_GENERADA:\d+(\.\d+)?\]/g, '')
                             .trim();
                         if (displayNotas) {
                             proxNota += `<br><span style="color:#854d0e; font-weight:600;">📝 Cobrador: ${displayNotas}</span>`;

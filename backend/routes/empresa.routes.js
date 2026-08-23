@@ -113,12 +113,13 @@ async function geocodeAddress(direccion, barrio) {
 router.get('/dashboard', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
         const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
-        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = date('now', 'localtime')", [id_empresa]);
+        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = ?", [id_empresa, todayStr]);
         const pendientesTotal = await get("SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'", [id_empresa]);
         const promesasCount = await get("SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = 'NO_COBRADO'", [id_empresa]);
-        const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date('now', 'localtime')", [id_empresa]);
+        const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = ?", [id_empresa, todayStr]);
 
         res.json({
             clientes_total: clientesCount.total || 0,
@@ -410,7 +411,7 @@ router.get('/ficheros', async (req, res) => {
     }
 
     try {
-        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.referencia_domicilio,
@@ -453,7 +454,7 @@ router.get('/ficheros', async (req, res) => {
 // POST /api/empresa/ficheros - Crear nuevo fichero (Calco de papel) con N cuotas automáticas
 router.post('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
-    const { id_cliente, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega } = req.body;
+    const { id_cliente, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, cuotas_ya_pagadas } = req.body;
 
     if (!id_cliente || !producto_nombre || !cantidad_cuotas || !valor_cuota || !fecha_entrega) {
         return res.status(400).json({ error: 'Faltan datos para crear el fichero (cliente, producto, cuotas, valor y fecha).' });
@@ -478,6 +479,7 @@ router.post('/ficheros', async (req, res) => {
         );
 
         const id_fichero = result.lastID;
+        const yaPagadasCount = parseInt(cuotas_ya_pagadas || 0, 10);
 
         // Generar los casilleros del 1 al N con vencimientos según frecuencia elegida
         let fechaActual = new Date(fecha_entrega);
@@ -491,10 +493,20 @@ router.post('/ficheros', async (req, res) => {
                 fechaActual.setDate(fechaActual.getDate() + 7);
             }
             const fechaVenc = fechaActual.toISOString().split('T')[0];
-            await run(
-                "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, id_cobrador) VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)",
-                [id_fichero, id_empresa, i, valor_cuota, fechaVenc, id_cobrador_asignado || null]
-            );
+            
+            if (i <= yaPagadasCount) {
+                // Generar cuotas históricas como PAGADO
+                await run(
+                    "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, nombre_cobrador, id_cobrador) VALUES (?, ?, ?, ?, 'PAGADO', ?, ?, 'EFECTIVO', 'Sistema (Carga Inicial)', ?)",
+                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, fecha_entrega, id_cobrador_asignado || null]
+                );
+            } else {
+                // Generar cuotas como PENDIENTE
+                await run(
+                    "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, id_cobrador) VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)",
+                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, id_cobrador_asignado || null]
+                );
+            }
         }
 
         const ficheroCreado = await get('SELECT * FROM ficheros WHERE id_fichero = ?', [id_fichero]);
@@ -806,7 +818,7 @@ router.get('/auditoria', async (req, res) => {
             cobrosSql += ` AND LOWER(f.encargado_zona) LIKE ?`;
             cobrosParams.push(`%${userNombre}%`);
         }
-        cobrosSql += ` ORDER BY q.fecha_pago DESC, q.id_cuota DESC LIMIT 50`;
+        cobrosSql += ` ORDER BY q.fecha_pago DESC, q.id_cuota DESC LIMIT 5000`;
         const cobrosDetallados = await query(cobrosSql, cobrosParams);
 
         // WhatsApp recientes

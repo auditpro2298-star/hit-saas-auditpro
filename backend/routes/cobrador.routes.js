@@ -170,17 +170,24 @@ router.post('/cobrar', async (req, res) => {
             const nuevoSaldoFavor = totalCredited - cuota.monto;
 
             let finalNotas = notas || '';
-            if (nuevoSaldoFavor < 0) {
-                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${Math.abs(nuevoSaldoFavor)}]`;
-            } else if (nuevoSaldoFavor > 0) {
-                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+            if (saldoFavorActual > 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${saldoFavorActual}]`;
+            } else if (saldoFavorActual < 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DEUDA_CUBIERTA:${Math.abs(saldoFavorActual)}]`;
             }
+            if (nuevoSaldoFavor > 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+            } else if (nuevoSaldoFavor < 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[NUEVA_DEUDA_GENERADA:${Math.abs(nuevoSaldoFavor)}]`;
+            }
+
+            const localDateTime = new Date().toLocaleString('sv', { timeZone: 'America/Argentina/Buenos_Aires' });
 
             // Corrección Crítica 3: Guardar el ID y NOMBRE histórico del cobrador que procesa este pago en este instante
             await run(`
                 UPDATE cuotas SET 
                     estado = 'PAGADO',
-                    fecha_pago = datetime('now', 'localtime'),
+                    fecha_pago = ?,
                     medio_pago = ?,
                     comprobante_img_url = ?,
                     id_cobrador = ?,
@@ -189,7 +196,7 @@ router.post('/cobrar', async (req, res) => {
                     notas = ?,
                     monto = ?
                 WHERE id_cuota = ? AND id_empresa = ?
-            `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, finalNotas || null, cobrado, id_cuota, id_empresa]);
+            `, [localDateTime, medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, finalNotas || null, cobrado, id_cuota, id_empresa]);
 
             await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 
@@ -282,16 +289,23 @@ router.post('/sync-offline', async (req, res) => {
                 const nuevoSaldoFavor = totalCredited - cuota.monto;
 
                 let finalNotas = item.notas || '';
-                if (nuevoSaldoFavor < 0) {
-                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${Math.abs(nuevoSaldoFavor)}]`;
-                } else if (nuevoSaldoFavor > 0) {
-                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+                if (saldoFavorActual > 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${saldoFavorActual}]`;
+                } else if (saldoFavorActual < 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DEUDA_CUBIERTA:${Math.abs(saldoFavorActual)}]`;
                 }
+                if (nuevoSaldoFavor > 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+                } else if (nuevoSaldoFavor < 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[NUEVA_DEUDA_GENERADA:${Math.abs(nuevoSaldoFavor)}]`;
+                }
+
+                const localDateTime = new Date().toLocaleString('sv', { timeZone: 'America/Argentina/Buenos_Aires' });
 
                 await run(`
                     UPDATE cuotas SET 
                         estado = 'PAGADO',
-                        fecha_pago = COALESCE(?, datetime('now', 'localtime')),
+                        fecha_pago = COALESCE(?, ?),
                         medio_pago = ?,
                         comprobante_img_url = ?,
                         id_cobrador = ?,
@@ -300,7 +314,7 @@ router.post('/sync-offline', async (req, res) => {
                         notas = ?,
                         monto = ?
                     WHERE id_cuota = ? AND id_empresa = ?
-                `, [item.fecha_pago || null, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, finalNotas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
+                `, [item.fecha_pago || null, localDateTime, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, finalNotas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
 
                 await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 
