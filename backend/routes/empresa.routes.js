@@ -690,14 +690,14 @@ router.post('/vendedores', requireAdmin, async (req, res) => {
     }
 });
 
-// GET /api/empresa/encargados - Listar encargados de zona
+// GET /api/empresa/encargados - Listar encargados de zona y súper encargados
 router.get('/encargados', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const encargados = await query(`
-            SELECT id_usuario, nombre, email, telefono, zona_asignada, activo, fecha_creacion
+            SELECT id_usuario, nombre, email, telefono, zona_asignada, activo, fecha_creacion, rol
             FROM usuarios
-            WHERE id_empresa = ? AND rol = 'ENCARGADO_ZONA'
+            WHERE id_empresa = ? AND (rol = 'ENCARGADO_ZONA' OR rol = 'SUPER_ENCARGADO')
             ORDER BY nombre ASC
         `, [id_empresa]);
         res.json(encargados);
@@ -781,6 +781,7 @@ router.get('/auditoria', async (req, res) => {
         const userZone = (req.user && req.user.zona_asignada) ? req.user.zona_asignada.toLowerCase().trim() : '';
 
         // Conciliación del día o histórico
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         let cierresSql = `
             SELECT u.id_usuario, u.nombre as cobrador_nombre, u.zona_asignada,
                    SUM(CASE WHEN q.medio_pago = 'EFECTIVO' AND q.estado = 'PAGADO' THEN q.monto ELSE 0 END) as recaudado_efectivo,
@@ -791,10 +792,10 @@ router.get('/auditoria', async (req, res) => {
             JOIN usuarios u ON q.id_cobrador = u.id_usuario
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
-            WHERE q.id_empresa = ? AND date(q.fecha_pago) = date('now', 'localtime')
+            WHERE q.id_empresa = ? AND date(q.fecha_pago) = ?
         `;
         const userNombre = (req.user.nombre || '').toLowerCase().trim();
-        const cierresParams = [id_empresa];
+        const cierresParams = [id_empresa, todayStr];
         if (isEncargado && userNombre) {
             cierresSql += ` AND LOWER(f.encargado_zona) LIKE ?`;
             cierresParams.push(`%${userNombre}%`);

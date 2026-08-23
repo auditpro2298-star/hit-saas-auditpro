@@ -625,7 +625,7 @@ class APIClient {
         }
 
         if (endpoint === '/empresa/encargados' && method === 'GET') {
-            return db.usuarios.filter(u => u.rol === 'ENCARGADO_ZONA');
+            return db.usuarios.filter(u => u.rol === 'ENCARGADO_ZONA' || u.rol === 'SUPER_ENCARGADO');
         }
 
         if (endpoint === '/empresa/encargados' && method === 'POST') {

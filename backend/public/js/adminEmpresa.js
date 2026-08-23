@@ -142,23 +142,33 @@ async function switchEmpresaTab(tabName) {
 function formatDateTimeStr(dtStr) {
     if (!dtStr) return 'Hoy';
     try {
-        const dateObj = new Date(dtStr.replace(/-/g, '/'));
-        if (isNaN(dateObj.getTime())) {
-            const parts = dtStr.split(' ');
-            if (parts.length < 2) return dtStr;
-            const dateParts = parts[0].split('-');
-            const timeParts = parts[1].split(':');
-            return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} ${timeParts[0]}:${timeParts[1]}`;
+        const matches = dtStr.match(/^(\d{4})[/-](\d{2})[/-](\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+        if (matches) {
+            const yyyy = matches[1];
+            const yy = yyyy.slice(-2);
+            const mm = matches[2];
+            const dd = matches[3];
+            const hh = matches[4] || '00';
+            const min = matches[5] || '00';
+            return `${dd}/${mm}/${yy} ${hh}:${min}`;
         }
-        const dd = String(dateObj.getDate()).padStart(2, '0');
-        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const yyyy = dateObj.getFullYear();
-        const hh = String(dateObj.getHours()).padStart(2, '0');
-        const min = String(dateObj.getMinutes()).padStart(2, '0');
-        return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+        const parts = dtStr.split(' ');
+        if (parts.length >= 2) {
+            const dateParts = parts[0].split(/[/-]/);
+            const timeParts = parts[1].split(':');
+            if (dateParts.length === 3 && timeParts.length >= 2) {
+                const dd = dateParts[2].length === 2 ? dateParts[2] : dateParts[0];
+                const yy = (dateParts[2].length === 4 ? dateParts[2] : dateParts[0]).slice(-2);
+                const mm = dateParts[1];
+                const hh = timeParts[0];
+                const min = timeParts[1];
+                return `${dd}/${mm}/${yy} ${hh}:${min}`;
+            }
+        }
     } catch (e) {
-        return dtStr;
+        console.error(e);
     }
+    return dtStr;
 }
 
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
@@ -827,7 +837,7 @@ async function loadFicheros() {
             combined.push({
                 id_usuario: e.id_usuario,
                 nombre: e.nombre,
-                rol: 'ENCARGADO_ZONA',
+                rol: e.rol || 'ENCARGADO_ZONA',
                 zona_asignada: e.zona_asignada
             });
         });
@@ -1148,31 +1158,23 @@ function filtrarRutasPorBarrioYTexto() {
 
 function formatFechaSimple(dateStr) {
     if (!dateStr) return '';
-
-    // Ensure we are working with a string representation
-    const str = String(dateStr).trim();
-
-    // Match YYYY-MM-DD (optionally followed by T or space and time)
-    const yyyymmddMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (yyyymmddMatch) {
-        const [, year, month, day] = yyyymmddMatch;
-        return `${day}/${month}/${year}`;
-    }
-
-    // Match DD/MM/YYYY or DD-MM-YYYY
-    const ddmmyyyyMatch = str.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
-    if (ddmmyyyyMatch) {
-        const [, day, month, year] = ddmmyyyyMatch;
-        return `${day}/${month}/${year}`;
-    }
-
-    // Fallback: try parsing cleanDate with split if it is standard YYYY-MM-DD
-    const cleanDate = str.includes('T') ? str.split('T')[0] : str.split(' ')[0];
-    const parts = cleanDate.split('-');
-    if (parts.length === 3) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-
+    try {
+        const str = String(dateStr).trim();
+        const matches = str.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+        if (matches) {
+            const yy = matches[1].slice(-2);
+            const mm = matches[2];
+            const dd = matches[3];
+            return `${dd}/${mm}/${yy}`;
+        }
+        const matchesAlt = str.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+        if (matchesAlt) {
+            const dd = matchesAlt[1];
+            const mm = matchesAlt[2];
+            const yy = matchesAlt[3].slice(-2);
+            return `${dd}/${mm}/${yy}`;
+        }
+    } catch (e) {}
     return dateStr;
 }
 
@@ -1463,13 +1465,7 @@ function renderAuditDetails(cobros) {
 
         let fechaStr = '-';
         if (q.fecha_pago) {
-            const dateObj = new Date(q.fecha_pago);
-            const dd = String(dateObj.getDate()).padStart(2, '0');
-            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const yyyy = dateObj.getFullYear();
-            const hh = String(dateObj.getHours()).padStart(2, '0');
-            const min = String(dateObj.getMinutes()).padStart(2, '0');
-            fechaStr = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+            fechaStr = formatDateTimeStr(q.fecha_pago);
         }
 
         const notasStr = q.notas ? `<div style="font-size:0.75rem; color:#854d0e; font-weight:600; margin-top:3px; background: #fef9c3; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Cobrador: ${q.notas}</div>` : '';
@@ -1509,7 +1505,7 @@ async function loadPromesas() {
             } else {
                 promesas.forEach(p => {
                     const tr = document.createElement('tr');
-                    const fechaProm = p.promesa_pago_fecha ? new Date(p.promesa_pago_fecha).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha';
+                    const fechaProm = p.promesa_pago_fecha ? formatDateTimeStr(p.promesa_pago_fecha) : 'Sin fecha';
                     const nombreCli = p.cliente_nombre || p.nombre_apellido || 'Cliente';
                     tr.innerHTML = `
                         <td><strong style="color:#d97706;">📅 ${fechaProm}</strong></td>
@@ -1990,7 +1986,7 @@ async function buscarClientePorIdODni() {
 // SOLAPA 8: CONTROL OPERATIVO DIARIO (RENDICIÓN ENCARGADO)
 async function loadControlOperativoDiario() {
     try {
-        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD local
         const ficheros = await api.get('/empresa/ficheros') || [];
         const cobros = await api.get('/empresa/auditoria') || { cobros_detallados: [] };
         const promesasData = await api.get('/empresa/promesas') || { promesas: [] };
@@ -2026,7 +2022,8 @@ async function loadControlOperativoDiario() {
         } else {
             ficherosFiltrados.forEach((f, idx) => {
                 const cobroFichero = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero && c.fecha_pago && c.fecha_pago.startsWith(todayStr));
-                const ultimoCobro = cobroFichero.length > 0 ? cobroFichero[0] : null;
+                const sortedCobros = [...cobroFichero].sort((a, b) => b.nro_cuota - a.nro_cuota);
+                const ultimoCobro = sortedCobros.length > 0 ? sortedCobros[0] : null;
                 const promesaFichero = promesas.find(p => p.id_fichero === f.id_fichero);
 
                 let estadoHtml = `<span class="badge badge-warning">PENDIENTE</span>`;
@@ -2036,9 +2033,11 @@ async function loadControlOperativoDiario() {
 
                 if (ultimoCobro) {
                     if (ultimoCobro.estado === 'PAGADO') {
-                        totalCobrados++;
-                        montoCobrado += Number(ultimoCobro.monto || 0);
-                        montoStr = `$${Number(ultimoCobro.monto || 0).toLocaleString('es-AR')}`;
+                        const paidCuotasHoy = cobroFichero.filter(c => c.estado === 'PAGADO');
+                        totalCobrados += paidCuotasHoy.length;
+                        const sumaMontoHoy = paidCuotasHoy.reduce((sum, c) => sum + Number(c.monto || 0), 0);
+                        montoCobrado += sumaMontoHoy;
+                        montoStr = `$${Number(sumaMontoHoy).toLocaleString('es-AR')}`;
 
                         // Extraer tags de descuento aplicado, deuda cubierta, saldo a favor generado, nueva deuda generada en las notas
                         let descuentoAplicado = 0;
