@@ -169,6 +169,13 @@ router.post('/cobrar', async (req, res) => {
             const totalCredited = cobrado + saldoFavorActual;
             const nuevoSaldoFavor = totalCredited - cuota.monto;
 
+            let finalNotas = notas || '';
+            if (nuevoSaldoFavor < 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${Math.abs(nuevoSaldoFavor)}]`;
+            } else if (nuevoSaldoFavor > 0) {
+                finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+            }
+
             // Corrección Crítica 3: Guardar el ID y NOMBRE histórico del cobrador que procesa este pago en este instante
             await run(`
                 UPDATE cuotas SET 
@@ -182,7 +189,7 @@ router.post('/cobrar', async (req, res) => {
                     notas = ?,
                     monto = ?
                 WHERE id_cuota = ? AND id_empresa = ?
-            `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, notas || null, cobrado, id_cuota, id_empresa]);
+            `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, finalNotas || null, cobrado, id_cuota, id_empresa]);
 
             await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 
@@ -274,6 +281,13 @@ router.post('/sync-offline', async (req, res) => {
                 const totalCredited = cobrado + saldoFavorActual;
                 const nuevoSaldoFavor = totalCredited - cuota.monto;
 
+                let finalNotas = item.notas || '';
+                if (nuevoSaldoFavor < 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${Math.abs(nuevoSaldoFavor)}]`;
+                } else if (nuevoSaldoFavor > 0) {
+                    finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+                }
+
                 await run(`
                     UPDATE cuotas SET 
                         estado = 'PAGADO',
@@ -286,7 +300,7 @@ router.post('/sync-offline', async (req, res) => {
                         notas = ?,
                         monto = ?
                     WHERE id_cuota = ? AND id_empresa = ?
-                `, [item.fecha_pago || null, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, item.notas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
+                `, [item.fecha_pago || null, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, finalNotas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
 
                 await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 

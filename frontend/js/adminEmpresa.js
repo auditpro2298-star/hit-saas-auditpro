@@ -2039,14 +2039,25 @@ async function loadControlOperativoDiario() {
                         montoCobrado += Number(ultimoCobro.monto || 0);
                         montoStr = `$${Number(ultimoCobro.monto || 0).toLocaleString('es-AR')}`;
 
-                        if (Number(ultimoCobro.monto || 0) > Number(f.valor_cuota || 0)) {
-                            const favor = Number(ultimoCobro.monto) - Number(f.valor_cuota);
+                        // Extraer tags de descuento aplicado o saldo a favor generado en las notas
+                        let descuentoAplicado = 0;
+                        if (ultimoCobro.notas && ultimoCobro.notas.includes('[DESCUENTO_APLICADO:')) {
+                            const match = ultimoCobro.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
+                            if (match) {
+                                descuentoAplicado = parseFloat(match[1]) || 0;
+                            }
+                        }
+
+                        const totalAcreditado = Number(ultimoCobro.monto || 0) + descuentoAplicado;
+
+                        if (totalAcreditado > Number(f.valor_cuota || 0)) {
+                            const favor = totalAcreditado - Number(f.valor_cuota);
                             totalSaldoFavor += favor;
                             estadoHtml = `<span class="badge badge-success">✅ PAGADO + SALDO A FAVOR</span>`;
                             saldoStr = `<strong style="color:var(--success);">+$${favor.toLocaleString('es-AR')} a favor</strong>`;
-                        } else if (Number(ultimoCobro.monto || 0) < Number(f.valor_cuota || 0) && Number(ultimoCobro.monto || 0) > 0) {
+                        } else if (totalAcreditado < Number(f.valor_cuota || 0) && totalAcreditado > 0) {
                             totalParciales++;
-                            const resto = Number(f.valor_cuota) - Number(ultimoCobro.monto);
+                            const resto = Number(f.valor_cuota) - totalAcreditado;
                             estadoHtml = `<span class="badge badge-purple">💵 PAGO PARCIAL</span>`;
                             saldoStr = `<strong style="color:#d97706;">Resta $${resto.toLocaleString('es-AR')}</strong>`;
                         } else {
@@ -2060,7 +2071,13 @@ async function loadControlOperativoDiario() {
                     }
 
                     if (ultimoCobro.notas) {
-                        proxNota += `<br><span style="color:#854d0e; font-weight:600;">📝 Cobrador: ${ultimoCobro.notas}</span>`;
+                        let displayNotas = ultimoCobro.notas
+                            .replace(/\[DESCUENTO_APLICADO:\d+(\.\d+)?\]/g, '')
+                            .replace(/\[SALDO_A_FAVOR_GENERADO:\d+(\.\d+)?\]/g, '')
+                            .trim();
+                        if (displayNotas) {
+                            proxNota += `<br><span style="color:#854d0e; font-weight:600;">📝 Cobrador: ${displayNotas}</span>`;
+                        }
                     }
                 } else if (promesaFichero) {
                     totalPromesas++;
