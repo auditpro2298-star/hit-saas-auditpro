@@ -20,19 +20,42 @@ async function initEmpresaPanel() {
     console.log('🏢 Inicializando Panel Admin de Empresa...');
 
     // Resetear visibilidad por defecto
-    const tabs = ['clientes', 'ficheros', 'personal', 'rutas', 'auditoria', 'promesas', 'whatsapp'];
+    const tabs = ['clientes', 'ficheros', 'personal', 'rutas', 'auditoria', 'promesas', 'whatsapp', 'operativo'];
     tabs.forEach(t => {
         const el = document.querySelector(`button[data-tab="${t}"]`);
         if (el) el.style.display = '';
     });
-    const btnNuevoCliente = document.querySelector('button[onclick="openNewClienteModal()"]');
-    const btnNuevoFichero = document.querySelector('button[onclick="openNewFicheroModal()"]');
+    const btnsNuevoCliente = document.querySelectorAll('button[onclick="openNewClienteModal()"]');
+    const btnsNuevoFichero = document.querySelectorAll('button[onclick="openNewFicheroModal()"]');
     const btnBackup = document.getElementById('btn-backup-db') || document.querySelector('button[onclick="descargarBackupEmpresa()"]');
     const btnRestore = document.querySelector('button[onclick="triggerRestoreUpload()"]');
-    if (btnNuevoCliente) btnNuevoCliente.style.display = '';
-    if (btnNuevoFichero) btnNuevoFichero.style.display = '';
+    btnsNuevoCliente.forEach(b => b.style.display = '');
+    btnsNuevoFichero.forEach(b => b.style.display = '');
     if (btnBackup) btnBackup.style.display = '';
     if (btnRestore) btnRestore.style.display = '';
+
+    // --- Restricciones UI para el rol SUPER_ENCARGADO ---
+    if (window.currentUser && window.currentUser.rol === 'SUPER_ENCARGADO') {
+        const hideTabs = ['clientes', 'personal'];
+        hideTabs.forEach(t => {
+            const el = document.querySelector(`button[data-tab="${t}"]`);
+            if (el) el.style.display = 'none';
+        });
+
+        btnsNuevoCliente.forEach(b => b.style.display = 'none');
+        btnsNuevoFichero.forEach(b => b.style.display = 'none');
+        if (btnBackup) btnBackup.style.display = 'none';
+        if (btnRestore) btnRestore.style.display = 'none';
+        const containerReset = document.getElementById('container-reset-mensual');
+        if (containerReset) containerReset.style.display = 'none';
+
+        const metricsDashboard = document.getElementById('empresa-metrics-dashboard');
+        if (metricsDashboard) metricsDashboard.style.display = 'none';
+
+        await loadEmpresaDashboard();
+        await switchEmpresaTab('ficheros');
+        return;
+    }
 
     // --- Restricciones UI para el rol ENCARGADO_ZONA ---
     if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
@@ -42,8 +65,8 @@ async function initEmpresaPanel() {
             if (el) el.style.display = 'none';
         });
 
-        if (btnNuevoCliente) btnNuevoCliente.style.display = 'none';
-        if (btnNuevoFichero) btnNuevoFichero.style.display = 'none';
+        btnsNuevoCliente.forEach(b => b.style.display = 'none');
+        btnsNuevoFichero.forEach(b => b.style.display = 'none');
         if (btnBackup) btnBackup.style.display = 'none';
         if (btnRestore) btnRestore.style.display = 'none';
         const containerReset = document.getElementById('container-reset-mensual');
@@ -885,7 +908,7 @@ function renderFicherosTable(ficheros) {
 
         let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
 
-        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
+        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'SUPER_ENCARGADO') {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
                 const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
@@ -921,7 +944,7 @@ function renderFicherosTable(ficheros) {
             <td>${encargadoTdContent}</td>
             <td><span class="badge ${badgeStatus}">${f.estado}</span></td>
             <td>
-                ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
+                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
                 <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero}, '${f.producto_nombre}')" title="Eliminar fichero por equivocación o cancelación">
                     🗑️ Eliminar
                 </button>

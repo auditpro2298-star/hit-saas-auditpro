@@ -105,7 +105,17 @@ class APIClient {
             const email = (body.email || '').toLowerCase().trim();
             let matchedUser = db.usuarios.find(u => u.email.toLowerCase() === email);
             if (!matchedUser) {
-                if (email.includes('super') || email.includes('saas') || email.includes('hitsaas')) {
+                if (email.includes('superencargado')) {
+                    matchedUser = {
+                        id_usuario: 13,
+                        id_empresa: 1,
+                        nombre: "Santi SuperEncargado",
+                        email: "superencargado@genesis.com",
+                        rol: "SUPER_ENCARGADO",
+                        activo: 1,
+                        zona_asignada: "Flores / Berazategui / General"
+                    };
+                } else if (email.includes('super') || email.includes('saas') || email.includes('hitsaas')) {
                     matchedUser = db.usuarios.find(u => u.rol === 'SUPER_ADMIN');
                 } else if (email.includes('juan') || email.includes('diego') || email.includes('cobrador')) {
                     matchedUser = db.usuarios.find(u => u.rol === 'COBRADOR');

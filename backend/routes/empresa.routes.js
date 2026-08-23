@@ -6,7 +6,7 @@ const { query, run, get, syncSequences, resequenceAndReset, restoreBackup } = re
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
-router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR', 'ENCARGADO_ZONA']));
+router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR', 'ENCARGADO_ZONA', 'SUPER_ENCARGADO']));
 
 // Middleware específico para rutas destructivas (solo admins)
 const requireAdmin = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']);

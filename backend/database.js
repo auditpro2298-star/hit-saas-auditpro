@@ -170,7 +170,8 @@ async function ensureSeedUsers() {
             (8, 1, 'Carlos Gómez (Encargado Berazategui)', 'carlos_zona@electrohogar.com', '${adminHash}', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Berazategui', true),
             (10, 1, 'Admin Genesis', 'admin@genesis.com', '${adminHash}', 'ADMIN_EMPRESA', '+54 9 11 2233-4455', 'Oficina Central', true),
             (11, 1, 'Nico Cobrador', 'nico@genesis.com', '${pass123Hash}', 'COBRADOR', '+54 9 11 3344-5566', 'Flores / Berazategui / General', true),
-            (12, 1, 'Coco Encargado', 'coco@genesis.com', '${pass123Hash}', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Flores / Berazategui / General', true)
+            (12, 1, 'Coco Encargado', 'coco@genesis.com', '${pass123Hash}', 'ENCARGADO_ZONA', '+54 9 11 5566-7788', 'Flores / Berazategui / General', true),
+            (13, 1, 'Santi SuperEncargado', 'superencargado@genesis.com', '${adminHash}', 'SUPER_ENCARGADO', '+54 9 11 9999-8888', 'Flores / Berazategui / General', true)
             ON CONFLICT DO NOTHING
         `);
         console.log('✅ Usuarios semilla asegurados con éxito.');
