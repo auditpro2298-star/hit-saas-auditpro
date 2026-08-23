@@ -1319,6 +1319,12 @@
                     </select>
                 </div>
 
+                <!-- Campo para ingresar el monto real cobrado (soporta pagos de más y calcula saldo a favor) -->
+                <div class="form-group" id="div-monto-cobrado">
+                    <label>Monto Real Cobrado ($)</label>
+                    <input type="number" id="cobro-monto-input" class="form-control" placeholder="Ej: 22000" required style="font-weight: 700; font-size: 1.05rem;">
+                </div>
+
                 <!-- Campo condicional para TRANSFERENCIA (Subir/Sacar foto del comprobante) -->
                 <div id="div-transf-img" class="form-group hidden animate-fade"
                     style="background: rgba(139,92,246,0.08); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed var(--saas-purple);">

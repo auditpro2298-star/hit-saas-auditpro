@@ -359,6 +359,18 @@ async function initDatabase() {
         await runSchemaMigrations();
         console.log('✅ Esquema DDL verificado con éxito.');
         
+        // Migración: Agregar columna saldo_favor a la tabla ficheros
+        try {
+            if (isPostgres && pgPool) {
+                await pgPool.query("ALTER TABLE ficheros ADD COLUMN IF NOT EXISTS saldo_favor DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+            } else {
+                await run("ALTER TABLE ficheros ADD COLUMN saldo_favor DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+            }
+            console.log("✅ Columna 'saldo_favor' verificada/agregada a la tabla 'ficheros'.");
+        } catch (err) {
+            // Ignorar si la columna ya existe
+        }
+        
         console.log('🌱 Asegurando datos semilla (empresas, usuarios, clientes, cuotas)...');
         await executeSqlFile(SEED_PATH);
         await ensureSeedUsers();
@@ -533,10 +545,10 @@ async function restoreBackup(id_empresa, backup) {
                 const newCobradorId = oldToNewUserId[f.id_cobrador_asignado] || null;
                 
                 const resInsert = await client.query(`
-                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita, saldo_favor)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                     RETURNING id_fichero
-                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
+                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0, f.saldo_favor || 0.00].map(x => x === undefined ? null : x));
                 
                 const newFicheroId = resInsert.rows[0].id_fichero;
                 oldToNewFicheroId[f.id_fichero] = newFicheroId;
@@ -634,9 +646,9 @@ async function restoreBackup(id_empresa, backup) {
                 const newCobradorId = oldToNewUserId[f.id_cobrador_asignado] || null;
                 
                 const insertRes = await run(`
-                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0].map(x => x === undefined ? null : x));
+                    INSERT INTO ficheros (id_cliente, id_empresa, producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, monto_total, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, estado, fecha_creacion, orden_visita, saldo_favor)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [newClientId, id_empresa, f.producto_nombre, f.cantidad_cuotas, f.valor_cuota, f.frecuencia_pago, f.monto_total, f.vendedor, f.encargado_zona, newCobradorId, f.fecha_entrega, f.estado || 'ACTIVO', f.fecha_creacion, f.orden_visita || 0, f.saldo_favor || 0.00].map(x => x === undefined ? null : x));
                 
                 oldToNewFicheroId[f.id_fichero] = insertRes.lastID;
             }

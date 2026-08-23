@@ -478,7 +478,10 @@ class APIClient {
                     return sortedPending[0].fecha_vencimiento;
                 })();
                 const todayStr = new Date().toISOString().split('T')[0];
-                const pagadoHoy = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO' && q.fecha_pago && q.fecha_pago.startsWith(todayStr)).length;
+                const paidTodayCuotas = db.cuotas.filter(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO' && q.fecha_pago && q.fecha_pago.startsWith(todayStr));
+                const pagadoHoy = paidTodayCuotas.length;
+                const lastPaymentToday = paidTodayCuotas.length ? paidTodayCuotas.sort((a, b) => b.fecha_pago.localeCompare(a.fecha_pago))[0] : null;
+                
                 return {
                     ...f,
                     cliente_nombre: cli.nombre_apellido || 'Cliente Desconocido',
@@ -493,7 +496,9 @@ class APIClient {
                     cuotas_pendientes: pendingCuotas.length,
                     cliente_telefono: cli.telefono || '',
                     proximo_vencimiento: nextPayment,
-                    pagado_hoy: pagadoHoy
+                    pagado_hoy: pagadoHoy,
+                    fecha_pago_hoy: lastPaymentToday ? lastPaymentToday.fecha_pago : null,
+                    saldo_favor: f.saldo_favor || 0.00
                 };
             });
             if (dbChanged) {
@@ -510,8 +515,10 @@ class APIClient {
             return list.sort((a, b) => {
                 const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || a.encargado_zona === 'Sin asignar';
                 const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || b.encargado_zona === 'Sin asignar';
-                if (aUnassigned && !bUnassigned) return -1;
-                if (!aUnassigned && bUnassigned) return 1;
+                const aWeight = aUnassigned ? 0 : (a.pagado_hoy > 0 ? 2 : 1);
+                const bWeight = bUnassigned ? 0 : (b.pagado_hoy > 0 ? 2 : 1);
+                
+                if (aWeight !== bWeight) return aWeight - bWeight;
                 return b.id_fichero - a.id_fichero;
             });
         }

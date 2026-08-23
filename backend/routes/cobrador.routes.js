@@ -163,6 +163,12 @@ router.post('/cobrar', async (req, res) => {
                 });
             }
 
+            const cobrado = parseFloat(monto_cobrado !== undefined && monto_cobrado !== null ? monto_cobrado : cuota.monto);
+            const ficheroRecord = await get('SELECT * FROM ficheros WHERE id_fichero = ?', [cuota.id_fichero]);
+            const saldoFavorActual = ficheroRecord ? parseFloat(ficheroRecord.saldo_favor || 0) : 0;
+            const totalCredited = cobrado + saldoFavorActual;
+            const nuevoSaldoFavor = totalCredited - cuota.monto;
+
             // Corrección Crítica 3: Guardar el ID y NOMBRE histórico del cobrador que procesa este pago en este instante
             await run(`
                 UPDATE cuotas SET 
@@ -173,9 +179,12 @@ router.post('/cobrar', async (req, res) => {
                     id_cobrador = ?,
                     nombre_cobrador = ?,
                     lat_long_cobro = ?,
-                    notas = ?
+                    notas = ?,
+                    monto = ?
                 WHERE id_cuota = ? AND id_empresa = ?
-            `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, notas || null, id_cuota, id_empresa]);
+            `, [medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, notas || null, cobrado, id_cuota, id_empresa]);
+
+            await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 
             // Verificar si el fichero completó todas sus cuotas para pasarlo a FINALIZADO
             const pendientes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND estado = 'PENDIENTE'", [cuota.id_fichero]);
@@ -188,7 +197,14 @@ router.post('/cobrar', async (req, res) => {
             const pagadas = await get("SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = 'PAGADO'", [cuota.id_fichero]);
             const saldoRestante = Math.max(0, (fichero ? fichero.monto_total : cuota.monto) - (pagadas ? pagadas.total_pagado : 0));
             
-            const whatsappMsg = `Hola ${fichero?.nombre_apellido || 'Cliente'}, HIT detectó tu pago de la cuota #${cuota.nro_cuota} por $${cuota.monto} en ${medio_pago}. Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Mirá tu cartilla acá: http://localhost:3000/?qr_cartilla=${fichero?.qr_token || 'TOKEN'}`;
+            let messageText = `Cobro de $${cobrado.toLocaleString('es-AR')} registrado exitosamente en ${medio_pago}.`;
+            if (nuevoSaldoFavor > 0) {
+                messageText += ` (Generó $${nuevoSaldoFavor.toLocaleString('es-AR')} de saldo a favor)`;
+            } else if (nuevoSaldoFavor < 0) {
+                messageText += ` (Se aplicó un descuento de $${Math.abs(nuevoSaldoFavor).toLocaleString('es-AR')} de saldo a favor previo)`;
+            }
+
+            const whatsappMsg = `Hola ${fichero?.nombre_apellido || 'Cliente'}, HIT detectó tu pago de la cuota #${cuota.nro_cuota} por $${cobrado} en ${medio_pago}. Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Mirá tu cartilla acá: http://localhost:3000/?qr_cartilla=${fichero?.qr_token || 'TOKEN'}`;
             
             if (fichero) {
                 await run(`INSERT INTO whatsapp_notifications (id_empresa, id_cliente, id_cuota, telefono_cliente, mensaje, estado) VALUES (?, ?, ?, ?, ?, 'ENVIADO')`,
@@ -197,11 +213,11 @@ router.post('/cobrar', async (req, res) => {
 
             return res.json({ 
                 success: true, 
-                message: `Cobro de $${cuota.monto} registrado exitosamente en ${medio_pago}.`,
+                message: messageText,
                 whatsapp_message: whatsappMsg,
                 saldo_restante: saldoRestante
             });
-        } 
+        }
         // Si se reporta No Cobrado (Función 2: Promesa de pago agendada)
         else if (motivo_no_cobro) {
             await run(`
@@ -252,6 +268,12 @@ router.post('/sync-offline', async (req, res) => {
             if (!cuota || cuota.estado === 'PAGADO') continue; // Si ya fue pagado, omitir
 
             if (item.medio_pago === 'EFECTIVO' || item.medio_pago === 'TRANSFERENCIA') {
+                const cobrado = parseFloat(item.monto_cobrado !== undefined && item.monto_cobrado !== null ? item.monto_cobrado : cuota.monto);
+                const ficheroRecord = await get('SELECT * FROM ficheros WHERE id_fichero = ?', [cuota.id_fichero]);
+                const saldoFavorActual = ficheroRecord ? parseFloat(ficheroRecord.saldo_favor || 0) : 0;
+                const totalCredited = cobrado + saldoFavorActual;
+                const nuevoSaldoFavor = totalCredited - cuota.monto;
+
                 await run(`
                     UPDATE cuotas SET 
                         estado = 'PAGADO',
@@ -261,9 +283,12 @@ router.post('/sync-offline', async (req, res) => {
                         id_cobrador = ?,
                         nombre_cobrador = ?,
                         lat_long_cobro = ?,
-                        notas = ?
+                        notas = ?,
+                        monto = ?
                     WHERE id_cuota = ? AND id_empresa = ?
-                `, [item.fecha_pago || null, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, item.notas || 'Sincronizado desde cola offline', item.id_cuota, id_empresa]);
+                `, [item.fecha_pago || null, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, item.notas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
+
+                await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
 
                 // Generar WhatsApp de sincronización
                 const fichero = await get('SELECT f.*, c.id_cliente, c.nombre_apellido, c.telefono, c.qr_token FROM ficheros f JOIN clientes c ON f.id_cliente = c.id_cliente WHERE f.id_fichero = ?', [cuota.id_fichero]);
@@ -271,7 +296,7 @@ router.post('/sync-offline', async (req, res) => {
                 const saldoRestante = Math.max(0, (fichero ? fichero.monto_total : cuota.monto) - (pagadas ? pagadas.total_pagado : 0));
                 
                 if (fichero) {
-                    const whatsappMsg = `Hola ${fichero.nombre_apellido}, HIT sincronizó tu pago de la cuota #${cuota.nro_cuota} por $${cuota.monto} (${item.medio_pago}). Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Cartilla: http://localhost:3000/?qr_cartilla=${fichero.qr_token}`;
+                    const whatsappMsg = `Hola ${fichero.nombre_apellido}, HIT sincronizó tu pago de la cuota #${cuota.nro_cuota} por $${cobrado} (${item.medio_pago}). Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Cartilla: http://localhost:3000/?qr_cartilla=${fichero.qr_token}`;
                     await run(`INSERT INTO whatsapp_notifications (id_empresa, id_cliente, id_cuota, telefono_cliente, mensaje, estado) VALUES (?, ?, ?, ?, ?, 'ENVIADO')`,
                         [id_empresa, fichero.id_cliente, item.id_cuota, fichero.telefono || 'Sin teléfono', whatsappMsg]);
                     notificacionesEnviadas.push({ cliente: fichero.nombre_apellido, mensaje: whatsappMsg });

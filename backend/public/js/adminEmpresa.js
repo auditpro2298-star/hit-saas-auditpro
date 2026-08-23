@@ -139,6 +139,28 @@ async function switchEmpresaTab(tabName) {
     }
 }
 
+function formatDateTimeStr(dtStr) {
+    if (!dtStr) return 'Hoy';
+    try {
+        const dateObj = new Date(dtStr.replace(/-/g, '/'));
+        if (isNaN(dateObj.getTime())) {
+            const parts = dtStr.split(' ');
+            if (parts.length < 2) return dtStr;
+            const dateParts = parts[0].split('-');
+            const timeParts = parts[1].split(':');
+            return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} ${timeParts[0]}:${timeParts[1]}`;
+        }
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const yyyy = dateObj.getFullYear();
+        const hh = String(dateObj.getHours()).padStart(2, '0');
+        const min = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    } catch (e) {
+        return dtStr;
+    }
+}
+
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
 async function loadClientesAndMap() {
     const clientes = await api.get('/empresa/clientes');
@@ -935,14 +957,20 @@ function renderFicherosTable(ficheros) {
                 ${refStr}
             </td>
             <td>${f.cantidad_cuotas} cuotas de <strong>$${Number(f.valor_cuota).toLocaleString('es-AR')}</strong></td>
-            <td><strong>$${Number(f.monto_total).toLocaleString('es-AR')}</strong></td>
+            <td>
+                <strong>$${Number(f.monto_total).toLocaleString('es-AR')}</strong>
+                ${Number(f.saldo_favor || 0) > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.7rem; font-weight:700; background-color: var(--success); color: white;" title="Saldo a favor del cliente por pagar de más">💰 Saldo favor: $${Number(f.saldo_favor).toLocaleString('es-AR')}</span></div>` : ''}
+            </td>
             <td>
                 <div class="flex items-center gap-2">
                     <span style="font-size:0.8rem;">${f.cuotas_pagadas || 0} / ${f.cantidad_cuotas} pagadas</span>
                 </div>
             </td>
             <td>${encargadoTdContent}</td>
-            <td><span class="badge ${badgeStatus}">${f.estado}</span></td>
+            <td>
+                <span class="badge ${badgeStatus}">${f.estado}</span>
+                ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.7rem; font-weight:700; background-color: var(--success); color: white;">✅ Pago cuota del mes:<br>${formatDateTimeStr(f.fecha_pago_hoy)}</span></div>` : ''}
+            </td>
             <td>
                 ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
                 <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero}, '${f.producto_nombre}')" title="Eliminar fichero por equivocación o cancelación">
@@ -1191,7 +1219,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                 <strong>${f.cliente_nombre}</strong>
                 <div style="font-size:0.75rem; color:var(--text-secondary);">📍 ${f.direccion} (${f.barrio})</div>
                 <div style="font-size:0.75rem; color:var(--primary); font-weight:600;">📦 ${f.producto_nombre}</div>
-                ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.72rem; font-weight:700; background-color: var(--success); color: white;">✅ YA PAGÓ HOY</span></div>` : ''}
+                ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.72rem; font-weight:700; background-color: var(--success); color: white;">✅ Pago cuota del mes: ${formatDateTimeStr(f.fecha_pago_hoy)}</span></div>` : ''}
             </td>
             <td>
                 <div class="flex items-center gap-2">

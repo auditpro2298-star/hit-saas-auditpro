@@ -252,7 +252,7 @@ function renderPlanillaDigital(data) {
             }
 
             gridHtml += `
-                <div class="cuota-cell ${cellClass}" onclick="openCobroModal(${q.id_cuota}, ${q.nro_cuota}, ${q.monto}, '${q.estado}', '${f.producto_nombre}')">
+                <div class="cuota-cell ${cellClass}" onclick="openCobroModal(${q.id_cuota}, ${q.nro_cuota}, ${q.monto}, '${q.estado}', '${f.producto_nombre}', ${f.saldo_favor || 0})">
                     <span class="cuota-number">${q.nro_cuota}</span>
                     <span class="cuota-status-icon">${icon}</span>
                 </div>
@@ -266,6 +266,7 @@ function renderPlanillaDigital(data) {
                     <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.25rem; line-height:1.4;">
                         <span>🗓️ Frecuencia: <strong style="color:var(--primary);">${f.frecuencia_pago || 'SEMANAL'}</strong> (${f.cantidad_cuotas} cuotas de $${Number(f.valor_cuota).toLocaleString('es-AR')})</span><br>
                         <span>👤 Vendedor: <strong>${f.vendedor || 'Milagros'}</strong> &nbsp;|&nbsp; 🛵 Encargado: <strong>${f.encargado_zona || 'Natasha'}</strong></span>
+                        ${Number(f.saldo_favor || 0) > 0 ? `<br><span>💰 Saldo favor acumulado: <strong style="color:#059669; font-size:0.85rem;">$${Number(f.saldo_favor).toLocaleString('es-AR')}</strong> (Se descontará en el próximo pago)</span>` : ''}
                     </div>
                 </div>
                 <span class="badge badge-purple">${pagadas} / ${f.cantidad_cuotas} saldadas</span>
@@ -287,16 +288,26 @@ function backToRuta() {
     initCobradorApp();
 }
 
-async function openCobroModal(id_cuota, nro_cuota, monto, estadoActual, producto) {
+async function openCobroModal(id_cuota, nro_cuota, monto, estadoActual, producto, saldoFavor = 0) {
     if (estadoActual === 'PAGADO') {
         if (!await showConfirm(`El casillero #${nro_cuota} ya se encuentra PAGADO. ¿Deseas modificarlo o ver sus datos?`)) {
             return;
         }
     }
 
-    selectedCuotaToPay = { id_cuota, nro_cuota, monto };
+    selectedCuotaToPay = { id_cuota, nro_cuota, monto, saldoFavor };
     document.getElementById('cobro-modal-title').innerText = `Registrar Casillero #${nro_cuota}`;
-    document.getElementById('cobro-modal-subtitle').innerText = `${producto} — Valor: $${Number(monto).toLocaleString('es-AR')}`;
+    
+    const montoACobrar = Math.max(0, monto - (saldoFavor || 0));
+    if (saldoFavor > 0) {
+        document.getElementById('cobro-modal-subtitle').innerHTML = `${producto} — Valor Cuota: $${Number(monto).toLocaleString('es-AR')}<br><span style="color:#059669; font-weight:700;">Descuento por Saldo a Favor: -$${Number(saldoFavor).toLocaleString('es-AR')}<br>Monto a cobrar: $${Number(montoACobrar).toLocaleString('es-AR')}</span>`;
+    } else {
+        document.getElementById('cobro-modal-subtitle').innerText = `${producto} — Valor: $${Number(monto).toLocaleString('es-AR')}`;
+    }
+
+    const inputMonto = document.getElementById('cobro-monto-input');
+    if (inputMonto) inputMonto.value = montoACobrar;
+
     document.getElementById('cobro-medio-select').value = 'EFECTIVO';
     document.getElementById('cobro-transf-url').value = '';
     
@@ -341,19 +352,23 @@ function toggleCobroFields() {
     const transfDiv = document.getElementById('div-transf-img');
     const rechazoDiv = document.getElementById('div-rechazo-motivo');
     const promesaDiv = document.getElementById('div-promesa-fecha');
+    const montoDiv = document.getElementById('div-monto-cobrado');
 
     if (medio === 'TRANSFERENCIA') {
         transfDiv.classList.remove('hidden');
         rechazoDiv.classList.add('hidden');
         if (promesaDiv) promesaDiv.classList.add('hidden');
+        if (montoDiv) montoDiv.classList.remove('hidden');
     } else if (medio === 'NO_COBRADO') {
         transfDiv.classList.add('hidden');
         rechazoDiv.classList.remove('hidden');
         if (promesaDiv) promesaDiv.classList.remove('hidden');
+        if (montoDiv) montoDiv.classList.add('hidden');
     } else {
         transfDiv.classList.add('hidden');
         rechazoDiv.classList.add('hidden');
         if (promesaDiv) promesaDiv.classList.add('hidden');
+        if (montoDiv) montoDiv.classList.remove('hidden');
     }
 }
 
@@ -372,9 +387,13 @@ async function submitCobroForm(event) {
         return;
     }
 
+    const montoCobradoVal = document.getElementById('cobro-monto-input')?.value;
+    const monto_cobrado = medio === 'NO_COBRADO' ? null : (parseFloat(montoCobradoVal) || 0);
+
     const payload = {
         id_cuota: selectedCuotaToPay.id_cuota,
         medio_pago: medio === 'NO_COBRADO' ? null : medio,
+        monto_cobrado: monto_cobrado,
         comprobante_img_url: medio === 'TRANSFERENCIA' ? (transfUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400') : null,
         motivo_no_cobro: medio === 'NO_COBRADO' ? motivoRechazo : null,
         promesa_pago_fecha: medio === 'NO_COBRADO' ? (promesaFecha || null) : null,

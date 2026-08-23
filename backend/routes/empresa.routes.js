@@ -418,19 +418,29 @@ router.get('/ficheros', async (req, res) => {
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as pagado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as pagado_hoy,
+                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as fecha_pago_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
         `;
-        const params = [todayStr, id_empresa];
+        const params = [todayStr, todayStr, id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
             const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
             params.push(req.user.id_usuario, userName);
         }
-        sql += ` ORDER BY (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 ELSE 1 END) ASC, f.id_fichero DESC`;
+        sql += ` ORDER BY 
+            (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
+                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) > 0 THEN 2
+                  ELSE 1 END) ASC, 
+            f.id_fichero DESC`;
+        const orderParams = [todayStr];
+        // En SQLite / PostgreSQL, si el ORDER BY tiene placeholders, se asocian al final de la consulta.
+        // Pero en node-sqlite3 / pg, los parámetros se pasan secuencialmente. 
+        // Dado que el ORDER BY va al final, los parámetros para las subconsultas del ORDER BY deben ir al final del array params.
+        params.push(...orderParams);
         
         const ficheros = await query(sql, params);
         res.json(ficheros);
@@ -899,7 +909,7 @@ router.get('/whatsapp-log', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
-        const zoneFilter = isEncargado ? `%${req.user.zona_asignada.toLowerCase().trim()}%` : null;
+        const userNombre = isEncargado ? `%${(req.user.nombre || '').toLowerCase().trim()}%` : null;
 
         let sql = `
             SELECT w.*, c.nombre_apellido as cliente_nombre, f.producto_nombre, q.nro_cuota, q.monto
@@ -911,8 +921,8 @@ router.get('/whatsapp-log', async (req, res) => {
         `;
         const params = [id_empresa];
         if (isEncargado) {
-            sql += ` AND LOWER(c.barrio) LIKE ?`;
-            params.push(zoneFilter);
+            sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
+            params.push(req.user.id_usuario, userNombre);
         }
         sql += ` ORDER BY w.fecha_envio DESC LIMIT 100`;
 
@@ -1166,35 +1176,6 @@ router.get('/promesas', async (req, res) => {
     } catch (err) {
         console.error('Error al obtener promesas y morosidad:', err);
         res.status(500).json({ error: 'Error al obtener promesas y morosidad.' });
-    }
-});
-
-// GET /api/empresa/whatsapp-log - Obtener registro de notificaciones de WhatsApp
-router.get('/whatsapp-log', async (req, res) => {
-    const id_empresa = getEmpresaId(req);
-    try {
-        const notifs = await query(`
-            SELECT 
-                w.id_notificacion,
-                w.telefono_cliente,
-                w.mensaje,
-                w.estado,
-                w.fecha_envio as fecha,
-                cl.nombre_apellido as cliente_nombre,
-                c.nro_cuota,
-                c.monto
-            FROM whatsapp_notifications w
-            LEFT JOIN clientes cl ON w.id_cliente = cl.id_cliente
-            LEFT JOIN cuotas c ON w.id_cuota = c.id_cuota
-            WHERE w.id_empresa = ?
-            ORDER BY w.fecha_envio DESC
-            LIMIT 50
-        `, [id_empresa]);
-
-        res.json(notifs || []);
-    } catch (err) {
-        console.error('Error al obtener log de whatsapp:', err);
-        res.status(500).json({ error: 'Error al obtener log de whatsapp.' });
     }
 });
 
