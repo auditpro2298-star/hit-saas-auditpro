@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { query, run, get, syncSequences, resequenceAndReset, restoreBackup } = require('../database');
+const { query, run, get, syncSequences, resequenceAndReset, restoreBackup, isPostgres } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
@@ -115,10 +115,10 @@ router.get('/dashboard', async (req, res) => {
     try {
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
         const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
-        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = date('now')", [id_empresa]);
+        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = date('now', 'localtime')", [id_empresa]);
         const pendientesTotal = await get("SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'", [id_empresa]);
         const promesasCount = await get("SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = 'NO_COBRADO'", [id_empresa]);
-        const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date('now')", [id_empresa]);
+        const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = date('now', 'localtime')", [id_empresa]);
 
         res.json({
             clientes_total: clientesCount.total || 0,
@@ -769,7 +769,7 @@ router.get('/auditoria', async (req, res) => {
             JOIN usuarios u ON q.id_cobrador = u.id_usuario
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
-            WHERE q.id_empresa = ?
+            WHERE q.id_empresa = ? AND date(q.fecha_pago) = date('now', 'localtime')
         `;
         const userNombre = (req.user.nombre || '').toLowerCase().trim();
         const cierresParams = [id_empresa];

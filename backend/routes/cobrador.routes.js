@@ -37,8 +37,8 @@ router.get('/hoja-de-ruta', async (req, res) => {
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now')) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now')) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = date('now')))) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now', 'localtime')) as cobrado_hoy,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now', 'localtime')) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = date('now', 'localtime')))) as no_cobrado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
@@ -313,7 +313,7 @@ router.get('/resumen-diario', async (req, res) => {
                    COUNT(CASE WHEN estado = 'PAGADO' THEN 1 END) as cuotas_cobradas,
                    COUNT(CASE WHEN estado = 'NO_COBRADO' THEN 1 END) as visitas_no_cobradas
             FROM cuotas
-            WHERE id_empresa = ? AND id_cobrador = ? AND date(fecha_pago) = date('now')
+            WHERE id_empresa = ? AND id_cobrador = ? AND date(fecha_pago) = date('now', 'localtime')
         `, [id_empresa, id_cobrador]);
 
         res.json(resumen || { efectivo_en_bolsillo: 0, transferencias_cargadas: 0, cuotas_cobradas: 0, visitas_no_cobradas: 0 });

@@ -63,6 +63,7 @@ function translateSqlToPg(sql) {
     // 2. Funciones y sintaxis comunes de compatibilidad
     pgSql = pgSql.replace(/\bIFNULL\b/gi, 'COALESCE');
     pgSql = pgSql.replace(/date\(['"]now['"]\)/gi, 'CURRENT_DATE');
+    pgSql = pgSql.replace(/date\(['"]now['"],\s*['"]localtime['"]\)/gi, 'CURRENT_DATE');
     
     // Traducir de forma genérica date(campo) a (campo)::date para compatibilidad en PostgreSQL
     pgSql = pgSql.replace(/date\(([^)]+)\)/gi, '($1)::date');
@@ -701,6 +702,7 @@ async function wipeDatabase() {
 module.exports = {
     db,
     pgPool,
+    isPostgres,
     query,
     run,
     get,

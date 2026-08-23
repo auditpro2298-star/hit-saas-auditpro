@@ -1961,6 +1961,7 @@ async function buscarClientePorIdODni() {
 // SOLAPA 8: CONTROL OPERATIVO DIARIO (RENDICIÓN ENCARGADO)
 async function loadControlOperativoDiario() {
     try {
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
         const ficheros = await api.get('/empresa/ficheros') || [];
         const cobros = await api.get('/empresa/auditoria') || { cobros_detallados: [] };
         const promesasData = await api.get('/empresa/promesas') || { promesas: [] };
@@ -1995,7 +1996,7 @@ async function loadControlOperativoDiario() {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Sin clientes ni ficheros asignados a esta zona hoy.</td></tr>`;
         } else {
             ficherosFiltrados.forEach((f, idx) => {
-                const cobroFichero = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero);
+                const cobroFichero = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero && c.fecha_pago && c.fecha_pago.startsWith(todayStr));
                 const ultimoCobro = cobroFichero.length > 0 ? cobroFichero[0] : null;
                 const promesaFichero = promesas.find(p => p.id_fichero === f.id_fichero);
 
