@@ -312,6 +312,9 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick='showQrModal(${clientJsonStr})'>
                         📱 Ver QR
                     </button>
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple);" onclick="verFicheroCliente('${nombreDisplay.replace(/'/g, "\\'")}')" title="Ver todos los ficheros de venta asociados a este cliente">
+                        📂 Ver Fichero
+                    </button>
                     <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}', '${(c.referencia_domicilio || '').replace(/'/g, "\\'")}')" title="Actualizar datos del cliente (dirección, teléfono, fecha de pago)">
                         ✏️ Editar Datos
                     </button>
@@ -1225,14 +1228,20 @@ function renderAsignacionTable(ficheros, cobradores) {
                 ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.72rem; font-weight:700; background-color: var(--success); color: white;">✅ Pago cuota del mes: ${formatDateTimeStr(f.fecha_pago_hoy)}</span></div>` : ''}
             </td>
             <td>
-                <div class="flex items-center gap-2">
-                    <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
-                        ${optionsHtml}
-                    </select>
-                    <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})">
-                        💾
-                    </button>
-                </div>
+                ${f.pagado_hoy > 0 ? `
+                    <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                        ✅ Cobrado este mes
+                    </div>
+                ` : `
+                    <div class="flex items-center gap-2">
+                        <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
+                            ${optionsHtml}
+                        </select>
+                        <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})">
+                            💾
+                        </button>
+                    </div>
+                `}
             </td>
             <td>
                 <div style="font-weight: 600;">${f.cliente_telefono || '<span class="text-muted">Sin número</span>'}</div>
@@ -2468,3 +2477,17 @@ function filtrarFicheros(resetPage = true) {
 }
 
 window.filtrarFicheros = filtrarFicheros;
+
+async function verFicheroCliente(clienteNombre) {
+    const inputSearch = document.getElementById('input-search-ficheros');
+    if (inputSearch) {
+        inputSearch.value = clienteNombre;
+    }
+    const selectEstado = document.getElementById('select-filter-ficheros-estado');
+    if (selectEstado) {
+        selectEstado.value = 'ALL';
+    }
+    switchEmpresaTab('ficheros');
+    filtrarFicheros(true);
+}
+window.verFicheroCliente = verFicheroCliente;

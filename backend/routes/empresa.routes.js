@@ -412,6 +412,7 @@ router.get('/ficheros', async (req, res) => {
 
     try {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const monthStr = todayStr.substring(0, 7) + '%';
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.referencia_domicilio,
@@ -419,14 +420,14 @@ router.get('/ficheros', async (req, res) => {
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as pagado_hoy,
-                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) as fecha_pago_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) as pagado_hoy,
+                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) as fecha_pago_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
         `;
-        const params = [todayStr, todayStr, id_empresa];
+        const params = [monthStr, monthStr, id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
             const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
@@ -434,13 +435,10 @@ router.get('/ficheros', async (req, res) => {
         }
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
-                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) = ?) > 0 THEN 2
+                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) > 0 THEN 2
                   ELSE 1 END) ASC, 
             f.id_fichero DESC`;
-        const orderParams = [todayStr];
-        // En SQLite / PostgreSQL, si el ORDER BY tiene placeholders, se asocian al final de la consulta.
-        // Pero en node-sqlite3 / pg, los parámetros se pasan secuencialmente. 
-        // Dado que el ORDER BY va al final, los parámetros para las subconsultas del ORDER BY deben ir al final del array params.
+        const orderParams = [monthStr];
         params.push(...orderParams);
         
         const ficheros = await query(sql, params);
