@@ -2013,7 +2013,7 @@ async function buscarClientePorIdODni() {
 }
 
 // SOLAPA 8: CONTROL OPERATIVO DIARIO (RENDICIÓN ENCARGADO)
-async function loadControlOperativoDiario() {
+async function loadControlOperativoDiario(isManual = false) {
     try {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD local
         const ficheros = await api.get('/empresa/ficheros') || [];
@@ -2156,6 +2156,9 @@ async function loadControlOperativoDiario() {
         const elFav = document.getElementById('op-total-saldofavor');
         if (elFav) elFav.innerText = `$${totalSaldoFavor.toLocaleString('es-AR')} ARS`;
 
+        if (isManual) {
+            await showAlert('🔄 Rendición de cobros actualizada con éxito.');
+        }
     } catch (err) {
         console.error('Error cargando control operativo diario:', err);
     }

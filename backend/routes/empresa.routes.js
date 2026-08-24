@@ -1277,7 +1277,7 @@ router.post('/reset-asignaciones-mensual', requireAdmin, async (req, res) => {
 router.post('/caja-cierre', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { observaciones } = req.body;
-    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local time
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD local time
     try {
         // Encontrar cobros agrupados por cobrador hoy
         const sql = `
