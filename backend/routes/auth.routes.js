@@ -31,6 +31,28 @@ router.get('/seed-simulation', async (req, res) => {
     }
 });
 
+// GET /api/auth/db-debug - Depuración de conexión a base de datos en producción
+router.get('/db-debug', async (req, res) => {
+    try {
+        const { query, pgPool, isPostgres } = require('../database');
+        const testTime = await query('SELECT NOW() as now');
+        const userCount = await query('SELECT COUNT(*) as count FROM usuarios');
+        res.json({
+            success: true,
+            isPostgres,
+            postgresConnected: !!pgPool,
+            time: testTime,
+            users: userCount
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            error: err.message,
+            stack: err.stack
+        });
+    }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
