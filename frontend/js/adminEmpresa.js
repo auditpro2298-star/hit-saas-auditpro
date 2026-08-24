@@ -831,10 +831,7 @@ async function submitNewClienteForm(event) {
 async function loadFicheros() {
     // 1. Cargar encargados de zona y cobradores
     try {
-        const [encargados, cobradores] = await Promise.all([
-            api.get('/empresa/encargados').catch(() => []),
-            api.get('/empresa/cobradores').catch(() => [])
-        ]);
+        const encargados = await api.get('/empresa/encargados').catch(() => []);
         const combined = [];
         (encargados || []).forEach(e => {
             combined.push({
@@ -843,16 +840,6 @@ async function loadFicheros() {
                 rol: e.rol || 'ENCARGADO_ZONA',
                 zona_asignada: e.zona_asignada
             });
-        });
-        (cobradores || []).forEach(c => {
-            if (!combined.some(x => x.id_usuario === c.id_usuario)) {
-                combined.push({
-                    id_usuario: c.id_usuario,
-                    nombre: c.nombre,
-                    rol: 'COBRADOR',
-                    zona_asignada: c.zona_asignada
-                });
-            }
         });
         window.allEncargadosCache = combined;
     } catch (e) {
@@ -2030,9 +2017,12 @@ async function loadControlOperativoDiario() {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Sin clientes ni ficheros asignados a esta zona hoy.</td></tr>`;
         } else {
             ficherosFiltrados.forEach((f, idx) => {
-                const cobroFichero = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero && c.fecha_pago && c.fecha_pago.startsWith(todayStr));
-                const sortedCobros = [...cobroFichero].sort((a, b) => b.nro_cuota - a.nro_cuota);
-                const ultimoCobro = sortedCobros.length > 0 ? sortedCobros[0] : null;
+                const currentMonthPrefix = todayStr.substring(0, 7);
+                const cobroFicheroMes = cobrosDetallados.filter(c => c.id_fichero === f.id_fichero && c.fecha_pago && c.fecha_pago.startsWith(currentMonthPrefix));
+                const cobroFicheroHoy = cobroFicheroMes.filter(c => c.fecha_pago.startsWith(todayStr));
+
+                const sortedCobrosMes = [...cobroFicheroMes].sort((a, b) => b.nro_cuota - a.nro_cuota);
+                const ultimoCobro = sortedCobrosMes.length > 0 ? sortedCobrosMes[0] : null;
                 const promesaFichero = promesas.find(p => p.id_fichero === f.id_fichero);
 
                 let estadoHtml = `<span class="badge badge-warning">PENDIENTE</span>`;
@@ -2042,11 +2032,17 @@ async function loadControlOperativoDiario() {
 
                 if (ultimoCobro) {
                     if (ultimoCobro.estado === 'PAGADO') {
-                        const paidCuotasHoy = cobroFichero.filter(c => c.estado === 'PAGADO');
+                        const paidCuotasHoy = cobroFicheroHoy.filter(c => c.estado === 'PAGADO');
                         totalCobrados += paidCuotasHoy.length;
                         const sumaMontoHoy = paidCuotasHoy.reduce((sum, c) => sum + Number(c.monto || 0), 0);
                         montoCobrado += sumaMontoHoy;
-                        montoStr = `$${Number(sumaMontoHoy).toLocaleString('es-AR')}`;
+                        
+                        if (sumaMontoHoy > 0) {
+                            montoStr = `$${Number(sumaMontoHoy).toLocaleString('es-AR')}`;
+                        } else {
+                            const fechaPagoCortada = ultimoCobro.fecha_pago ? formatFechaSimple(ultimoCobro.fecha_pago.split(' ')[0]) : '';
+                            montoStr = `<span class="text-muted" style="font-size:0.8rem;">$0<br>(Abonado ${fechaPagoCortada})</span>`;
+                        }
 
                         // Extraer tags de descuento aplicado, deuda cubierta, saldo a favor generado, nueva deuda generada en las notas
                         let descuentoAplicado = 0;
