@@ -312,7 +312,7 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick='showQrModal(${clientJsonStr})'>
                         📱 Ver QR
                     </button>
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple);" onclick="verFicheroCliente('${nombreDisplay.replace(/'/g, "\\'")}')" title="Ver todos los ficheros de venta asociados a este cliente">
+                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple);" onclick="verFicheroCliente(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Ver todos los ficheros de venta asociados a este cliente">
                         📂 Ver Fichero
                     </button>
                     <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}', '${(c.referencia_domicilio || '').replace(/'/g, "\\'")}')" title="Actualizar datos del cliente (dirección, teléfono, fecha de pago)">
@@ -2478,16 +2478,58 @@ function filtrarFicheros(resetPage = true) {
 
 window.filtrarFicheros = filtrarFicheros;
 
-async function verFicheroCliente(clienteNombre) {
-    const inputSearch = document.getElementById('input-search-ficheros');
-    if (inputSearch) {
-        inputSearch.value = clienteNombre;
+async function verFicheroCliente(id_cliente, nombre_apellido) {
+    try {
+        const ficheros = await api.get('/empresa/ficheros') || [];
+        const clientFicheros = ficheros.filter(f => f.id_cliente === id_cliente);
+        
+        const titleElem = document.getElementById('modal-fich-title');
+        if (titleElem) {
+            titleElem.innerText = `📂 Ficheros de: ${nombre_apellido}`;
+        }
+        
+        const contentElem = document.getElementById('modal-fich-content');
+        if (!contentElem) return;
+        
+        if (clientFicheros.length === 0) {
+            contentElem.innerHTML = `
+                <div class="text-center text-muted" style="padding: 1.5rem 0;">
+                    ⚪ Este cliente no posee ningún fichero de venta registrado.
+                </div>
+            `;
+        } else {
+            let html = '';
+            clientFicheros.forEach(f => {
+                const totalRestante = Number(f.monto_total || 0) - (Number(f.cuotas_pagadas || 0) * Number(f.valor_cuota || 0));
+                const restoConSaldo = Math.max(0, totalRestante - Number(f.saldo_favor || 0));
+                
+                html += `
+                    <div style="background: rgba(99,102,241,0.04); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem; border-left: 4px solid var(--saas-purple);">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.35rem;">
+                            <span style="font-weight: 800; font-size: 0.95rem; color: var(--saas-purple);">Fichero #${f.id_fichero}</span>
+                            <span class="badge ${f.estado === 'ACTIVO' ? 'badge-success' : 'badge-purple'}" style="font-size: 0.7rem;">${f.estado}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; line-height: 1.4;">
+                            <div><strong>📦 Producto:</strong> ${f.producto_nombre}</div>
+                            <div><strong>📅 Frecuencia:</strong> ${f.frecuencia_pago || 'SEMANAL'}</div>
+                            <div><strong>💵 Valor Cuota:</strong> $${Number(f.valor_cuota || 0).toLocaleString('es-AR')}</div>
+                            <div><strong>📊 Plan Cuotas:</strong> ${f.cuotas_pagadas || 0} / ${f.cantidad_cuotas} pagadas</div>
+                            <div><strong>💰 Monto Total:</strong> $${Number(f.monto_total || 0).toLocaleString('es-AR')}</div>
+                            <div><strong>🛵 Cobrador:</strong> ${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</div>
+                            <div style="grid-column: span 2; border-top: 1px dashed var(--border-color); padding-top: 0.4rem; margin-top: 0.2rem;">
+                                <strong>📉 Restan pagar:</strong> $${restoConSaldo.toLocaleString('es-AR')} (${f.cuotas_pendientes || 0} cuotas)
+                                ${Number(f.saldo_favor || 0) > 0 ? `<br><span style="color:var(--success); font-weight:700;">💰 Saldo a favor: $${Number(f.saldo_favor).toLocaleString('es-AR')}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            contentElem.innerHTML = html;
+        }
+        
+        document.getElementById('modal-client-fichero').classList.remove('hidden');
+    } catch (err) {
+        showAlert('❌ Error al cargar los ficheros del cliente: ' + err.message);
     }
-    const selectEstado = document.getElementById('select-filter-ficheros-estado');
-    if (selectEstado) {
-        selectEstado.value = 'ALL';
-    }
-    switchEmpresaTab('ficheros');
-    filtrarFicheros(true);
 }
 window.verFicheroCliente = verFicheroCliente;

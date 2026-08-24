@@ -18,6 +18,47 @@ function getEmpresaId(req) {
     return req.user.id_empresa || 1;
 }
 
+async function autoCerrarCajasPendientes(id_empresa) {
+    try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+        
+        // Encontrar combinaciones de id_cobrador y fecha de pago (en el pasado) que tengan cobros pero no tengan cierre
+        const sql = `
+            SELECT q.id_cobrador, date(q.fecha_pago) as fecha_cobro,
+                   SUM(CASE WHEN q.medio_pago = 'EFECTIVO' THEN q.monto ELSE 0 END) as recaudado_efectivo,
+                   SUM(CASE WHEN q.medio_pago = 'TRANSFERENCIA' THEN q.monto ELSE 0 END) as recaudado_transferencia,
+                   COUNT(*) as cobros_realizados
+            FROM cuotas q
+            WHERE q.id_empresa = ? AND q.estado = 'PAGADO' AND date(q.fecha_pago) < ?
+            GROUP BY q.id_cobrador, date(q.fecha_pago)
+        `;
+        
+        const cobrosPendientes = await query(sql, [id_empresa, todayStr]);
+        
+        for (const c of cobrosPendientes) {
+            const cobrador_id = c.id_cobrador;
+            const fecha = c.fecha_cobro;
+            if (!cobrador_id || !fecha) continue;
+            
+            // Check if there is already a closure for this cobrador and date
+            const existing = await get(`
+                SELECT id_caja FROM auditoria_caja 
+                WHERE id_empresa = ? AND id_cobrador = ? AND fecha_caja = ?
+            `, [id_empresa, cobrador_id, fecha]);
+            
+            if (!existing) {
+                console.log(`🔒 Auto-cerrando caja pendiente para cobrador ID ${cobrador_id} en fecha ${fecha}...`);
+                await run(`
+                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                    VALUES (?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', 'Cierre Automático (Fin de Jornada)', CURRENT_TIMESTAMP)
+                `, [id_empresa, cobrador_id, fecha, c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados]);
+            }
+        }
+    } catch (err) {
+        console.error('Error en auto-cierre de cajas pendientes:', err);
+    }
+}
+
 // Simulador de geocodificación de direcciones según el barrio/zona
 function getSimulatedCoords(barrio) {
     const b = (barrio || '').toLowerCase().trim();
@@ -113,6 +154,7 @@ async function geocodeAddress(direccion, barrio) {
 router.get('/dashboard', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        await autoCerrarCajasPendientes(id_empresa);
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
         const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
@@ -412,7 +454,8 @@ router.get('/ficheros', async (req, res) => {
 
     try {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-        const monthStr = todayStr.substring(0, 7) + '%';
+        const startOfMonth = todayStr.substring(0, 8) + '01';
+        const endOfMonth = todayStr.substring(0, 8) + '31';
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.referencia_domicilio,
@@ -420,14 +463,14 @@ router.get('/ficheros', async (req, res) => {
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) as pagado_hoy,
-                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) as fecha_pago_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) as pagado_hoy,
+                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) as fecha_pago_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
         `;
-        const params = [monthStr, monthStr, id_empresa];
+        const params = [startOfMonth, endOfMonth, startOfMonth, endOfMonth, id_empresa];
         if (req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
             const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
@@ -435,10 +478,10 @@ router.get('/ficheros', async (req, res) => {
         }
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
-                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) LIKE ?) > 0 THEN 2
+                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) > 0 THEN 2
                   ELSE 1 END) ASC, 
             f.id_fichero DESC`;
-        const orderParams = [monthStr];
+        const orderParams = [startOfMonth, endOfMonth];
         params.push(...orderParams);
         
         const ficheros = await query(sql, params);
@@ -775,6 +818,7 @@ router.post('/clientes/:id/regenerar-qr', async (req, res) => {
 router.get('/auditoria', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        await autoCerrarCajasPendientes(id_empresa);
         const isEncargado = (req.user.rol === 'ENCARGADO_ZONA');
         const userZone = (req.user && req.user.zona_asignada) ? req.user.zona_asignada.toLowerCase().trim() : '';
 
@@ -1288,6 +1332,7 @@ router.post('/caja-cierre', async (req, res) => {
 router.get('/cierres-historial', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        await autoCerrarCajasPendientes(id_empresa);
         const sql = `
             SELECT a.*, u.nombre as cobrador_nombre, u.zona_asignada
             FROM auditoria_caja a
