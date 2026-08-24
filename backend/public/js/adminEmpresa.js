@@ -1174,6 +1174,23 @@ function renderAsignacionTable(ficheros, cobradores) {
     tbody.innerHTML = '';
 
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
+    
+    activos.sort((a, b) => {
+        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || a.encargado_zona === 'Sin asignar';
+        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || b.encargado_zona === 'Sin asignar';
+        
+        const aPaid = (a.pagado_hoy || 0) > 0;
+        const bPaid = (b.pagado_hoy || 0) > 0;
+        
+        const aWeight = aUnassigned ? 0 : (aPaid ? 2 : 1);
+        const bWeight = bUnassigned ? 0 : (bPaid ? 2 : 1);
+        
+        if (aWeight !== bWeight) {
+            return aWeight - bWeight;
+        }
+        return b.id_fichero - a.id_fichero;
+    });
+
     if (activos.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se encontraron visitas para esta búsqueda o zona.</td></tr>`;
         return;
