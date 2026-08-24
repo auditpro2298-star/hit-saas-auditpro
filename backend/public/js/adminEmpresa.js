@@ -904,6 +904,22 @@ function renderFicherosTable(ficheros) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    ficheros.sort((a, b) => {
+        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || !a.encargado_zona || a.encargado_zona.trim() === '' || a.encargado_zona === 'Sin asignar';
+        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || !b.encargado_zona || b.encargado_zona.trim() === '' || b.encargado_zona === 'Sin asignar';
+        
+        const aPaid = (a.pagado_hoy || 0) > 0;
+        const bPaid = (b.pagado_hoy || 0) > 0;
+        
+        const aWeight = aUnassigned ? 0 : (aPaid ? 2 : 1);
+        const bWeight = bUnassigned ? 0 : (bPaid ? 2 : 1);
+        
+        if (aWeight !== bWeight) {
+            return aWeight - bWeight;
+        }
+        return b.id_fichero - a.id_fichero;
+    });
+
     if (ficheros.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No hay ficheros de venta activos.</td></tr>`;
         return;
@@ -1176,8 +1192,8 @@ function renderAsignacionTable(ficheros, cobradores) {
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
     
     activos.sort((a, b) => {
-        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || a.encargado_zona === 'Sin asignar';
-        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || b.encargado_zona === 'Sin asignar';
+        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || !a.encargado_zona || a.encargado_zona.trim() === '' || a.encargado_zona === 'Sin asignar';
+        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || !b.encargado_zona || b.encargado_zona.trim() === '' || b.encargado_zona === 'Sin asignar';
         
         const aPaid = (a.pagado_hoy || 0) > 0;
         const bPaid = (b.pagado_hoy || 0) > 0;
