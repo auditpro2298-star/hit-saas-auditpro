@@ -27,8 +27,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
         } catch (err) {
-            console.warn('Sesión expirada o inválida:', err.message);
-            api.setAuth(null, null);
+            console.warn('Sesión expirada o inválida o error de conexión:', err.message);
+            const msg = (err.message || '').toLowerCase();
+            const isNetworkError = err.name === 'TypeError' || err.name === 'DOMException' || msg.includes('fetch') || msg.includes('network');
+            if (!isNetworkError) {
+                api.setAuth(null, null);
+            }
         }
     }
 

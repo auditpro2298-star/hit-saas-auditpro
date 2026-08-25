@@ -67,7 +67,10 @@ class APIClient {
             
             // Si responde 404 Not Found (sitio estático en GitHub Pages sin backend Node), derivar a Mock LocalStorage
             if (response.status === 404) {
-                return this.handleMockRequest(endpoint, options);
+                const isStaticDemo = window.location.hostname.includes('github.io') || window.location.hostname.includes('demo') || window.location.search.includes('demo=true');
+                if (isStaticDemo) {
+                    return this.handleMockRequest(endpoint, options);
+                }
             }
 
             const data = await response.json().catch(() => ({}));
@@ -86,7 +89,9 @@ class APIClient {
             const msg = (err.message || '').toLowerCase();
             const isNetworkError = err.name === 'TypeError' || err.name === 'DOMException' || msg.includes('fetch') || msg.includes('network') || msg.includes('404');
             
-            if (isNetworkError) {
+            const isStaticDemo = window.location.hostname.includes('github.io') || window.location.hostname.includes('demo') || window.location.search.includes('demo=true');
+
+            if (isNetworkError && isStaticDemo) {
                 console.warn(`🌐 Entorno demo estático detectado. Ejecutando endpoint local (${endpoint})`);
                 return this.handleMockRequest(endpoint, options);
             }
