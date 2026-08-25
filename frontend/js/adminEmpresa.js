@@ -832,13 +832,24 @@ async function loadFicheros() {
     // 1. Cargar encargados de zona y cobradores
     try {
         const encargados = await api.get('/empresa/encargados').catch(() => []);
+        const cobradores = await api.get('/empresa/cobradores').catch(() => []);
         const combined = [];
         (encargados || []).forEach(e => {
+            if (e.rol !== 'SUPER_ENCARGADO') {
+                combined.push({
+                    id_usuario: e.id_usuario,
+                    nombre: e.nombre,
+                    rol: e.rol || 'ENCARGADO_ZONA',
+                    zona_asignada: e.zona_asignada
+                });
+            }
+        });
+        (cobradores || []).forEach(c => {
             combined.push({
-                id_usuario: e.id_usuario,
-                nombre: e.nombre,
-                rol: e.rol || 'ENCARGADO_ZONA',
-                zona_asignada: e.zona_asignada
+                id_usuario: c.id_usuario,
+                nombre: c.nombre,
+                rol: 'COBRADOR',
+                zona_asignada: c.zona_asignada
             });
         });
         window.allEncargadosCache = combined;
