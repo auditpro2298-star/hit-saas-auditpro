@@ -905,15 +905,22 @@ function renderFicherosTable(ficheros) {
     tbody.innerHTML = '';
 
     ficheros.sort((a, b) => {
-        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || !a.encargado_zona || a.encargado_zona.trim() === '' || a.encargado_zona === 'Sin asignar';
-        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || !b.encargado_zona || b.encargado_zona.trim() === '' || b.encargado_zona === 'Sin asignar';
-        
-        const aPaid = (a.pagado_hoy || 0) > 0;
-        const bPaid = (b.pagado_hoy || 0) > 0;
-        
-        const aWeight = aUnassigned ? 0 : (aPaid ? 2 : 1);
-        const bWeight = bUnassigned ? 0 : (bPaid ? 2 : 1);
-        
+        const getWeight = (f) => {
+            if (f.fecha_creacion) {
+                const createdTime = new Date(f.fecha_creacion).getTime();
+                const diffMs = Date.now() - createdTime;
+                if (diffMs > 0 && diffMs < 3 * 24 * 60 * 60 * 1000) { // Creados en los últimos 3 días
+                    return 0;
+                }
+            }
+            const isUnassigned = !f.id_cobrador_asignado || f.id_cobrador_asignado === 0 || !f.encargado_zona || f.encargado_zona.trim() === '' || f.encargado_zona === 'Sin asignar';
+            if (isUnassigned) return 1;
+            const isPaid = (f.pagado_hoy || 0) > 0;
+            if (isPaid) return 3;
+            return 2;
+        };
+        const aWeight = getWeight(a);
+        const bWeight = getWeight(b);
         if (aWeight !== bWeight) {
             return aWeight - bWeight;
         }
@@ -1192,15 +1199,22 @@ function renderAsignacionTable(ficheros, cobradores) {
     const activos = ficheros.filter(f => f.estado === 'ACTIVO');
     
     activos.sort((a, b) => {
-        const aUnassigned = !a.id_cobrador_asignado || a.id_cobrador_asignado === 0 || !a.encargado_zona || a.encargado_zona.trim() === '' || a.encargado_zona === 'Sin asignar';
-        const bUnassigned = !b.id_cobrador_asignado || b.id_cobrador_asignado === 0 || !b.encargado_zona || b.encargado_zona.trim() === '' || b.encargado_zona === 'Sin asignar';
-        
-        const aPaid = (a.pagado_hoy || 0) > 0;
-        const bPaid = (b.pagado_hoy || 0) > 0;
-        
-        const aWeight = aUnassigned ? 0 : (aPaid ? 2 : 1);
-        const bWeight = bUnassigned ? 0 : (bPaid ? 2 : 1);
-        
+        const getWeight = (f) => {
+            if (f.fecha_creacion) {
+                const createdTime = new Date(f.fecha_creacion).getTime();
+                const diffMs = Date.now() - createdTime;
+                if (diffMs > 0 && diffMs < 3 * 24 * 60 * 60 * 1000) { // Creados en los últimos 3 días
+                    return 0;
+                }
+            }
+            const isUnassigned = !f.id_cobrador_asignado || f.id_cobrador_asignado === 0 || !f.encargado_zona || f.encargado_zona.trim() === '' || f.encargado_zona === 'Sin asignar';
+            if (isUnassigned) return 1;
+            const isPaid = (f.pagado_hoy || 0) > 0;
+            if (isPaid) return 3;
+            return 2;
+        };
+        const aWeight = getWeight(a);
+        const bWeight = getWeight(b);
         if (aWeight !== bWeight) {
             return aWeight - bWeight;
         }
@@ -1249,9 +1263,19 @@ function renderAsignacionTable(ficheros, cobradores) {
             </td>
             <td>
                 ${f.pagado_hoy > 0 ? `
-                    <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                    <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
                         ✅ Cobrado este mes
                     </div>
+                    ${(!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'SUPER_ENCARGADO') ? `
+                        <div class="flex items-center gap-2">
+                            <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
+                                ${optionsHtml}
+                            </select>
+                            <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})" title="Reasignar cobrador">
+                                💾
+                            </button>
+                        </div>
+                    ` : ''}
                 ` : `
                     <div class="flex items-center gap-2">
                         <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
