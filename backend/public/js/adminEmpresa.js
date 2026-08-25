@@ -1153,7 +1153,7 @@ function filtrarRutasPorBarrioYTexto() {
 
     const filtered = window.currentFicherosCache.filter(f => {
         const matchBarrio = selectedBarrio === 'ALL' || (f.barrio && f.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-        const fullText = `${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.cobrador_nombre || ''}`.toLowerCase();
+        const fullText = `${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.cobrador_nombre || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchBarrio && matchText;
     });
@@ -2500,7 +2500,7 @@ function filtrarFicheros(resetPage = true) {
 
     const filtered = window.currentFicherosListCache.filter(f => {
         const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-        const fullText = `${f.id_fichero} ${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.encargado_zona || ''}`.toLowerCase();
+        const fullText = `${f.id_fichero} ${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.encargado_zona || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
         const matchText = !queryStr || fullText.includes(queryStr);
         return matchEstado && matchText;
     });
