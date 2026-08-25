@@ -34,28 +34,7 @@ async function initEmpresaPanel() {
     if (btnBackup) btnBackup.style.display = '';
     if (btnRestore) btnRestore.style.display = '';
 
-    // --- Restricciones UI para el rol SUPER_ENCARGADO ---
-    if (window.currentUser && window.currentUser.rol === 'SUPER_ENCARGADO') {
-        const hideTabs = ['clientes', 'personal'];
-        hideTabs.forEach(t => {
-            const el = document.querySelector(`button[data-tab="${t}"]`);
-            if (el) el.style.display = 'none';
-        });
 
-        btnsNuevoCliente.forEach(b => b.style.display = 'none');
-        btnsNuevoFichero.forEach(b => b.style.display = 'none');
-        if (btnBackup) btnBackup.style.display = 'none';
-        if (btnRestore) btnRestore.style.display = 'none';
-        const containerReset = document.getElementById('container-reset-mensual');
-        if (containerReset) containerReset.style.display = 'none';
-
-        const metricsDashboard = document.getElementById('empresa-metrics-dashboard');
-        if (metricsDashboard) metricsDashboard.style.display = 'none';
-
-        await loadEmpresaDashboard();
-        await switchEmpresaTab('ficheros');
-        return;
-    }
 
     // --- Restricciones UI para el rol ENCARGADO_ZONA ---
     if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
@@ -829,32 +808,23 @@ async function submitNewClienteForm(event) {
 
 // SOLAPA 2: FICHEROS Y VENTAS
 async function loadFicheros() {
-    // 1. Cargar encargados de zona y cobradores
+    // 1. Cargar encargados de zona
     try {
         const encargados = await api.get('/empresa/encargados').catch(() => []);
-        const cobradores = await api.get('/empresa/cobradores').catch(() => []);
         const combined = [];
         (encargados || []).forEach(e => {
-            if (e.rol !== 'SUPER_ENCARGADO') {
+            if (e.rol === 'ENCARGADO_ZONA') {
                 combined.push({
                     id_usuario: e.id_usuario,
                     nombre: e.nombre,
-                    rol: e.rol || 'ENCARGADO_ZONA',
+                    rol: e.rol,
                     zona_asignada: e.zona_asignada
                 });
             }
         });
-        (cobradores || []).forEach(c => {
-            combined.push({
-                id_usuario: c.id_usuario,
-                nombre: c.nombre,
-                rol: 'COBRADOR',
-                zona_asignada: c.zona_asignada
-            });
-        });
         window.allEncargadosCache = combined;
     } catch (e) {
-        console.error('Error cargando encargados/cobradores:', e);
+        console.error('Error cargando encargados:', e);
     }
 
     const ficheros = await api.get('/empresa/ficheros');
@@ -964,7 +934,7 @@ function renderFicherosTable(ficheros) {
 
         let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
 
-        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'SUPER_ENCARGADO') {
+        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
                 const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
@@ -1277,7 +1247,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                     <div style="font-weight: 700; color: var(--success); font-size: 0.85rem; display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
                         ✅ Cobrado este mes
                     </div>
-                    ${(!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'SUPER_ENCARGADO') ? `
+                    ${(!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA') ? `
                         <div class="flex items-center gap-2">
                             <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
                                 ${optionsHtml}

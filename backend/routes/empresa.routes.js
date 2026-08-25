@@ -6,7 +6,7 @@ const { query, run, get, syncSequences, resequenceAndReset, restoreBackup, isPos
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
-router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR', 'ENCARGADO_ZONA', 'SUPER_ENCARGADO']));
+router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VENDEDOR', 'ENCARGADO_ZONA']));
 
 // Middleware específico para rutas destructivas (solo admins)
 const requireAdmin = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']);
@@ -416,18 +416,7 @@ router.patch('/clientes/:id/calificacion', async (req, res) => {
 router.get('/ficheros', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     
-    // Check if we need to reset monthly assignments
-    const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-    try {
-        const emp = await get("SELECT mes_ultimo_reset FROM empresas WHERE id_empresa = ?", [id_empresa]);
-        if (emp && emp.mes_ultimo_reset !== currentMonth) {
-            console.log(`🔄 Nuevo mes detectado (${currentMonth}). Reiniciando asignaciones de encargados/cobradores para la empresa ID ${id_empresa}...`);
-            await run("UPDATE ficheros SET id_cobrador_asignado = NULL, encargado_zona = 'Sin asignar' WHERE id_empresa = ?", [id_empresa]);
-            await run("UPDATE empresas SET mes_ultimo_reset = ? WHERE id_empresa = ?", [currentMonth, id_empresa]);
-        }
-    } catch (e) {
-        console.error("Error resetting monthly assignments:", e);
-    }
+
 
     // Auto-finalize ficheros that have 0 pending cuotas
     try {
@@ -738,7 +727,7 @@ router.get('/encargados', async (req, res) => {
         const encargados = await query(`
             SELECT id_usuario, nombre, email, telefono, zona_asignada, activo, fecha_creacion, rol
             FROM usuarios
-            WHERE id_empresa = ? AND (rol = 'ENCARGADO_ZONA' OR rol = 'SUPER_ENCARGADO')
+            WHERE id_empresa = ? AND rol = 'ENCARGADO_ZONA'
             ORDER BY nombre ASC
         `, [id_empresa]);
         res.json(encargados);

@@ -71,7 +71,7 @@ function routeUserByRole(user) {
     } else {
         if (switcher) switcher.classList.add('hidden'); // Ocultar por completo a otros usuarios
         
-        if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR' || user.rol === 'ENCARGADO_ZONA' || user.rol === 'SUPER_ENCARGADO') {
+        if (user.rol === 'ADMIN_EMPRESA' || user.rol === 'VENDEDOR' || user.rol === 'ENCARGADO_ZONA') {
             showPanel('panel-empresa');
             if (window.initEmpresaPanel) window.initEmpresaPanel();
         } else if (user.rol === 'COBRADOR') {
@@ -130,7 +130,6 @@ async function switchRoleView(role, extraParam = null) {
     if (role === 'superadmin') routeUserByRole({ ...currentUser, rol: 'SUPER_ADMIN' });
     else if (role === 'empresa') routeUserByRole({ ...currentUser, rol: 'ADMIN_EMPRESA' });
     else if (role === 'cobrador') routeUserByRole({ ...currentUser, rol: 'COBRADOR' });
-    else if (role === 'superencargado') routeUserByRole({ ...currentUser, rol: 'SUPER_ENCARGADO' });
     else if (role === 'cliente') {
         showPanel('panel-cliente');
         if (window.loadCartillaPublica) window.loadCartillaPublica(extraParam || 'HIT-QR-8821-A90F');

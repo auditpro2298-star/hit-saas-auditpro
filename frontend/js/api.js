@@ -109,9 +109,9 @@ class APIClient {
                     matchedUser = {
                         id_usuario: 13,
                         id_empresa: 1,
-                        nombre: "Santi SuperEncargado",
+                        nombre: "Santi Encargado",
                         email: "superencargado@genesis.com",
-                        rol: "SUPER_ENCARGADO",
+                        rol: "ENCARGADO_ZONA",
                         activo: 1,
                         zona_asignada: "Flores / Berazategui / General"
                     };
@@ -625,7 +625,7 @@ class APIClient {
         }
 
         if (endpoint === '/empresa/encargados' && method === 'GET') {
-            return db.usuarios.filter(u => u.rol === 'ENCARGADO_ZONA' || u.rol === 'SUPER_ENCARGADO');
+            return db.usuarios.filter(u => u.rol === 'ENCARGADO_ZONA');
         }
 
         if (endpoint === '/empresa/encargados' && method === 'POST') {
