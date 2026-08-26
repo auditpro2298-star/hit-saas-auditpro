@@ -368,15 +368,16 @@ async function runProductionCleanupOnce() {
     try {
         console.log('🧹 [Production Cleanup] Ejecutando limpieza de datos de prueba antiguos en producción...');
         const targetRoles = ['COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA'];
+        const cutoff = '2026-08-24 12:00:00';
         
-        // 1. Desasignar cobradores de ficheros activos creados antes de hoy
+        // 1. Desasignar cobradores de ficheros activos creados antes del cutoff
         const filesUpdated = await run(`
             UPDATE ficheros 
             SET id_cobrador_asignado = NULL 
             WHERE id_cobrador_asignado IN (
-                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND date(fecha_creacion) < '2026-08-26'
+                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
             )
-        `);
+        `, [cutoff]);
         console.log(`  - Ficheros desasignados: ${filesUpdated.changes || 0}`);
 
         // 2. Desasignar cobradores de cuotas
@@ -384,47 +385,47 @@ async function runProductionCleanupOnce() {
             UPDATE cuotas 
             SET id_cobrador = NULL 
             WHERE id_cobrador IN (
-                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND date(fecha_creacion) < '2026-08-26'
+                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
             )
-        `);
+        `, [cutoff]);
         console.log(`  - Cuotas desasignadas: ${cuotasUpdated.changes || 0}`);
 
         // 3. Eliminar usuarios antiguos de personal
         const usersDeleted = await run(`
             DELETE FROM usuarios 
-            WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND date(fecha_creacion) < '2026-08-26'
-        `);
+            WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+        `, [cutoff]);
         console.log(`  - Personal eliminado: ${usersDeleted.changes || 0}`);
 
-        // 4. Limpiar ficheros y cuotas de prueba (cualquiera creado antes de hoy)
+        // 4. Limpiar ficheros y cuotas de prueba (cualquiera creado antes del cutoff)
         const cuotasDeleted = await run(`
             DELETE FROM cuotas 
             WHERE id_fichero IN (
-                SELECT id_fichero FROM ficheros WHERE date(fecha_creacion) < '2026-08-26'
+                SELECT id_fichero FROM ficheros WHERE fecha_creacion < ?
             )
-        `);
+        `, [cutoff]);
         const filesDeleted = await run(`
             DELETE FROM ficheros 
-            WHERE date(fecha_creacion) < '2026-08-26'
-        `);
+            WHERE fecha_creacion < ?
+        `, [cutoff]);
         console.log(`  - Ficheros eliminados: ${filesDeleted.changes || 0}, Cuotas eliminadas: ${cuotasDeleted.changes || 0}`);
 
-        // 5. Limpiar clientes de prueba creados antes de hoy
+        // 5. Limpiar clientes de prueba creados antes del cutoff
         const clientsDeleted = await run(`
             DELETE FROM clientes 
-            WHERE date(fecha_alta) < '2026-08-26'
-        `);
+            WHERE fecha_alta < ?
+        `, [cutoff]);
         console.log(`  - Clientes eliminados: ${clientsDeleted.changes || 0}`);
 
-        // 6. Limpiar notificaciones y auditorías de caja creadas antes de hoy
+        // 6. Limpiar notificaciones y auditorías de caja creadas antes del cutoff
         const notifsDeleted = await run(`
             DELETE FROM whatsapp_notifications 
-            WHERE date(fecha_envio) < '2026-08-26'
-        `);
+            WHERE fecha_envio < ?
+        `, [cutoff]);
         const auditsDeleted = await run(`
             DELETE FROM auditoria_caja 
-            WHERE date(fecha_actualizacion) < '2026-08-26'
-        `);
+            WHERE fecha_actualizacion < ?
+        `, [cutoff]);
         console.log(`  - Notificaciones eliminadas: ${notifsDeleted.changes || 0}, Auditorías eliminadas: ${auditsDeleted.changes || 0}`);
 
         console.log('✅ [Production Cleanup] Limpieza completada con éxito.');

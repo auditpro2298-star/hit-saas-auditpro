@@ -140,4 +140,100 @@ router.post('/demo-reset', async (req, res) => {
     res.json({ success: true, message: 'Base de datos restablecida con datos semilla.' });
 });
 
+// GET /api/auth/run-cleanup - Ejecutar limpieza en caliente de la base de datos en producción
+router.get('/run-cleanup', async (req, res) => {
+    try {
+        const { query, run } = require('../database');
+        
+        console.log('🧹 [API Cleanup] Iniciando limpieza de datos anteriores al 2026-08-24 12:00:00...');
+        const cutoff = '2026-08-24 12:00:00';
+
+        // 1. Desasignar cobradores de ficheros
+        const filesUpdated = await run(`
+            UPDATE ficheros 
+            SET id_cobrador_asignado = NULL 
+            WHERE id_cobrador_asignado IN (
+                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+            )
+        `, [cutoff]);
+
+        // 2. Desasignar cobradores de cuotas
+        const cuotasUpdated = await run(`
+            UPDATE cuotas 
+            SET id_cobrador = NULL 
+            WHERE id_cobrador IN (
+                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+            )
+        `, [cutoff]);
+
+        // 3. Eliminar usuarios de personal antiguos
+        const usersDeleted = await run(`
+            DELETE FROM usuarios 
+            WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+        `, [cutoff]);
+
+        // 4. Eliminar cuotas y ficheros antiguos
+        const cuotasDeleted = await run(`
+            DELETE FROM cuotas 
+            WHERE id_fichero IN (
+                SELECT id_fichero FROM ficheros WHERE fecha_creacion < ?
+            )
+        `, [cutoff]);
+
+        const filesDeleted = await run(`
+            DELETE FROM ficheros 
+            WHERE fecha_creacion < ?
+        `, [cutoff]);
+
+        // 5. Eliminar clientes antiguos
+        const clientsDeleted = await run(`
+            DELETE FROM clientes 
+            WHERE fecha_alta < ?
+        `, [cutoff]);
+
+        // 6. Eliminar notificaciones y auditorías de caja antiguas
+        const notifsDeleted = await run(`
+            DELETE FROM whatsapp_notifications 
+            WHERE fecha_envio < ?
+        `, [cutoff]);
+
+        const auditsDeleted = await run(`
+            DELETE FROM auditoria_caja 
+            WHERE fecha_actualizacion < ?
+        `, [cutoff]);
+
+        // Obtener estadísticas de lo que queda en la base de datos
+        const remainingUsers = await query('SELECT id_usuario, nombre, email, rol, fecha_creacion FROM usuarios ORDER BY rol, id_usuario');
+        const remainingClientsCount = await query('SELECT COUNT(*) as count FROM clientes');
+        const remainingFicherosCount = await query('SELECT COUNT(*) as count FROM ficheros');
+
+        res.json({
+            success: true,
+            cutoff_date: cutoff,
+            deleted: {
+                users: usersDeleted.changes || 0,
+                ficheros_desasignados: filesUpdated.changes || 0,
+                cuotas_desasignadas: cuotasUpdated.changes || 0,
+                cuotas: cuotasDeleted.changes || 0,
+                ficheros: filesDeleted.changes || 0,
+                clientes: clientsDeleted.changes || 0,
+                notifications: notifsDeleted.changes || 0,
+                audits: auditsDeleted.changes || 0
+            },
+            remaining: {
+                users: remainingUsers,
+                clients_count: remainingClientsCount[0]?.count || 0,
+                ficheros_count: remainingFicherosCount[0]?.count || 0
+            }
+        });
+    } catch (err) {
+        console.error('Error en run-cleanup:', err);
+        res.status(500).json({
+            success: false,
+            error: err.message,
+            stack: err.stack
+        });
+    }
+});
+
 module.exports = router;
