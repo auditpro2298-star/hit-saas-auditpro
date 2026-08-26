@@ -79,6 +79,21 @@ class APIClient {
                 if (data.error === 'SUSCRIPCION_BLOQUEADA' || data.error === 'USUARIO_INACTIVO') {
                     this.setAuth(null, null);
                     this.showBlockModal(data.message);
+                } else if (response.status === 401 || response.status === 403 || (data.error && data.error.toLowerCase().includes('token'))) {
+                    // Token inválido o expirado - desloguear y redirigir
+                    this.setAuth(null, null);
+                    if (window.logout) {
+                        window.logout();
+                    } else {
+                        // Fallback local por si window.logout no está disponible todavía
+                        const loginPanel = document.getElementById('panel-login');
+                        if (loginPanel) {
+                            document.querySelectorAll('.role-panel').forEach(p => p.classList.add('hidden'));
+                            loginPanel.classList.remove('hidden');
+                            const badge = document.getElementById('user-status-badge');
+                            if (badge) badge.innerText = '👤 Sesión expirada';
+                        }
+                    }
                 }
                 throw new Error(data.message || data.error || `Error HTTP ${response.status}`);
             }

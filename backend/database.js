@@ -30,6 +30,17 @@ if (isPostgres) {
             console.error('❌ Error al conectar con SQLite:', err.message);
         } else {
             console.log('✅ Conectado a la base de datos local SQLite (hit_saas.sqlite)');
+            
+            // Configurar timeout y activar WAL para evitar bloqueos por concurrencia
+            db.configure('busyTimeout', 10000);
+            db.run('PRAGMA journal_mode=WAL;', (walErr) => {
+                if (walErr) {
+                    console.error('⚠️ Error al activar el modo WAL en SQLite:', walErr.message);
+                } else {
+                    console.log('⚡ Modo WAL (Write-Ahead Logging) activado en SQLite.');
+                }
+            });
+
             if (isNew) {
                 console.log('⚙️ Inicializando esquema y datos semilla por primera vez...');
                 initDatabase();

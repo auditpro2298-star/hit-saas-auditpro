@@ -15,7 +15,11 @@ async function authenticateToken(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
+    } catch (err) {
+        return res.status(403).json({ error: 'Token inválido o expirado.' });
+    }
 
+    try {
         // 1. Verificación de seguridad en tiempo real: ¿El cobrador / usuario sigue activo o lo bloquearon/echáron?
         const usuarioDb = await get('SELECT id_usuario, activo FROM usuarios WHERE id_usuario = ?', [req.user.id_usuario]);
         if (!usuarioDb || !usuarioDb.activo) {
@@ -41,7 +45,8 @@ async function authenticateToken(req, res, next) {
 
         next();
     } catch (err) {
-        return res.status(403).json({ error: 'Token inválido o expirado.' });
+        console.error('Error de base de datos en authenticateToken:', err);
+        return res.status(500).json({ error: 'Error interno del servidor al verificar el estado de la cuenta.' });
     }
 }
 
