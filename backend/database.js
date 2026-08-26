@@ -382,9 +382,17 @@ async function initDatabase() {
             // Ignorar si la columna ya existe
         }
         
-        console.log('🌱 Asegurando datos semilla (empresas, usuarios, clientes, cuotas)...');
-        await executeSqlFile(SEED_PATH);
-        await ensureSeedUsers();
+        // Solo asegurar datos semilla si no hay ningún usuario en la base de datos
+        const userCount = await get('SELECT COUNT(*) as count FROM usuarios');
+        if (!userCount || parseInt(userCount.count || 0, 10) === 0) {
+            console.log('🌱 Base de datos vacía. Asegurando datos semilla (empresas, usuarios, clientes, cuotas)...');
+            await executeSqlFile(SEED_PATH);
+            await ensureSeedUsers();
+            await resequenceAndReset();
+        } else {
+            console.log('✅ Base de datos ya inicializada. Omitiendo la carga de datos semilla.');
+        }
+
         try {
             if (isPostgres && pgPool) {
                 await pgPool.query("UPDATE usuarios SET rol = 'ENCARGADO_ZONA', nombre = 'Santi Encargado' WHERE rol = 'SUPER_ENCARGADO'");
@@ -396,7 +404,6 @@ async function initDatabase() {
             console.error("Error migrating SUPER_ENCARGADO roles:", err);
         }
         await updateInitialUserHashes();
-        await resequenceAndReset();
         console.log('✅ Base de datos inicializada y datos semilla verificados con éxito.');
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
