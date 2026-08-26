@@ -145,34 +145,49 @@ router.get('/run-cleanup', async (req, res) => {
     try {
         const { query, run } = require('../database');
         
-        console.log('🧹 [API Cleanup] Iniciando limpieza de datos anteriores al 2026-08-24 12:00:00...');
+        console.log('🧹 [API Cleanup] Iniciando limpieza de datos...');
         const cutoff = '2026-08-24 12:00:00';
+        
+        // Corrección de seed emails (personal demo de prueba)
+        const seedEmails = [
+            'juan@electrohogar.com',
+            'diego@electrohogar.com',
+            'carlos_zona@electrohogar.com',
+            'quilmes_mgr@electrohogar.com',
+            'nico@genesis.com',
+            'coco@genesis.com',
+            'superencargado@genesis.com',
+            'milagros@electrohogar.com',
+            'carlos@electrohogar.com',
+            'admin@electrohogar.com',
+            'admin@mueblesdelsur.com'
+        ];
 
         // 1. Desasignar cobradores de ficheros
         const filesUpdated = await run(`
             UPDATE ficheros 
             SET id_cobrador_asignado = NULL 
             WHERE id_cobrador_asignado IN (
-                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+                SELECT id_usuario FROM usuarios WHERE email IN (${seedEmails.map(e => `'${e}'`).join(',')})
             )
-        `, [cutoff]);
+        `);
 
         // 2. Desasignar cobradores de cuotas
         const cuotasUpdated = await run(`
             UPDATE cuotas 
             SET id_cobrador = NULL 
             WHERE id_cobrador IN (
-                SELECT id_usuario FROM usuarios WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
+                SELECT id_usuario FROM usuarios WHERE email IN (${seedEmails.map(e => `'${e}'`).join(',')})
             )
-        `, [cutoff]);
+        `);
 
-        // 3. Eliminar usuarios de personal antiguos
+        // 3. Eliminar usuarios de personal antiguos y de prueba
         const usersDeleted = await run(`
             DELETE FROM usuarios 
-            WHERE rol IN ('COBRADOR', 'VENDEDOR', 'ENCARGADO_ZONA') AND fecha_creacion < ?
-        `, [cutoff]);
+            WHERE email IN (${seedEmails.map(e => `'${e}'`).join(',')})
+        `);
 
-        // 4. Eliminar cuotas y ficheros antiguos
+        // 4. Eliminar cuotas y ficheros creados antes del cutoff
         const cuotasDeleted = await run(`
             DELETE FROM cuotas 
             WHERE id_fichero IN (
@@ -185,7 +200,7 @@ router.get('/run-cleanup', async (req, res) => {
             WHERE fecha_creacion < ?
         `, [cutoff]);
 
-        // 5. Eliminar clientes antiguos
+        // 5. Eliminar clientes creados antes del cutoff
         const clientsDeleted = await run(`
             DELETE FROM clientes 
             WHERE fecha_alta < ?
@@ -202,10 +217,10 @@ router.get('/run-cleanup', async (req, res) => {
             WHERE fecha_actualizacion < ?
         `, [cutoff]);
 
-        // Obtener estadísticas de lo que queda en la base de datos
+        // Obtener estadísticas y listados de lo que queda en la base de datos
         const remainingUsers = await query('SELECT id_usuario, nombre, email, rol, fecha_creacion FROM usuarios ORDER BY rol, id_usuario');
-        const remainingClientsCount = await query('SELECT COUNT(*) as count FROM clientes');
-        const remainingFicherosCount = await query('SELECT COUNT(*) as count FROM ficheros');
+        const remainingClients = await query('SELECT id_cliente, nombre_apellido, dni, fecha_alta FROM clientes ORDER BY id_cliente');
+        const remainingFicheros = await query('SELECT id_fichero, id_cliente, producto_nombre, vendedor, fecha_creacion FROM ficheros ORDER BY id_fichero');
 
         res.json({
             success: true,
@@ -222,8 +237,8 @@ router.get('/run-cleanup', async (req, res) => {
             },
             remaining: {
                 users: remainingUsers,
-                clients_count: remainingClientsCount[0]?.count || 0,
-                ficheros_count: remainingFicherosCount[0]?.count || 0
+                clients: remainingClients,
+                ficheros: remainingFicheros
             }
         });
     } catch (err) {
