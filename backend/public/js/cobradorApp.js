@@ -100,6 +100,36 @@ async function syncHojaDeRuta() {
                 btnClass = 'btn-outline';
             }
 
+            // WhatsApp Click to Chat integration
+            let cleanPhone = '';
+            let waLinkHtml = '';
+            if (item.telefono) {
+                cleanPhone = item.telefono.replace(/\D/g, '');
+                if (cleanPhone.length > 0) {
+                    if (!cleanPhone.startsWith('54')) {
+                        if (cleanPhone.startsWith('15')) {
+                            cleanPhone = '549' + cleanPhone.substring(2);
+                        } else if (cleanPhone.startsWith('0')) {
+                            cleanPhone = '549' + cleanPhone.substring(1);
+                        } else {
+                            cleanPhone = '549' + cleanPhone;
+                        }
+                    } else if (cleanPhone.startsWith('54') && !cleanPhone.startsWith('549') && cleanPhone.length === 12) {
+                        cleanPhone = '549' + cleanPhone.substring(2);
+                    }
+                    
+                    const nombreCobrador = api.user ? api.user.nombre.split(' ')[0] : 'Cobrador';
+                    const mensajeWa = `Hola. Soy ${nombreCobrador} de ElectroGenesis. Estoy llegando.`;
+                    const linkWa = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensajeWa)}`;
+                    
+                    waLinkHtml = `<a href="${linkWa}" target="_blank" style="color: #10b981; font-weight: 700; text-decoration: underline;">📞 ${item.telefono}</a>`;
+                } else {
+                    waLinkHtml = `📞 Sin tel`;
+                }
+            } else {
+                waLinkHtml = `📞 Sin tel`;
+            }
+
             card.innerHTML = `
                 <div class="flex justify-between items-center" style="margin-bottom:0.4rem;">
                     <strong>${item.nombre_apellido}</strong>
@@ -109,7 +139,7 @@ async function syncHojaDeRuta() {
                     </div>
                 </div>
                 <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.6rem;">
-                    📍 ${item.direccion}${pisoInfo} — 📞 ${item.telefono || 'Sin tel'}
+                    📍 ${item.direccion}${pisoInfo} — ${waLinkHtml}
                     ${refInfo}
                 </div>
                 <div style="font-size:0.82rem; background:rgba(0,0,0,0.05); padding:0.5rem; border-radius:6px; margin-bottom:0.75rem;">
