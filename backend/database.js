@@ -451,6 +451,30 @@ async function initDatabase() {
         } catch (err) {
             // Ignorar si la columna ya existe
         }
+
+        // Migración: Agregar columna nro_cliente_interno a la tabla clientes
+        try {
+            if (isPostgres && pgPool) {
+                await pgPool.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS nro_cliente_interno INTEGER DEFAULT NULL");
+            } else {
+                await run("ALTER TABLE clientes ADD COLUMN nro_cliente_interno INTEGER DEFAULT NULL");
+            }
+            console.log("✅ Columna 'nro_cliente_interno' verificada/agregada a la tabla 'clientes'.");
+
+            // Rellenar nro_cliente_interno para registros existentes que lo tengan en NULL
+            const nullClients = await query("SELECT id_cliente, id_empresa FROM clientes WHERE nro_cliente_interno IS NULL ORDER BY id_cliente");
+            if (nullClients && nullClients.length > 0) {
+                console.log(`🧹 Rellenando nro_cliente_interno para ${nullClients.length} clientes existentes...`);
+                for (const c of nullClients) {
+                    const maxValObj = await get("SELECT COALESCE(MAX(nro_cliente_interno), 0) as max_val FROM clientes WHERE id_empresa = ? AND id_cliente != ?", [c.id_empresa, c.id_cliente]);
+                    const nextVal = (maxValObj ? maxValObj.max_val : 0) + 1;
+                    await run("UPDATE clientes SET nro_cliente_interno = ? WHERE id_cliente = ?", [nextVal, c.id_cliente]);
+                }
+                console.log("✅ Relleno de nro_cliente_interno completado.");
+            }
+        } catch (err) {
+            console.error("Error en migración nro_cliente_interno:", err);
+        }
         
         // Solo asegurar datos semilla si no hay ningún usuario en la base de datos
         const userCount = await get('SELECT COUNT(*) as count FROM usuarios');

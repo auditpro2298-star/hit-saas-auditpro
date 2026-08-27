@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS clientes (
     calificacion VARCHAR(20) DEFAULT 'BUENO', -- 'BUENO', 'REGULAR', 'MOROSO'
     encargado_zona VARCHAR(120),
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    nro_cliente_interno INTEGER DEFAULT NULL,
     FOREIGN KEY (id_empresa) REFERENCES empresas(id_empresa) ON DELETE CASCADE
 );
 

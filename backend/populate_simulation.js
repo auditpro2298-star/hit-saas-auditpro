@@ -120,10 +120,13 @@ async function generateSimulation(cantidad = 20, id_empresa = 1) {
 
             const cobradorAsignadoId = cobradoresIds.includes(barrioObj.cobrador_id) ? barrioObj.cobrador_id : (cobradoresIds[0] || null);
 
+            const maxValObj = await get("SELECT COALESCE(MAX(nro_cliente_interno), 0) as max_val FROM clientes WHERE id_empresa = ?", [id_empresa]);
+            const nro_cliente_interno = (maxValObj ? maxValObj.max_val : 0) + 1;
+
             // 1. Insertar Cliente
             const resultCli = await run(
-                "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [id_empresa, nombre, dni, telefono, direccion, barrio, piso_dpto, referencia, lat, lng, qr_token, calificacion, barrioObj.encargado]
+                "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, encargado_zona, nro_cliente_interno) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [id_empresa, nombre, dni, telefono, direccion, barrio, piso_dpto, referencia, lat, lng, qr_token, calificacion, barrioObj.encargado, nro_cliente_interno]
             );
             const id_cliente = resultCli.lastID;
 

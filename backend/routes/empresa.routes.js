@@ -278,9 +278,13 @@ router.post('/clientes', async (req, res) => {
             }
         }
 
+        // Calcular el próximo nro_cliente_interno para esta empresa
+        const maxValObj = await get("SELECT COALESCE(MAX(nro_cliente_interno), 0) as max_val FROM clientes WHERE id_empresa = ?", [id_empresa]);
+        const nro_cliente_interno = (maxValObj ? maxValObj.max_val : 0) + 1;
+
         const result = await run(
-            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO')",
-            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token]
+            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, nro_cliente_interno) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO', ?)",
+            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token, nro_cliente_interno]
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);

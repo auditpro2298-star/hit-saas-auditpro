@@ -413,6 +413,7 @@ class APIClient {
 
             const tipo = (body.tipo_cliente || 'particular').toLowerCase();
             const maxId = db.clientes.reduce((max, c) => (c.id_cliente < 1000000 ? Math.max(max, c.id_cliente) : max), 0);
+            const maxIntId = db.clientes.reduce((max, c) => (c.id_empresa === 1 ? Math.max(max, c.nro_cliente_interno || 0) : max), 0);
             const newClient = {
                 id_cliente: maxId + 1,
                 id_empresa: 1,
@@ -430,7 +431,8 @@ class APIClient {
                 longitud: body.longitud || -65.20,
                 qr_token: 'HIT-QR-' + Math.floor(1000 + Math.random() * 9000) + '-DEMO',
                 calificacion: 'BUENO',
-                encargado_zona: body.encargado_zona || 'General'
+                encargado_zona: body.encargado_zona || 'General',
+                nro_cliente_interno: maxIntId + 1
             };
             db.clientes.push(newClient);
             saveMockDB(db);

@@ -272,7 +272,7 @@ function renderClientesTable(clientes) {
         }
 
         tr.innerHTML = `
-            <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.id_cliente}</strong></td>
+            <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.nro_cliente_interno || c.id_cliente}</strong></td>
             <td>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
                     onclick="focusClientOnMap(${c.id_cliente})" 
@@ -2002,12 +2002,16 @@ async function buscarClientePorIdODni() {
 
     // Buscar en la caché de clientes
     const clientes = window.currentClientesCache || [];
-    const clienteEncontrado = clientes.find(c => c.id_cliente.toString() === searchVal || c.dni.toString().trim() === searchVal);
+    const clienteEncontrado = clientes.find(c => 
+        (c.nro_cliente_interno && c.nro_cliente_interno.toString() === searchVal) || 
+        c.id_cliente.toString() === searchVal || 
+        c.dni.toString().trim() === searchVal
+    );
 
     if (clienteEncontrado) {
         selectCliente.value = clienteEncontrado.id_cliente;
         if (infoPreview) {
-            infoPreview.innerHTML = `✅ Cliente cargado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (ID: ${clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni})`;
+            infoPreview.innerHTML = `✅ Cliente cargado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (Nro: ${clienteEncontrado.nro_cliente_interno || clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni})`;
         }
     } else {
         if (infoPreview) {
