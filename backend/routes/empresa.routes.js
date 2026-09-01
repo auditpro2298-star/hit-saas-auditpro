@@ -10,6 +10,7 @@ router.use(authenticateToken, requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'VEND
 
 // Middleware específico para rutas destructivas (solo admins)
 const requireAdmin = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN']);
+const requireAdminOrEncargado = requireRole(['ADMIN_EMPRESA', 'SUPER_ADMIN', 'ENCARGADO_ZONA']);
 
 // Helper para asegurar que la empresa consultada sea la del token (excepto que sea Súper Admin explorando)
 function getEmpresaId(req) {
@@ -468,11 +469,6 @@ router.get('/ficheros', async (req, res) => {
             WHERE f.id_empresa = ?
         `;
         const params = [startOfMonth, endOfMonth, startOfMonth, endOfMonth, id_empresa];
-        if (req.user.rol === 'ENCARGADO_ZONA') {
-            sql += ` AND (f.id_cobrador_asignado = ? OR LOWER(f.encargado_zona) LIKE ?)`;
-            const userName = `%${(req.user.nombre || '').toLowerCase().trim()}%`;
-            params.push(req.user.id_usuario, userName);
-        }
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
                   WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) > 0 THEN 2
@@ -1107,7 +1103,7 @@ router.delete('/clientes/:id', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/empresa/ficheros/:id - Eliminar fichero/venta por equivocación
-router.delete('/ficheros/:id', requireAdmin, async (req, res) => {
+router.delete('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
 

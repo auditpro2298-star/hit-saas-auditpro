@@ -38,14 +38,14 @@ async function initEmpresaPanel() {
 
     // --- Restricciones UI para el rol ENCARGADO_ZONA ---
     if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
-        const hideTabs = ['clientes', 'ficheros', 'personal'];
+        const hideTabs = ['clientes', 'personal'];
         hideTabs.forEach(t => {
             const el = document.querySelector(`button[data-tab="${t}"]`);
             if (el) el.style.display = 'none';
         });
 
         btnsNuevoCliente.forEach(b => b.style.display = 'none');
-        btnsNuevoFichero.forEach(b => b.style.display = 'none');
+        // Los encargados pueden crear ficheros
         if (btnBackup) btnBackup.style.display = 'none';
         if (btnRestore) btnRestore.style.display = 'none';
         const containerReset = document.getElementById('container-reset-mensual');
@@ -55,7 +55,7 @@ async function initEmpresaPanel() {
         if (metricsDashboard) metricsDashboard.style.display = 'none';
 
         await loadEmpresaDashboard();
-        await switchEmpresaTab('rutas');
+        await switchEmpresaTab('ficheros');
         return;
     }
 
@@ -904,23 +904,32 @@ async function popularSelectsNuevoFichero() {
 }
 
 async function loadFicheros() {
-    // 1. Cargar encargados de zona
+    // 1. Cargar encargados de zona y cobradores
     try {
-        const encargados = await api.get('/empresa/encargados').catch(() => []);
+        const [encargados, cobradores] = await Promise.all([
+            api.get('/empresa/encargados').catch(() => []),
+            api.get('/empresa/cobradores').catch(() => [])
+        ]);
         const combined = [];
         (encargados || []).forEach(e => {
-            if (e.rol === 'ENCARGADO_ZONA') {
-                combined.push({
-                    id_usuario: e.id_usuario,
-                    nombre: e.nombre,
-                    rol: e.rol,
-                    zona_asignada: e.zona_asignada
-                });
-            }
+            combined.push({
+                id_usuario: e.id_usuario,
+                nombre: e.nombre,
+                rol: 'ENCARGADO_ZONA',
+                zona_asignada: e.zona_asignada
+            });
+        });
+        (cobradores || []).forEach(c => {
+            combined.push({
+                id_usuario: c.id_usuario,
+                nombre: c.nombre,
+                rol: 'COBRADOR',
+                zona_asignada: c.zona_asignada
+            });
         });
         window.allEncargadosCache = combined;
     } catch (e) {
-        console.error('Error cargando encargados:', e);
+        console.error('Error cargando encargados y cobradores:', e);
     }
 
     // 2. Cargar ficheros y filtrar
@@ -1021,7 +1030,7 @@ function renderFicherosTable(ficheros) {
 
         let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
 
-        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
+        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA') {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
                 const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
@@ -1064,7 +1073,7 @@ function renderFicherosTable(ficheros) {
                 ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.7rem; font-weight:700; background-color: var(--success); color: white;">✅ Pago cuota del mes:<br>${formatDateTimeStr(f.fecha_pago_hoy)}</span></div>` : ''}
             </td>
             <td>
-                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
+                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
                 <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar fichero por equivocación o cancelación">
                     🗑️ Eliminar
                 </button>
@@ -2756,7 +2765,7 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
                             <span style="font-weight: 800; font-size: 0.95rem; color: var(--saas-purple);">Fichero #${f.id_fichero}</span>
                             <div class="flex items-center gap-2">
                                 <span class="badge ${f.estado === 'ACTIVO' ? 'badge-success' : 'badge-purple'}" style="font-size: 0.7rem;">${f.estado}</span>
-                                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
+                                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
                                 <button class="btn btn-danger" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar este fichero duplicado o cancelado">
                                     🗑️ Eliminar Fichero
                                 </button>
