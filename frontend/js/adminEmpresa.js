@@ -907,28 +907,33 @@ function renderFicherosTable(ficheros) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    ficheros.sort((a, b) => {
-        const getWeight = (f) => {
-            if (f.fecha_creacion) {
-                const createdTime = new Date(f.fecha_creacion).getTime();
-                const diffMs = Date.now() - createdTime;
-                if (diffMs > 0 && diffMs < 3 * 24 * 60 * 60 * 1000) { // Creados en los últimos 3 días
-                    return 0;
+    const queryInput = (document.getElementById('input-search-ficheros')?.value || '').trim();
+    const isSearchActive = queryInput.length > 0;
+
+    if (!isSearchActive) {
+        ficheros.sort((a, b) => {
+            const getWeight = (f) => {
+                if (f.fecha_creacion) {
+                    const createdTime = new Date(f.fecha_creacion).getTime();
+                    const diffMs = Date.now() - createdTime;
+                    if (diffMs > 0 && diffMs < 3 * 24 * 60 * 60 * 1000) { // Creados en los últimos 3 días
+                        return 0;
+                    }
                 }
+                const isUnassigned = !f.id_cobrador_asignado || f.id_cobrador_asignado === 0 || !f.encargado_zona || f.encargado_zona.trim() === '' || f.encargado_zona === 'Sin asignar';
+                if (isUnassigned) return 1;
+                const isPaid = (f.pagado_hoy || 0) > 0;
+                if (isPaid) return 3;
+                return 2;
+            };
+            const aWeight = getWeight(a);
+            const bWeight = getWeight(b);
+            if (aWeight !== bWeight) {
+                return aWeight - bWeight;
             }
-            const isUnassigned = !f.id_cobrador_asignado || f.id_cobrador_asignado === 0 || !f.encargado_zona || f.encargado_zona.trim() === '' || f.encargado_zona === 'Sin asignar';
-            if (isUnassigned) return 1;
-            const isPaid = (f.pagado_hoy || 0) > 0;
-            if (isPaid) return 3;
-            return 2;
-        };
-        const aWeight = getWeight(a);
-        const bWeight = getWeight(b);
-        if (aWeight !== bWeight) {
-            return aWeight - bWeight;
-        }
-        return b.id_fichero - a.id_fichero;
-    });
+            return b.id_fichero - a.id_fichero;
+        });
+    }
 
     if (ficheros.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No hay ficheros de venta activos.</td></tr>`;
@@ -2549,15 +2554,72 @@ function filtrarFicheros(resetPage = true) {
         window.ficherosPage = 1;
     }
 
-    const queryStr = (document.getElementById('input-search-ficheros')?.value || '').toLowerCase().trim();
+    const rawInput = document.getElementById('input-search-ficheros')?.value || '';
+    const rawQuery = rawInput.trim();
+    const queryStr = rawQuery.toLowerCase();
     const selectedEstado = document.getElementById('select-filter-ficheros-estado')?.value || 'ALL';
 
-    const filtered = window.currentFicherosListCache.filter(f => {
-        const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-        const fullText = `${f.id_fichero} ${f.cliente_nombre} ${f.direccion} ${f.barrio} ${f.producto_nombre} ${f.encargado_zona || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
-        const matchText = !queryStr || fullText.includes(queryStr);
-        return matchEstado && matchText;
-    });
+    // Si no hay búsqueda de texto, filtrar solo por estado
+    if (!rawQuery) {
+        const filtered = window.currentFicherosListCache.filter(f => {
+            return selectedEstado === 'ALL' || f.estado === selectedEstado;
+        });
+        renderFicherosTable(filtered);
+        return;
+    }
+
+    const isExplicitId = rawQuery.startsWith('#');
+    const numericPart = rawQuery.replace(/^#\s*/, '').trim();
+    const isPureNumber = /^\d+$/.test(numericPart);
+
+    let filtered = [];
+
+    if (isExplicitId && isPureNumber) {
+        // Búsqueda explícita por ID: #38 o # 38
+        const targetId = parseInt(numericPart, 10);
+        filtered = window.currentFicherosListCache.filter(f => {
+            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
+            return matchEstado && f.id_fichero === targetId;
+        });
+    } else if (isPureNumber) {
+        // Búsqueda por número (ej: "38")
+        const targetId = parseInt(numericPart, 10);
+
+        // 1. Filtrar solo ficheros que coincidan en ID exacto, ID que comience con el número, o en nombre/producto
+        filtered = window.currentFicherosListCache.filter(f => {
+            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
+            if (!matchEstado) return false;
+
+            // Coincidencia exacta de ID (ej: Fichero #38)
+            if (f.id_fichero === targetId) return true;
+
+            // Coincidencia con ID que comience con el número (ej: 38 -> #380, #381)
+            if (String(f.id_fichero).startsWith(numericPart)) return true;
+
+            // Coincidencia en nombre de cliente o nombre de producto
+            if (f.cliente_nombre && f.cliente_nombre.toLowerCase().includes(queryStr)) return true;
+            if (f.producto_nombre && f.producto_nombre.toLowerCase().includes(queryStr)) return true;
+
+            return false;
+        });
+
+        // Ordenar con máxima prioridad para la coincidencia exacta de ID (siempre primero)
+        filtered.sort((a, b) => {
+            if (a.id_fichero === targetId) return -1;
+            if (b.id_fichero === targetId) return 1;
+            return a.id_fichero - b.id_fichero;
+        });
+    } else {
+        // Búsqueda general de texto (nombre, producto, barrio, dirección, etc.)
+        const terms = queryStr.split(/\s+/).filter(Boolean);
+        filtered = window.currentFicherosListCache.filter(f => {
+            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
+            if (!matchEstado) return false;
+
+            const fullText = `#${f.id_fichero} ${f.id_fichero} ${f.cliente_nombre || ''} ${f.direccion || ''} ${f.barrio || ''} ${f.producto_nombre || ''} ${f.encargado_zona || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
+            return terms.every(term => fullText.includes(term));
+        });
+    }
 
     renderFicherosTable(filtered);
 }
