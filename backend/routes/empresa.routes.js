@@ -442,8 +442,34 @@ router.get('/ficheros', async (req, res) => {
                 )
             `, [id_empresa, id_empresa]);
         }
+
+        // Ajuste puntual para Fichero #135 (Marcelo Diaz: cuota 6 vence el 09/09/2026)
+        const fich135 = await get('SELECT id_fichero, fecha_entrega FROM ficheros WHERE id_fichero = 135');
+        if (fich135 && fich135.fecha_entrega !== '2026-03-09') {
+            await run("UPDATE ficheros SET fecha_entrega = '2026-03-09' WHERE id_fichero = 135");
+            const cuotas135 = [
+                { nro: 1, venc: '2026-04-09', pago: '2026-04-09', estado: 'PAGADO' },
+                { nro: 2, venc: '2026-05-09', pago: '2026-05-09', estado: 'PAGADO' },
+                { nro: 3, venc: '2026-06-09', pago: '2026-06-09', estado: 'PAGADO' },
+                { nro: 4, venc: '2026-07-09', pago: '2026-07-09', estado: 'PAGADO' },
+                { nro: 5, venc: '2026-08-09', pago: '2026-08-09', estado: 'PAGADO' },
+                { nro: 6, venc: '2026-09-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 7, venc: '2026-10-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 8, venc: '2026-11-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 9, venc: '2026-12-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 10, venc: '2027-01-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 11, venc: '2027-02-09', pago: null, estado: 'PENDIENTE' },
+                { nro: 12, venc: '2027-03-09', pago: null, estado: 'PENDIENTE' }
+            ];
+            for (const c of cuotas135) {
+                await run(
+                    "UPDATE cuotas SET fecha_vencimiento = ?, fecha_pago = ?, estado = ? WHERE id_fichero = 135 AND nro_cuota = ?",
+                    [c.venc, c.pago, c.estado, c.nro]
+                );
+            }
+        }
     } catch (e) {
-        console.error("Error auto-finalizing files:", e);
+        console.error("Error auto-finalizing or fixing files:", e);
     }
 
     try {
@@ -468,13 +494,13 @@ router.get('/ficheros', async (req, res) => {
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
             WHERE f.id_empresa = ?
         `;
-        const params = [startOfMonth, endOfMonth, startOfMonth, endOfMonth, id_empresa];
+        const params = [startOfMonth, todayStr, startOfMonth, todayStr, id_empresa];
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
                   WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) > 0 THEN 2
                   ELSE 1 END) ASC, 
             f.id_fichero DESC`;
-        const orderParams = [startOfMonth, endOfMonth];
+        const orderParams = [startOfMonth, todayStr];
         params.push(...orderParams);
         
         const ficheros = await query(sql, params);
@@ -530,9 +556,12 @@ router.post('/ficheros', async (req, res) => {
             
             if (i <= yaPagadasCount) {
                 // Generar cuotas históricas como PAGADO
+                // La fecha de pago es la fecha en que venció la cuota (fechaVenc), topeada a hoy si por error quedara en el futuro
+                const todayStrNow = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+                const fechaPagoHistorica = (fechaVenc > todayStrNow) ? todayStrNow : fechaVenc;
                 await run(
                     "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, nombre_cobrador, id_cobrador) VALUES (?, ?, ?, ?, 'PAGADO', ?, ?, 'EFECTIVO', 'Sistema (Carga Inicial)', ?)",
-                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, fecha_entrega, id_cobrador_asignado || null]
+                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, fechaPagoHistorica, id_cobrador_asignado || null]
                 );
             } else {
                 // Generar cuotas como PENDIENTE

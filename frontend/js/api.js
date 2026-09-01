@@ -590,7 +590,7 @@ class APIClient {
                     monto: body.valor_cuota,
                     estado: isPaid ? 'PAGADO' : 'PENDIENTE',
                     fecha_vencimiento: '2026-08-01',
-                    fecha_pago: isPaid ? body.fecha_entrega : null,
+                    fecha_pago: isPaid ? '2026-08-01' : null,
                     medio_pago: isPaid ? 'EFECTIVO' : null,
                     nombre_cobrador: isPaid ? 'Sistema (Carga Inicial)' : null,
                     id_cobrador: body.id_cobrador_asignado || null
