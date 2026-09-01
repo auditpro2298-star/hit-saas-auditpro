@@ -193,26 +193,86 @@ function filtrarClientesPorBarrioYTexto(resetPage = true) {
         window.clientesPage = 1;
     }
 
-    const queryStr = (document.getElementById('input-search-clientes-map')?.value || '').toLowerCase().trim();
+    const rawInput = document.getElementById('input-search-clientes-map')?.value || '';
+    const rawQuery = rawInput.trim();
+    const queryStr = rawQuery.toLowerCase();
     const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
 
-    const filtered = window.currentClientesCache.filter(c => {
-        const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-        const fullText = `${c.nombre_apellido} ${c.direccion} ${c.barrio} ${c.dni} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
-        const matchText = !queryStr || fullText.includes(queryStr);
-        return matchBarrio && matchText;
-    });
+    if (!rawQuery) {
+        const filtered = window.currentClientesCache.filter(c => {
+            return selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+        });
+        renderClientesTable(filtered);
+        const hasActiveFilter = selectedBarrio !== 'ALL';
+        if (hasActiveFilter) {
+            initMap(filtered);
+        } else {
+            initMap([]);
+        }
+        return;
+    }
+
+    const isExplicitId = rawQuery.startsWith('#');
+    const numericPart = rawQuery.replace(/^#\s*/, '').trim();
+    const isPureNumber = /^\d+$/.test(numericPart);
+
+    let filtered = [];
+
+    if (isExplicitId && isPureNumber) {
+        // Búsqueda explícita por ID: #38 o # 38
+        const targetId = parseInt(numericPart, 10);
+        filtered = window.currentClientesCache.filter(c => {
+            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+            if (!matchBarrio) return false;
+            return (c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId;
+        });
+    } else if (isPureNumber) {
+        // Búsqueda numérica (ej: 38 o DNI)
+        const targetId = parseInt(numericPart, 10);
+
+        filtered = window.currentClientesCache.filter(c => {
+            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+            if (!matchBarrio) return false;
+
+            // 1. Coincidencia exacta por N° interno o ID
+            if ((c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId) return true;
+
+            // 2. Coincidencia de N° interno o ID que empiece con el número
+            if (c.nro_cliente_interno && String(c.nro_cliente_interno).startsWith(numericPart)) return true;
+            if (String(c.id_cliente).startsWith(numericPart)) return true;
+
+            // 3. Coincidencia en DNI
+            if (c.dni && c.dni.toString().trim().includes(numericPart)) return true;
+
+            // 4. Coincidencia en nombre
+            if (c.nombre_apellido && c.nombre_apellido.toLowerCase().includes(queryStr)) return true;
+
+            return false;
+        });
+
+        // Ordenar con máxima prioridad para coincidencia exacta de ID/N° interno
+        filtered.sort((a, b) => {
+            const isExactA = (a.nro_cliente_interno === targetId || a.id_cliente === targetId || (a.dni && a.dni.toString().trim() === numericPart));
+            const isExactB = (b.nro_cliente_interno === targetId || b.id_cliente === targetId || (b.dni && b.dni.toString().trim() === numericPart));
+            if (isExactA && !isExactB) return -1;
+            if (!isExactA && isExactB) return 1;
+            return (a.nro_cliente_interno || a.id_cliente) - (b.nro_cliente_interno || b.id_cliente);
+        });
+    } else {
+        // Búsqueda general de texto (nombre, dirección, barrio, etc.)
+        const terms = queryStr.split(/\s+/).filter(Boolean);
+        filtered = window.currentClientesCache.filter(c => {
+            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
+            if (!matchBarrio) return false;
+
+            const nroInt = c.nro_cliente_interno ? `#${c.nro_cliente_interno} ${c.nro_cliente_interno}` : '';
+            const fullText = `#${c.id_cliente} ${c.id_cliente} ${nroInt} ${c.nombre_apellido || ''} ${c.direccion || ''} ${c.barrio || ''} ${c.dni || ''} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
+            return terms.every(term => fullText.includes(term));
+        });
+    }
 
     renderClientesTable(filtered);
-
-    // Solo cargar los pines en el mapa si hay una búsqueda activa
-    const hasActiveFilter = queryStr !== '' || selectedBarrio !== 'ALL';
-    if (hasActiveFilter) {
-        initMap(filtered);
-    } else {
-        // Si no hay búsqueda o filtro activo, limpiar el mapa de marcadores
-        initMap([]);
-    }
+    initMap(filtered);
 }
 
 function renderClientesTable(clientes) {
@@ -984,6 +1044,7 @@ function renderFicherosTable(ficheros) {
             </td>
             <td>
                 <strong>${f.cliente_nombre}</strong>
+                ${(f.nro_cliente_interno || f.id_cliente) ? `<span class="badge" style="font-size: 0.68rem; background: rgba(139,92,246,0.12); color: var(--saas-purple); font-weight: 700; margin-left: 4px; padding: 0.15rem 0.4rem; border-radius: 4px;" title="ID / N° de Cliente">👤 Cli #${f.nro_cliente_interno || f.id_cliente}</span>` : ''}
                 <div style="font-size: 0.75rem;">📍 ${f.barrio}</div>
                 ${refStr}
             </td>
@@ -2568,6 +2629,19 @@ function filtrarFicheros(resetPage = true) {
         return;
     }
 
+    // 1. Detección de prefijo explícito de cliente (c:15, cli:15, cliente:15)
+    const clientPrefixMatch = rawQuery.match(/^(?:c|cli|cliente)\s*:\s*(\d+)$/i);
+    if (clientPrefixMatch) {
+        const targetClientId = parseInt(clientPrefixMatch[1], 10);
+        const filtered = window.currentFicherosListCache.filter(f => {
+            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
+            if (!matchEstado) return false;
+            return f.id_cliente === targetClientId || (f.nro_cliente_interno && f.nro_cliente_interno === targetClientId);
+        });
+        renderFicherosTable(filtered);
+        return;
+    }
+
     const isExplicitId = rawQuery.startsWith('#');
     const numericPart = rawQuery.replace(/^#\s*/, '').trim();
     const isPureNumber = /^\d+$/.test(numericPart);
@@ -2575,38 +2649,51 @@ function filtrarFicheros(resetPage = true) {
     let filtered = [];
 
     if (isExplicitId && isPureNumber) {
-        // Búsqueda explícita por ID: #38 o # 38
+        // Búsqueda explícita por ID de Fichero (#38)
         const targetId = parseInt(numericPart, 10);
         filtered = window.currentFicherosListCache.filter(f => {
             const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
             return matchEstado && f.id_fichero === targetId;
         });
     } else if (isPureNumber) {
-        // Búsqueda por número (ej: "38")
-        const targetId = parseInt(numericPart, 10);
+        // Búsqueda numérica (ej: "38" o "15") -> Coincide con ID de Fichero Y con ID/N° de Cliente
+        const targetNum = parseInt(numericPart, 10);
 
-        // 1. Filtrar solo ficheros que coincidan en ID exacto, ID que comience con el número, o en nombre/producto
         filtered = window.currentFicherosListCache.filter(f => {
             const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
             if (!matchEstado) return false;
 
-            // Coincidencia exacta de ID (ej: Fichero #38)
-            if (f.id_fichero === targetId) return true;
+            // a) Coincidencia exacta de ID de Fichero (#38)
+            if (f.id_fichero === targetNum) return true;
 
-            // Coincidencia con ID que comience con el número (ej: 38 -> #380, #381)
+            // b) Coincidencia de ID o N° de Cliente (todos los ficheros del cliente #15)
+            if (f.id_cliente === targetNum || (f.nro_cliente_interno && f.nro_cliente_interno === targetNum)) return true;
+
+            // c) Coincidencia con ID que comience con el número (ej: 38 -> #380, #381)
             if (String(f.id_fichero).startsWith(numericPart)) return true;
 
-            // Coincidencia en nombre de cliente o nombre de producto
+            // d) Coincidencia en nombre de cliente o nombre de producto
             if (f.cliente_nombre && f.cliente_nombre.toLowerCase().includes(queryStr)) return true;
             if (f.producto_nombre && f.producto_nombre.toLowerCase().includes(queryStr)) return true;
 
             return false;
         });
 
-        // Ordenar con máxima prioridad para la coincidencia exacta de ID (siempre primero)
+        // Ordenar con máxima prioridad:
+        // 1° Coincidencia exacta de ID de Fichero
+        // 2° Coincidencia de ID / N° de Cliente
+        // 3° Demás coincidencias
         filtered.sort((a, b) => {
-            if (a.id_fichero === targetId) return -1;
-            if (b.id_fichero === targetId) return 1;
+            const isFichA = (a.id_fichero === targetNum);
+            const isFichB = (b.id_fichero === targetNum);
+            if (isFichA && !isFichB) return -1;
+            if (!isFichA && isFichB) return 1;
+
+            const isCliA = (a.id_cliente === targetNum || a.nro_cliente_interno === targetNum);
+            const isCliB = (b.id_cliente === targetNum || b.nro_cliente_interno === targetNum);
+            if (isCliA && !isCliB) return -1;
+            if (!isCliA && isCliB) return 1;
+
             return a.id_fichero - b.id_fichero;
         });
     } else {
@@ -2616,7 +2703,9 @@ function filtrarFicheros(resetPage = true) {
             const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
             if (!matchEstado) return false;
 
-            const fullText = `#${f.id_fichero} ${f.id_fichero} ${f.cliente_nombre || ''} ${f.direccion || ''} ${f.barrio || ''} ${f.producto_nombre || ''} ${f.encargado_zona || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
+            const nroCli = f.nro_cliente_interno ? `cliente:${f.nro_cliente_interno} c:${f.nro_cliente_interno}` : '';
+            const idCli = `cliente:${f.id_cliente} c:${f.id_cliente}`;
+            const fullText = `#${f.id_fichero} ${f.id_fichero} ${idCli} ${nroCli} ${f.cliente_nombre || ''} ${f.direccion || ''} ${f.barrio || ''} ${f.producto_nombre || ''} ${f.encargado_zona || ''} ${f.referencia_domicilio || ''}`.toLowerCase();
             return terms.every(term => fullText.includes(term));
         });
     }
