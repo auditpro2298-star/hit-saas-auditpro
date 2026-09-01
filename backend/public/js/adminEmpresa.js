@@ -1065,7 +1065,7 @@ function renderFicherosTable(ficheros) {
             </td>
             <td>
                 ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
-                <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero}, '${f.producto_nombre}')" title="Eliminar fichero por equivocación o cancelación">
+                <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar fichero por equivocación o cancelación">
                     🗑️ Eliminar
                 </button>
                 ` : ''}
@@ -1141,8 +1141,10 @@ async function eliminarClienteConfirmado(id_cliente, nombre_apellido) {
     }
 }
 
-async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
-    if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar el Fichero #${id_fichero} ("${producto_nombre}")?\n\nEsta acción borrará la venta y su historial de casilleros.`)) {
+async function eliminarFicheroConfirmado(id_fichero) {
+    const fich = (window.currentFicherosListCache || []).find(f => f.id_fichero === id_fichero);
+    const prodName = fich ? fich.producto_nombre : `Fichero #${id_fichero}`;
+    if (!await showConfirm(`⚠️ ¿Está seguro que desea eliminar el Fichero #${id_fichero} ("${prodName}")?\n\nEsta acción borrará la venta y su historial de casilleros.`)) {
         return;
     }
 
@@ -1152,11 +1154,19 @@ async function eliminarFicheroConfirmado(id_fichero, producto_nombre) {
             await showAlert(`✅ ${res.message}`);
             await loadFicheros();
             await loadEmpresaDashboard();
+
+            // Si el modal de ficheros del cliente está abierto, refrescarlo en vivo
+            const modalClientFich = document.getElementById('modal-client-fichero');
+            if (modalClientFich && !modalClientFich.classList.contains('hidden') && fich?.id_cliente) {
+                await verFicheroCliente(fich.id_cliente, fich.cliente_nombre);
+            }
         }
     } catch (err) {
         await showAlert('❌ Error al eliminar fichero: ' + err.message);
     }
 }
+
+window.eliminarFicheroConfirmado = eliminarFicheroConfirmado;
 
 async function submitNewFicheroForm(event) {
     event.preventDefault();
@@ -2744,7 +2754,14 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
                     <div style="background: rgba(99,102,241,0.04); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem; border-left: 4px solid var(--saas-purple);">
                         <div class="flex justify-between items-center" style="margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.35rem;">
                             <span style="font-weight: 800; font-size: 0.95rem; color: var(--saas-purple);">Fichero #${f.id_fichero}</span>
-                            <span class="badge ${f.estado === 'ACTIVO' ? 'badge-success' : 'badge-purple'}" style="font-size: 0.7rem;">${f.estado}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="badge ${f.estado === 'ACTIVO' ? 'badge-success' : 'badge-purple'}" style="font-size: 0.7rem;">${f.estado}</span>
+                                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN')) ? `
+                                <button class="btn btn-danger" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar este fichero duplicado o cancelado">
+                                    🗑️ Eliminar Fichero
+                                </button>
+                                ` : ''}
+                            </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; line-height: 1.4;">
                             <div><strong>📦 Producto:</strong> ${f.producto_nombre}</div>
