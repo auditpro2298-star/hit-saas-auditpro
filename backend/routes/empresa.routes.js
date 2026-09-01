@@ -447,8 +447,12 @@ router.get('/ficheros', async (req, res) => {
 
     try {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-        const startOfMonth = todayStr.substring(0, 8) + '01';
-        const endOfMonth = todayStr.substring(0, 8) + '31';
+        const dateParts = todayStr.split('-');
+        const currentYear = parseInt(dateParts[0], 10);
+        const currentMonth = parseInt(dateParts[1], 10);
+        const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const startOfMonth = `${dateParts[0]}-${dateParts[1]}-01`;
+        const endOfMonth = `${dateParts[0]}-${dateParts[1]}-${String(lastDayOfMonth).padStart(2, '0')}`;
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.referencia_domicilio,

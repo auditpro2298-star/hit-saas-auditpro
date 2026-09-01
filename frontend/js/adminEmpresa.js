@@ -807,6 +807,42 @@ async function submitNewClienteForm(event) {
 }
 
 // SOLAPA 2: FICHEROS Y VENTAS
+async function popularSelectsNuevoFichero() {
+    try {
+        let clientes = window.currentClientesCache;
+        if (!clientes || clientes.length === 0) {
+            clientes = await api.get('/empresa/clientes').catch(() => []);
+            window.currentClientesCache = clientes;
+        }
+        const select = document.getElementById('new-fich-cliente');
+        if (select) {
+            const currentVal = select.value;
+            let html = '<option value="">-- Seleccionar Cliente --</option>';
+            clientes.forEach(c => {
+                const nroInt = c.nro_cliente_interno ? `N° ${c.nro_cliente_interno} | ` : '';
+                html += `<option value="${c.id_cliente}">${nroInt}${c.nombre_apellido} (${c.dni || 'S/DNI'}) - ${c.barrio || 'Sin Barrio'}</option>`;
+            });
+            select.innerHTML = html;
+            if (currentVal) select.value = currentVal;
+        }
+
+        const vendedores = await api.get('/empresa/vendedores').catch(() => []);
+        const selectVend = document.getElementById('new-fich-vendedor');
+        if (selectVend) {
+            const currentVend = selectVend.value;
+            let html = '<option value="General">-- General / Sin Especif. --</option>';
+            vendedores.forEach(vd => {
+                html += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
+            });
+            html += '<option value="Otro">Otro Vendedor</option>';
+            selectVend.innerHTML = html;
+            if (currentVend) selectVend.value = currentVend;
+        }
+    } catch (err) {
+        console.error('Error al popular selects de nuevo fichero:', err);
+    }
+}
+
 async function loadFicheros() {
     // 1. Cargar encargados de zona
     try {
@@ -827,40 +863,26 @@ async function loadFicheros() {
         console.error('Error cargando encargados:', e);
     }
 
-    const ficheros = await api.get('/empresa/ficheros');
-    window.currentFicherosListCache = ficheros;
-    filtrarFicheros();
-
-    // Cargar clientes en el select para el modal de nuevo fichero (reutilizando caché si existe)
-    let clientes = window.currentClientesCache;
-    if (!clientes) {
-        clientes = await api.get('/empresa/clientes');
-        window.currentClientesCache = clientes;
-    }
-    const select = document.getElementById('new-fich-cliente');
-    if (select) {
-        let html = '<option value="">-- Seleccionar Cliente --</option>';
-        clientes.forEach(c => {
-            html += `<option value="${c.id_cliente}">${c.nombre_apellido} (${c.dni}) - ${c.barrio}</option>`;
-        });
-        select.innerHTML = html;
+    // 2. Cargar ficheros y filtrar
+    try {
+        const ficheros = await api.get('/empresa/ficheros');
+        window.currentFicherosListCache = ficheros;
+        filtrarFicheros();
+    } catch (err) {
+        console.error('Error cargando ficheros:', err);
+        const tbody = document.getElementById('tbody-ficheros');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="color:#ef4444; padding:2rem; font-weight:600;">⚠️ No se pudieron cargar los ficheros: ${err.message || 'Error del servidor'}. Intente recargar la página.</td></tr>`;
+        }
     }
 
-    const vendedores = await api.get('/empresa/vendedores');
-    const selectVend = document.getElementById('new-fich-vendedor');
-    if (selectVend) {
-        let html = '<option value="General">-- General / Sin Especif. --</option>';
-        vendedores.forEach(vd => {
-            html += `<option value="${vd.nombre}">${vd.nombre} (${vd.zona_asignada || 'General'})</option>`;
-        });
-        html += '<option value="Otro">Otro Vendedor</option>';
-        selectVend.innerHTML = html;
-    }
+    // 3. Poblar selects para el modal de nuevo fichero de forma independiente
+    await popularSelectsNuevoFichero();
 }
 
-function openNewFicheroModal() {
+async function openNewFicheroModal() {
     document.getElementById('modal-new-fichero').classList.remove('hidden');
-    loadFicheros();
+    await popularSelectsNuevoFichero();
 }
 
 window.ficherosPage = 1;
@@ -1991,33 +2013,56 @@ async function cambiarCalificacionCliente(idCliente, nuevaCalificacion) {
 }
 
 async function buscarClientePorIdODni() {
-    const searchVal = document.getElementById('new-fich-buscar-cliente-id').value.trim();
+    const input = document.getElementById('new-fich-buscar-cliente-id');
+    const searchVal = input ? input.value.trim() : '';
     const infoPreview = document.getElementById('new-fich-cliente-info-preview');
     const selectCliente = document.getElementById('new-fich-cliente');
 
     if (!searchVal) {
-        if (infoPreview) infoPreview.innerHTML = '<span style="color:#ef4444;">Por favor, ingrese un ID o DNI.</span>';
+        if (infoPreview) infoPreview.innerHTML = '<span style="color:#ef4444;">Por favor, ingrese un Nombre, N° o DNI.</span>';
         return;
     }
 
-    // Buscar en la caché de clientes
-    const clientes = window.currentClientesCache || [];
+    // Asegurar que la caché de clientes esté cargada
+    let clientes = window.currentClientesCache;
+    if (!clientes || clientes.length === 0) {
+        try {
+            clientes = await api.get('/empresa/clientes');
+            window.currentClientesCache = clientes;
+        } catch (e) {
+            clientes = [];
+        }
+    }
+
+    const searchLower = searchVal.toLowerCase();
     const clienteEncontrado = clientes.find(c => 
         (c.nro_cliente_interno && c.nro_cliente_interno.toString() === searchVal) || 
-        c.id_cliente.toString() === searchVal || 
-        c.dni.toString().trim() === searchVal
+        (c.id_cliente && c.id_cliente.toString() === searchVal) || 
+        (c.dni && c.dni.toString().trim() === searchVal) ||
+        (c.nombre_apellido && c.nombre_apellido.toLowerCase().includes(searchLower))
     );
 
     if (clienteEncontrado) {
-        selectCliente.value = clienteEncontrado.id_cliente;
+        if (selectCliente) {
+            selectCliente.value = clienteEncontrado.id_cliente;
+            // Si por alguna razón la opción no existía en el select, agregarla
+            if (!selectCliente.value) {
+                const nro = clienteEncontrado.nro_cliente_interno ? `N° ${clienteEncontrado.nro_cliente_interno} | ` : '';
+                const opt = document.createElement('option');
+                opt.value = clienteEncontrado.id_cliente;
+                opt.textContent = `${nro}${clienteEncontrado.nombre_apellido} (${clienteEncontrado.dni || 'S/DNI'}) - ${clienteEncontrado.barrio || 'Sin Barrio'}`;
+                selectCliente.appendChild(opt);
+                selectCliente.value = clienteEncontrado.id_cliente;
+            }
+        }
         if (infoPreview) {
-            infoPreview.innerHTML = `✅ Cliente cargado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (Nro: ${clienteEncontrado.nro_cliente_interno || clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni})`;
+            infoPreview.innerHTML = `✅ Cliente seleccionado: <strong style="color:var(--success);">${clienteEncontrado.nombre_apellido}</strong> (Nro: ${clienteEncontrado.nro_cliente_interno || clienteEncontrado.id_cliente} | DNI: ${clienteEncontrado.dni || 'S/DNI'} | Barrio: ${clienteEncontrado.barrio || 'S/B'})`;
         }
     } else {
         if (infoPreview) {
-            infoPreview.innerHTML = '<span style="color:#ef4444;">❌ Cliente no encontrado. Verifique el ID o DNI en la tabla de clientes.</span>';
+            infoPreview.innerHTML = '<span style="color:#ef4444;">❌ Cliente no encontrado. Verifique el Nombre, N° o DNI.</span>';
         }
-        selectCliente.value = "";
+        if (selectCliente) selectCliente.value = "";
     }
 }
 
@@ -2574,3 +2619,6 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
     }
 }
 window.verFicheroCliente = verFicheroCliente;
+window.openNewFicheroModal = openNewFicheroModal;
+window.popularSelectsNuevoFichero = popularSelectsNuevoFichero;
+window.buscarClientePorIdODni = buscarClientePorIdODni;
