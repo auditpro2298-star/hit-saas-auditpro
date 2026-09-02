@@ -581,10 +581,13 @@ class APIClient {
             };
             db.ficheros.push(newFichero);
 
-            // Generar cuotas
+            // Generar cuotas: Cuota 1 en fecha_entrega
             const yaPagadasCount = parseInt(body.cuotas_ya_pagadas || 0, 10);
             for (let i = 1; i <= body.cantidad_cuotas; i++) {
                 const isPaid = (i <= yaPagadasCount);
+                const parts = (body.fecha_entrega || '2026-06-10').split('-');
+                const baseDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1 + (i - 1), parseInt(parts[2]));
+                const fechaVenc = baseDate.toISOString().split('T')[0];
                 db.cuotas.push({
                     id_cuota: Date.now() + i,
                     id_fichero: nextId,
@@ -592,8 +595,8 @@ class APIClient {
                     nro_cuota: i,
                     monto: body.valor_cuota,
                     estado: isPaid ? 'PAGADO' : 'PENDIENTE',
-                    fecha_vencimiento: '2026-08-01',
-                    fecha_pago: isPaid ? '2026-08-01' : null,
+                    fecha_vencimiento: fechaVenc,
+                    fecha_pago: isPaid ? fechaVenc : null,
                     medio_pago: isPaid ? 'EFECTIVO' : null,
                     nombre_cobrador: isPaid ? 'Sistema (Carga Inicial)' : null,
                     id_cobrador: body.id_cobrador_asignado || null

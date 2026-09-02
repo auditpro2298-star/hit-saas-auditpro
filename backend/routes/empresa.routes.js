@@ -1,3 +1,69 @@
+function calcularFechaVencimiento(fechaEntregaStr, nroCuota, frecuencia) {
+    if (!fechaEntregaStr) return new Date().toISOString().split('T')[0];
+    const parts = fechaEntregaStr.split('-');
+    const baseYear = parseInt(parts[0], 10);
+    const baseMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+    const baseDay = parseInt(parts[2], 10);
+
+    const freq = (frecuencia || 'SEMANAL').toUpperCase();
+    const offset = nroCuota - 1;
+
+    if (offset === 0) {
+        return fechaEntregaStr;
+    }
+
+    if (freq === 'MENSUAL') {
+        const targetDate = new Date(baseYear, baseMonth + offset, baseDay);
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    } else if (freq === 'QUINCENAL') {
+        const targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 15));
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    } else {
+        // SEMANAL por defecto (+7 días por cuota)
+        const targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 7));
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+}
+
+async function repairHistoricalFicheros(id_empresa) {
+    try {
+        const ficheros = await query(`
+            SELECT f.id_fichero, f.fecha_entrega, f.frecuencia_pago, f.cantidad_cuotas,
+                   q.id_cuota, q.fecha_vencimiento as cuota1_venc
+            FROM ficheros f
+            JOIN cuotas q ON f.id_fichero = q.id_fichero AND q.nro_cuota = 1
+            WHERE f.fecha_entrega IS NOT NULL
+              AND f.fecha_entrega != ''
+              AND date(f.fecha_entrega) != date(q.fecha_vencimiento)
+        `);
+
+        for (const f of ficheros) {
+            const freq = f.frecuencia_pago || 'SEMANAL';
+            const cuotas = await query('SELECT id_cuota, nro_cuota, estado FROM cuotas WHERE id_fichero = ? ORDER BY nro_cuota ASC', [f.id_fichero]);
+            for (const q of cuotas) {
+                const nuevaFechaVenc = calcularFechaVencimiento(f.fecha_entrega, q.nro_cuota, freq);
+                if (q.estado === 'PAGADO') {
+                    await run('UPDATE cuotas SET fecha_vencimiento = ?, fecha_pago = ? WHERE id_cuota = ?', [nuevaFechaVenc, nuevaFechaVenc, q.id_cuota]);
+                } else {
+                    await run('UPDATE cuotas SET fecha_vencimiento = ? WHERE id_cuota = ?', [nuevaFechaVenc, q.id_cuota]);
+                }
+            }
+            console.log(`🔧 Fichero #${f.id_fichero} recalibrado: Cuota 1 fijada a fecha de entrega (${f.fecha_entrega}).`);
+        }
+    } catch (err) {
+        console.error('Error reparando ficheros históricos:', err);
+    }
+}
+
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -575,27 +641,15 @@ router.post('/ficheros', async (req, res) => {
         const id_fichero = result.lastID;
         const yaPagadasCount = parseInt(cuotas_ya_pagadas || 0, 10);
 
-        // Generar los casilleros del 1 al N con vencimientos según frecuencia elegida
-        let fechaActual = new Date(fecha_entrega);
+        // Generar los casilleros del 1 al N: la Cuota 1 vence y se abona en mano el día de la entrega
         for (let i = 1; i <= cantidad_cuotas; i++) {
-            if (freq === 'QUINCENAL') {
-                fechaActual.setDate(fechaActual.getDate() + 15);
-            } else if (freq === 'MENSUAL') {
-                fechaActual.setMonth(fechaActual.getMonth() + 1);
-            } else {
-                // SEMANAL por defecto (+7 días)
-                fechaActual.setDate(fechaActual.getDate() + 7);
-            }
-            const fechaVenc = fechaActual.toISOString().split('T')[0];
+            const fechaVenc = calcularFechaVencimiento(fecha_entrega, i, freq);
             
             if (i <= yaPagadasCount) {
-                // Generar cuotas históricas como PAGADO
-                // La fecha de pago es la fecha en que venció la cuota (fechaVenc), topeada a hoy si por error quedara en el futuro
-                const todayStrNow = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-                const fechaPagoHistorica = (fechaVenc > todayStrNow) ? todayStrNow : fechaVenc;
+                // Generar cuotas históricas como PAGADO con su fecha histórica de vencimiento
                 await run(
                     "INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, fecha_pago, medio_pago, nombre_cobrador, id_cobrador) VALUES (?, ?, ?, ?, 'PAGADO', ?, ?, 'EFECTIVO', 'Sistema (Carga Inicial)', ?)",
-                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, fechaPagoHistorica, id_cobrador_asignado || null]
+                    [id_fichero, id_empresa, i, valor_cuota, fechaVenc, fechaVenc, id_cobrador_asignado || null]
                 );
             } else {
                 // Generar cuotas como PENDIENTE
