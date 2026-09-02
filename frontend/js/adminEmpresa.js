@@ -1058,7 +1058,7 @@ function renderFicherosTable(ficheros) {
                 <strong>${f.producto_nombre}</strong>
             </td>
             <td>
-                <strong>${f.cliente_nombre}</strong>
+                <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" onclick="abrirModalEditarCliente(${f.id_cliente})" title="Hacer clic para editar datos de este cliente">📍 ${f.cliente_nombre}</strong>
                 ${(f.nro_cliente_interno || f.id_cliente) ? `<span class="badge" style="font-size: 0.68rem; background: rgba(139,92,246,0.12); color: var(--saas-purple); font-weight: 700; margin-left: 4px; padding: 0.15rem 0.4rem; border-radius: 4px;" title="ID / N° de Cliente">👤 Cli #${f.nro_cliente_interno || f.id_cliente}</span>` : ''}
                 <div style="font-size: 0.75rem;">📍 ${f.barrio}</div>
                 ${refStr}
@@ -1079,11 +1079,16 @@ function renderFicherosTable(ficheros) {
                 ${f.pagado_hoy > 0 ? `<div style="margin-top:4px;"><span class="badge badge-success" style="font-size:0.7rem; font-weight:700; background-color: var(--success); color: white;">✅ Pago cuota del mes:<br>${formatDateTimeStr(f.fecha_pago_hoy)}</span></div>` : ''}
             </td>
             <td>
-                ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
-                <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar fichero por equivocación o cancelación">
-                    🗑️ Eliminar
-                </button>
-                ` : ''}
+                <div class="flex gap-1 items-center flex-wrap">
+                    <button class="btn btn-purple" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="abrirModalEditarCliente(${f.id_cliente})" title="Editar datos del cliente (Nombre, DNI, dirección, teléfono)">
+                        ✏️ Editar Cliente
+                    </button>
+                    ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
+                    <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar fichero por equivocación o cancelación">
+                        🗑️ Eliminar
+                    </button>
+                    ` : ''}
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -2018,13 +2023,37 @@ async function toggleActivoEmpleado(id_usuario, nombre) {
     }
 }
 
-function abrirModalEditarCliente(id_cliente) {
+async function abrirModalEditarCliente(id_cliente) {
     let c = null;
     if (window.currentClientesCache && window.currentClientesCache.length > 0) {
         c = window.currentClientesCache.find(item => item.id_cliente === id_cliente || item.id_cliente === parseInt(id_cliente));
     }
     if (!c) {
-        showAlert('⚠️ No se encontraron los datos del cliente seleccionado.');
+        try {
+            const clis = await api.get('/empresa/clientes');
+            window.currentClientesCache = clis;
+            c = clis.find(item => item.id_cliente === id_cliente || item.id_cliente === parseInt(id_cliente));
+        } catch (err) {
+            console.error('Error cargando lista de clientes para edición:', err);
+        }
+    }
+    if (!c && window.allFicherosCache) {
+        const f = window.allFicherosCache.find(item => item.id_cliente === id_cliente || item.id_cliente === parseInt(id_cliente));
+        if (f) {
+            c = {
+                id_cliente: f.id_cliente,
+                nombre_apellido: f.cliente_nombre,
+                dni: f.cliente_dni || '',
+                telefono: f.cliente_telefono || '',
+                direccion: f.direccion || '',
+                barrio: f.barrio || '',
+                piso_dpto: f.piso_dpto || '',
+                referencia_domicilio: f.referencia_domicilio || ''
+            };
+        }
+    }
+    if (!c) {
+        await showAlert('⚠️ No se encontraron los datos del cliente seleccionado.');
         return;
     }
 
@@ -2088,7 +2117,10 @@ async function submitEditClienteForm(event) {
         const modal = document.getElementById('modal-edit-cliente');
         if (modal) modal.classList.add('hidden');
         
-        loadClientesAndMap();
+        if (!window.currentUser || window.currentUser.rol !== 'ENCARGADO_ZONA') {
+            loadClientesAndMap();
+        }
+        loadFicheros();
     } catch (err) {
         await showAlert('❌ Error al actualizar datos del cliente: ' + (err.message || 'Error interno'));
     }
