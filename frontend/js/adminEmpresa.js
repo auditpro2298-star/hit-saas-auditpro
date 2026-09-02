@@ -44,8 +44,7 @@ async function initEmpresaPanel() {
             if (el) el.style.display = 'none';
         });
 
-        btnsNuevoCliente.forEach(b => b.style.display = 'none');
-        // Los encargados pueden crear ficheros
+        // Los encargados pueden dar de alta clientes con QR y crear ficheros
         if (btnBackup) btnBackup.style.display = 'none';
         if (btnRestore) btnRestore.style.display = 'none';
         const containerReset = document.getElementById('container-reset-mensual');
@@ -856,10 +855,17 @@ async function submitNewClienteForm(event) {
         const mapDiv = document.getElementById('modal-map-container');
         if (mapDiv) mapDiv.style.display = 'none';
 
-        loadClientesAndMap();
+        if (!window.currentUser || window.currentUser.rol !== 'ENCARGADO_ZONA') {
+            loadClientesAndMap();
+        } else {
+            api.get('/empresa/clientes').then(clis => {
+                window.currentClientesCache = clis;
+                if (typeof popularSelectsNuevoFichero === 'function') popularSelectsNuevoFichero();
+            }).catch(() => {});
+        }
 
         if (res && res.cliente && res.cliente.qr_token) {
-            showQrModal(res.cliente.nombre_apellido, res.cliente.qr_token);
+            showQrModal(res.cliente);
         }
     } catch (err) {
         await showAlert('❌ Error al crear cliente: ' + err.message);
