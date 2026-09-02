@@ -444,15 +444,18 @@ class APIClient {
             const id = parseInt(parts[3]);
             const target = db.clientes.find(c => c.id_cliente === id);
             if (target) {
+                if (body.nombre_apellido) target.nombre_apellido = body.nombre_apellido.toString().trim();
+                if (body.dni) target.dni = body.dni.toString().trim();
                 target.direccion = body.direccion || target.direccion;
                 target.barrio = body.barrio || target.barrio;
                 target.telefono = body.telefono || target.telefono;
                 target.referencia_domicilio = body.referencia_domicilio !== undefined ? body.referencia_domicilio : target.referencia_domicilio;
+                if (body.piso_dpto !== undefined) target.piso_dpto = body.piso_dpto;
                 if (body.latitud) target.latitud = body.latitud;
                 if (body.longitud) target.longitud = body.longitud;
             }
             saveMockDB(db);
-            return { success: true, message: `Datos de "${target.nombre_apellido}" actualizados con éxito.` };
+            return { success: true, message: `Datos de "${target ? target.nombre_apellido : 'cliente'}" actualizados con éxito.` };
         }
 
         if (endpoint.startsWith('/empresa/clientes/') && method === 'DELETE') {

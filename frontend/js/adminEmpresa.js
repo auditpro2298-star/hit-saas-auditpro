@@ -354,7 +354,7 @@ function renderClientesTable(clientes) {
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple);" onclick="verFicheroCliente(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Ver todos los ficheros de venta asociados a este cliente">
                         📂 Ver Fichero
                     </button>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="editarClienteMudanza(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}', '${c.direccion.replace(/'/g, "\\'")}', '${c.barrio.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}', '${(c.referencia_domicilio || '').replace(/'/g, "\\'")}')" title="Actualizar datos del cliente (dirección, teléfono, fecha de pago)">
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="abrirModalEditarCliente(${c.id_cliente})" title="Editar datos del cliente (Nombre, DNI, dirección, teléfono, etc.)">
                         ✏️ Editar Datos
                     </button>
                     ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
@@ -2012,31 +2012,85 @@ async function toggleActivoEmpleado(id_usuario, nombre) {
     }
 }
 
-async function editarClienteMudanza(id_cliente, nombre, dirActual, barrioActual, telActual, refActual) {
-    const nuevaDir = prompt(`🏠 EDITAR DATOS DE "${nombre}":\n\nIngrese la nueva calle y número:`, dirActual);
-    if (nuevaDir === null) return;
+function abrirModalEditarCliente(id_cliente) {
+    let c = null;
+    if (window.currentClientesCache && window.currentClientesCache.length > 0) {
+        c = window.currentClientesCache.find(item => item.id_cliente === id_cliente || item.id_cliente === parseInt(id_cliente));
+    }
+    if (!c) {
+        showAlert('⚠️ No se encontraron los datos del cliente seleccionado.');
+        return;
+    }
 
-    const nuevoBarrio = prompt(`📍 Ingrese el Barrio o Zona:`, barrioActual);
-    if (nuevoBarrio === null) return;
+    const editId = document.getElementById('edit-cli-id');
+    const editNombre = document.getElementById('edit-cli-nombre');
+    const editDni = document.getElementById('edit-cli-dni');
+    const editTel = document.getElementById('edit-cli-tel');
+    const editDir = document.getElementById('edit-cli-direccion');
+    const editBarrio = document.getElementById('edit-cli-barrio');
+    const editPiso = document.getElementById('edit-cli-piso');
+    const editRef = document.getElementById('edit-cli-ref');
 
-    const nuevoTel = prompt(`📞 Ingrese el Teléfono de contacto:`, telActual || '');
-    if (nuevoTel === null) return;
+    if (editId) editId.value = c.id_cliente;
+    if (editNombre) editNombre.value = c.nombre_apellido || '';
+    if (editDni) editDni.value = c.dni || '';
+    if (editTel) editTel.value = c.telefono || '';
+    if (editDir) editDir.value = c.direccion || '';
+    if (editBarrio) editBarrio.value = c.barrio || '';
+    if (editPiso) editPiso.value = c.piso_dpto || '';
+    if (editRef) editRef.value = c.referencia_domicilio || '';
 
-    const nuevaRef = prompt(`📅 Ingrese la Fecha de Pago o Referencia (ej: 12 de cada mes):`, refActual || '');
-    if (nuevaRef === null) return;
+    const modal = document.getElementById('modal-edit-cliente');
+    if (modal) modal.classList.remove('hidden');
+}
+
+async function submitEditClienteForm(event) {
+    if (event) event.preventDefault();
+    const id_cliente = document.getElementById('edit-cli-id')?.value;
+    const nombre = (document.getElementById('edit-cli-nombre')?.value || '').trim();
+    const dni = (document.getElementById('edit-cli-dni')?.value || '').trim();
+    const tel = (document.getElementById('edit-cli-tel')?.value || '').trim();
+    const direccion = (document.getElementById('edit-cli-direccion')?.value || '').trim();
+    const barrio = (document.getElementById('edit-cli-barrio')?.value || '').trim();
+    const piso = (document.getElementById('edit-cli-piso')?.value || '').trim();
+    const ref = (document.getElementById('edit-cli-ref')?.value || '').trim();
+
+    if (!id_cliente) {
+        await showAlert('⚠️ Error: ID de cliente inválido.');
+        return;
+    }
+
+    if (!nombre || !direccion || !barrio) {
+        await showAlert('⚠️ El Nombre, la Dirección y el Barrio son campos obligatorios.');
+        return;
+    }
 
     try {
-        const res = await api.put(`/empresa/clientes/${id_cliente}`, {
-            direccion: nuevaDir.trim() || dirActual,
-            barrio: nuevoBarrio.trim() || barrioActual,
-            telefono: nuevoTel.trim() || telActual,
-            referencia_domicilio: nuevaRef.trim() || refActual
-        });
-        await showAlert(res.message);
+        const payload = {
+            nombre_apellido: nombre,
+            dni: dni,
+            telefono: tel,
+            direccion: direccion,
+            barrio: barrio,
+            piso_dpto: piso,
+            referencia_domicilio: ref
+        };
+
+        const res = await api.put(`/empresa/clientes/${id_cliente}`, payload);
+        await showAlert(res.message || `✅ Datos de "${nombre}" actualizados con éxito.`);
+        
+        const modal = document.getElementById('modal-edit-cliente');
+        if (modal) modal.classList.add('hidden');
+        
         loadClientesAndMap();
     } catch (err) {
-        await showAlert('Error al actualizar datos del cliente: ' + err.message);
+        await showAlert('❌ Error al actualizar datos del cliente: ' + (err.message || 'Error interno'));
     }
+}
+
+// Retrocompatibilidad con llamadas anteriores
+function editarClienteMudanza(id_cliente) {
+    abrirModalEditarCliente(id_cliente);
 }
 
 async function resetPasswordEmpleado(id_usuario, nombre) {

@@ -296,11 +296,11 @@ router.post('/clientes', async (req, res) => {
     }
 });
 
-// PUT /api/empresa/clientes/:id - Editar cliente (Mudanzas, actualización de domicilio, teléfono y geolocalización GPS)
+// PUT /api/empresa/clientes/:id - Editar cliente (Mudanzas, actualización de nombre, domicilio, teléfono y geolocalización GPS)
 router.put('/clientes/:id', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion } = req.body;
+    const { nombre_apellido, dni, direccion, barrio, piso_dpto, referencia_domicilio, telefono, latitud, longitud, calificacion } = req.body;
 
     if (!direccion || !barrio) {
         return res.status(400).json({ error: 'Dirección y barrio son obligatorios.' });
@@ -310,6 +310,25 @@ router.put('/clientes/:id', async (req, res) => {
         const cliente = await get('SELECT * FROM clientes WHERE id_cliente = ? AND id_empresa = ?', [id, id_empresa]);
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado o no pertenece a su empresa.' });
+        }
+
+        // Nombre actualizado (acepta cualquier combinación alfanumérica: letras, números, símbolos como Juan Dima 123)
+        const cleanNombre = (nombre_apellido !== undefined && nombre_apellido !== null && nombre_apellido.toString().trim() !== '')
+            ? nombre_apellido.toString().trim()
+            : cliente.nombre_apellido;
+
+        // DNI actualizado
+        let cleanDni = cliente.dni;
+        if (dni !== undefined && dni !== null && dni.toString().trim() !== '') {
+            const rawDni = dni.toString().trim().replace(/[^0-9]/g, '');
+            if (rawDni) {
+                // Verificar si ya existe otro cliente con el mismo DNI en esta empresa
+                const existenteDni = await get('SELECT id_cliente, nombre_apellido FROM clientes WHERE dni = ? AND id_empresa = ? AND id_cliente != ?', [rawDni, id_empresa, id]);
+                if (existenteDni) {
+                    return res.status(400).json({ error: `Ya existe otro cliente registrado con el DNI ${rawDni} (${existenteDni.nombre_apellido}).` });
+                }
+                cleanDni = rawDni;
+            }
         }
 
         // Verificar duplicado de teléfono (excluyendo el cliente actual)
@@ -373,6 +392,8 @@ router.put('/clientes/:id', async (req, res) => {
 
         await run(`
             UPDATE clientes SET 
+                nombre_apellido = ?,
+                dni = ?,
                 direccion = ?,
                 barrio = ?,
                 piso_dpto = ?,
@@ -382,7 +403,20 @@ router.put('/clientes/:id', async (req, res) => {
                 longitud = ?,
                 calificacion = ?
             WHERE id_cliente = ? AND id_empresa = ?
-        `, [direccion.trim(), barrio.trim(), piso_dpto !== undefined ? piso_dpto.trim() : cliente.piso_dpto, referencia_domicilio !== undefined ? referencia_domicilio.trim() : cliente.referencia_domicilio, (telefono || '').trim() || cliente.telefono, lat, lng, calificacion || cliente.calificacion, id, id_empresa]);
+        `, [
+            cleanNombre,
+            cleanDni,
+            direccion.trim(),
+            barrio.trim(),
+            piso_dpto !== undefined ? (piso_dpto || '').trim() : cliente.piso_dpto,
+            referencia_domicilio !== undefined ? (referencia_domicilio || '').trim() : cliente.referencia_domicilio,
+            (telefono || '').trim() || cliente.telefono,
+            lat,
+            lng,
+            calificacion || cliente.calificacion,
+            id,
+            id_empresa
+        ]);
 
         const actualizado = await get('SELECT * FROM clientes WHERE id_cliente = ?', [id]);
         res.json({ success: true, message: `Datos de "${actualizado.nombre_apellido}" actualizados con éxito.`, cliente: actualizado });

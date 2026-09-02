@@ -1174,6 +1174,65 @@
     </div>
 
     <!-- MODAL 3: TARJETA QR DEL CLIENTE (PREVIEW IMPRESIÓN) -->
+    
+    <!-- MODAL 2B: EDICIÓN INTEGRAL DE CLIENTE -->
+    <div id="modal-edit-cliente" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 540px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin: 0;">✏️ Editar Datos del Cliente</h3>
+                <button type="button" class="btn btn-outline" style="border:none; font-size: 1.1rem; cursor: pointer;"
+                    onclick="document.getElementById('modal-edit-cliente').classList.add('hidden')">✖</button>
+            </div>
+            <form id="form-edit-cliente" onsubmit="submitEditClienteForm(event)">
+                <input type="hidden" id="edit-cli-id">
+
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Nombre y Apellido / Razón Social <span style="font-weight: normal; color: var(--text-muted);">(letras, números ej: Juan Dima 123)</span></label>
+                    <input type="text" id="edit-cli-nombre" class="form-control" placeholder="Ej: Juan Dima 123 o Carlos Tevez" required>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">DNI / Documento</label>
+                        <input type="text" id="edit-cli-dni" class="form-control" placeholder="Ej: 30123456">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Teléfono / WhatsApp</label>
+                        <input type="text" id="edit-cli-tel" class="form-control" placeholder="Ej: +54 9 11 1234-5678">
+                    </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Calle y Altura / Dirección</label>
+                        <input type="text" id="edit-cli-direccion" class="form-control" placeholder="Ej: Av. San Martín 1500" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Barrio / Zona</label>
+                        <input type="text" id="edit-cli-barrio" class="form-control" placeholder="Ej: Flores" required>
+                    </div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Piso / Depto (opcional)</label>
+                        <input type="text" id="edit-cli-piso" class="form-control" placeholder="Ej: Piso 9 B o Dpto 2">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Fecha de pago / Ref (opcional)</label>
+                        <input type="text" id="edit-cli-ref" class="form-control" placeholder="Ej: Todos los 10 o Casa portón verde">
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center" style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <button type="button" class="btn btn-outline"
+                        onclick="document.getElementById('modal-edit-cliente').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="btn btn-purple" style="font-weight: 700; padding: 0.55rem 1.25rem;">💾 Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="modal-client-qr" class="modal-overlay hidden">
         <div class="modal-box text-center" style="max-width: 420px;">
             <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
