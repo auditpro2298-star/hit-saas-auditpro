@@ -377,7 +377,20 @@ class APIClient {
 
         // 3. CLIENTES
         if (endpoint === '/empresa/clientes' && method === 'GET') {
-            return db.clientes.map(c => {
+            const isEncargado = (this.user && this.user.rol === 'ENCARGADO_ZONA');
+            const userNombre = (this.user && this.user.nombre) ? this.user.nombre.toLowerCase() : '';
+            const userId = this.user ? this.user.id_usuario : 0;
+
+            let clientesList = db.clientes;
+            if (isEncargado) {
+                clientesList = db.clientes.filter(c => {
+                    const enc = (c.encargado_zona || '').toLowerCase();
+                    const hasAssignedFichero = db.ficheros.some(f => f.id_cliente === c.id_cliente && (f.id_cobrador_asignado === userId || (f.encargado_zona || '').toLowerCase() === userNombre));
+                    return enc === userNombre || hasAssignedFichero;
+                });
+            }
+
+            return clientesList.map(c => {
                 const activeFicheros = db.ficheros.filter(f => f.id_cliente === c.id_cliente && f.estado === 'ACTIVO');
                 const activeFicIds = activeFicheros.map(f => f.id_fichero);
                 const cuotasPendientes = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PENDIENTE').length;

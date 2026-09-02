@@ -255,15 +255,31 @@ router.get('/dashboard', async (req, res) => {
 router.get('/clientes', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
-        const clientes = await query(`
+        let sql = `
             SELECT c.*, 
                    (SELECT COUNT(*) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as ficheros_activos,
                    (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado = 'PENDIENTE') as cuotas_pendientes,
                    (SELECT SUM(f.cantidad_cuotas) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as cuotas_totales
             FROM clientes c 
-            WHERE c.id_empresa = ? 
-            ORDER BY c.nombre_apellido ASC
-        `, [id_empresa]);
+            WHERE c.id_empresa = ?
+        `;
+        const params = [id_empresa];
+
+        // Si es ENCARGADO_ZONA, solo mostrar los clientes creados por él o asignados a él
+        if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
+            sql += ` AND (
+                LOWER(COALESCE(c.encargado_zona, '')) = LOWER(?)
+                OR c.id_cliente IN (
+                    SELECT id_cliente FROM ficheros 
+                    WHERE id_empresa = ? 
+                      AND (id_cobrador_asignado = ? OR LOWER(COALESCE(encargado_zona, '')) = LOWER(?))
+                )
+            )`;
+            params.push(req.user.nombre, id_empresa, req.user.id_usuario, req.user.nombre);
+        }
+
+        sql += ` ORDER BY c.nombre_apellido ASC`;
+        const clientes = await query(sql, params);
         res.json(clientes);
     } catch (err) {
         console.error('Error listando clientes:', err);
@@ -349,9 +365,10 @@ router.post('/clientes', async (req, res) => {
         const maxValObj = await get("SELECT COALESCE(MAX(nro_cliente_interno), 0) as max_val FROM clientes WHERE id_empresa = ?", [id_empresa]);
         const nro_cliente_interno = (maxValObj ? maxValObj.max_val : 0) + 1;
 
+        const finalEncargado = (req.user && req.user.rol === 'ENCARGADO_ZONA') ? req.user.nombre : (encargado_zona || null);
         const result = await run(
-            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, nro_cliente_interno) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO', ?)",
-            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token, nro_cliente_interno]
+            "INSERT INTO clientes (id_empresa, nombre_apellido, dni, telefono, direccion, barrio, piso_dpto, referencia_domicilio, latitud, longitud, qr_token, calificacion, nro_cliente_interno, encargado_zona) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'BUENO', ?, ?)",
+            [id_empresa, nombre_apellido.trim(), cleanDni, (telefono || '').trim(), direccion.trim(), barrio.trim(), (piso_dpto || '').trim(), (referencia_domicilio || '').trim(), lat, lng, qr_token, nro_cliente_interno, finalEncargado]
         );
 
         const nuevoCliente = await get('SELECT * FROM clientes WHERE id_cliente = ?', [result.lastID]);
@@ -595,6 +612,17 @@ router.get('/ficheros', async (req, res) => {
             WHERE f.id_empresa = ?
         `;
         const params = [startOfMonth, todayStr, startOfMonth, todayStr, id_empresa];
+
+        // Si es ENCARGADO_ZONA, solo listar los ficheros asignados a él o de sus clientes
+        if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
+            sql += ` AND (
+                f.id_cobrador_asignado = ?
+                OR LOWER(COALESCE(f.encargado_zona, '')) = LOWER(?)
+                OR LOWER(COALESCE(c.encargado_zona, '')) = LOWER(?)
+            )`;
+            params.push(req.user.id_usuario, req.user.nombre, req.user.nombre);
+        }
+
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
                   WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) > 0 THEN 2
@@ -626,7 +654,11 @@ router.post('/ficheros', async (req, res) => {
             const usr = await get('SELECT nombre FROM usuarios WHERE id_usuario = ?', [id_cobrador_asignado]);
             if (usr) finalEncargado = usr.nombre;
         }
-        if (!finalEncargado) {
+        if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
+            if (!finalEncargado || finalEncargado === 'General' || finalEncargado === 'Sin asignar') {
+                finalEncargado = req.user.nombre;
+            }
+        } else if (!finalEncargado) {
             const clientObj = await get('SELECT encargado_zona FROM clientes WHERE id_cliente = ?', [id_cliente]);
             finalEncargado = clientObj ? clientObj.encargado_zona : 'General';
         }
