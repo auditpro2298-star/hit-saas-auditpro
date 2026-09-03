@@ -225,7 +225,7 @@ router.get('/dashboard', async (req, res) => {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
         const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
-        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = ?", [id_empresa, todayStr]);
+        const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = ? AND (nombre_cobrador IS NULL OR nombre_cobrador != 'Sistema (Carga Inicial)')", [id_empresa, todayStr]);
         const pendientesTotal = await get("SELECT SUM(monto) as por_cobrar, COUNT(*) as cuotas_pendientes FROM cuotas WHERE id_empresa = ? AND estado = 'PENDIENTE'", [id_empresa]);
         const promesasCount = await get("SELECT COUNT(*) as promesas FROM cuotas WHERE id_empresa = ? AND promesa_pago_fecha IS NOT NULL AND estado = 'NO_COBRADO'", [id_empresa]);
         const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = ?", [id_empresa, todayStr]);
@@ -604,8 +604,8 @@ router.get('/ficheros', async (req, res) => {
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) as pagado_hoy,
-                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) as fecha_pago_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as pagado_hoy,
+                   (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as fecha_pago_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON f.id_cobrador_asignado = u.id_usuario
@@ -625,7 +625,7 @@ router.get('/ficheros', async (req, res) => {
 
         sql += ` ORDER BY 
             (CASE WHEN f.id_cobrador_asignado IS NULL OR f.id_cobrador_asignado = 0 OR f.encargado_zona = 'Sin asignar' THEN 0 
-                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ?) > 0 THEN 2
+                  WHEN (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) > 0 THEN 2
                   ELSE 1 END) ASC, 
             f.id_fichero DESC`;
         const orderParams = [startOfMonth, todayStr];
