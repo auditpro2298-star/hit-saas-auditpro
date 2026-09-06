@@ -13,40 +13,25 @@ router.get('/hoja-de-ruta', async (req, res) => {
     const userRole = req.user.rol;
     const userZone = (req.user.zona_asignada || '').toLowerCase().trim();
 
-    // Lógica para reiniciar las asignaciones día a día de forma aislada por empresa
     try {
-        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-        const emp = await get("SELECT dia_ultimo_reset FROM empresas WHERE id_empresa = ?", [id_empresa]);
-        
-        if (emp && emp.dia_ultimo_reset !== todayStr) {
-            console.log(`🌅 ¡Es un nuevo día! Reiniciando asignaciones de ruta para cobradores de la empresa ID ${id_empresa} (${todayStr})...`);
-            // Limpiamos la asignación de cobradores de forma aislada por empresa
-            await run('UPDATE ficheros SET id_cobrador_asignado = NULL WHERE id_empresa = ?', [id_empresa]);
-            // Guardamos el nuevo día en la base de datos
-            await run('UPDATE empresas SET dia_ultimo_reset = ? WHERE id_empresa = ?', [todayStr, id_empresa]);
-            console.log(`✅ Asignaciones reiniciadas con éxito para la empresa ID ${id_empresa}.`);
-        }
-    } catch (resetErr) {
-        console.error('Error al reiniciar asignaciones de ruta diarias:', resetErr);
-    }
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD en Argentina
 
-    try {
         let sql = `
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
                    c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now', 'localtime')) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = date('now', 'localtime')) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = date('now', 'localtime')))) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) as cobrado_hoy,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) as no_cobrado_hoy
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
         `;
-        const params = [id_empresa];
+        const params = [todayStr, todayStr, todayStr, id_empresa];
 
         if (userRole === 'COBRADOR') {
-            sql += ` AND f.id_cobrador_asignado = ?`;
+            sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL)`;
             params.push(id_usuario);
         }
 
@@ -360,14 +345,15 @@ router.get('/resumen-diario', async (req, res) => {
     const id_empresa = req.user.id_empresa;
 
     try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         const resumen = await get(`
             SELECT SUM(CASE WHEN medio_pago = 'EFECTIVO' AND estado = 'PAGADO' THEN monto ELSE 0 END) as efectivo_en_bolsillo,
                    SUM(CASE WHEN medio_pago = 'TRANSFERENCIA' AND estado = 'PAGADO' THEN monto ELSE 0 END) as transferencias_cargadas,
                    COUNT(CASE WHEN estado = 'PAGADO' THEN 1 END) as cuotas_cobradas,
                    COUNT(CASE WHEN estado = 'NO_COBRADO' THEN 1 END) as visitas_no_cobradas
             FROM cuotas
-            WHERE id_empresa = ? AND id_cobrador = ? AND date(fecha_pago) = date('now', 'localtime')
-        `, [id_empresa, id_cobrador]);
+            WHERE id_empresa = ? AND id_cobrador = ? AND date(fecha_pago) = ?
+        `, [id_empresa, id_cobrador, todayStr]);
 
         res.json(resumen || { efectivo_en_bolsillo: 0, transferencias_cargadas: 0, cuotas_cobradas: 0, visitas_no_cobradas: 0 });
     } catch (err) {

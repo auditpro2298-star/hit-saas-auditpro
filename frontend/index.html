@@ -917,22 +917,35 @@
                                 Apunta a la tarjeta QR del cliente para levantar su planilla sin buscar en listas.
                             </p>
                             <div class="flex gap-2 justify-center flex-wrap">
-                                <button class="btn btn-primary" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;"
+                                <button class="btn btn-primary" id="btn-start-camera" style="font-size: 0.82rem; padding: 0.5rem 0.9rem;"
                                     onclick="startCameraScanner()">
                                     📸 Activar Cámara
                                 </button>
-                                <button class="btn btn-warning" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;"
+                                <button class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.5rem 0.85rem;"
+                                    onclick="document.getElementById('qr-file-input').click()"
+                                    title="Subir o sacar foto con la cámara del celular">
+                                    📁 Subir Foto QR
+                                </button>
+                                <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="handleQrFileUpload(this)">
+                                <button class="btn btn-warning" style="font-size: 0.82rem; padding: 0.5rem 0.85rem;"
                                     onclick="buscarClientePorDni()"
                                     title="Emergencia si el cliente perdió su tarjeta QR">
-                                    🔍 Buscar por DNI (Sin QR)
+                                    🔍 Buscar por DNI
+                                </button>
+                                <button class="btn btn-outline hidden" id="btn-switch-camera"
+                                    style="font-size: 0.82rem; padding: 0.5rem 0.85rem;" onclick="switchCamera()">
+                                    🔄 Cambiar Cámara
                                 </button>
                                 <button class="btn btn-danger hidden" id="btn-stop-camera"
-                                    style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="stopCameraScanner()">
+                                    style="font-size: 0.82rem; padding: 0.5rem 0.85rem;" onclick="stopCameraScanner()">
                                     🛑 Cerrar Cámara
                                 </button>
                             </div>
                             <!-- Contenedor del Lector HTML5 -->
-                            <div id="qr-reader-container" class="hidden" style="margin-top: 1rem;"></div>
+                            <div id="qr-reader-container" class="hidden" style="margin-top: 1rem; border-radius: 12px; overflow: hidden; background: #0f172a; min-height: 260px; position: relative;"></div>
+                            <div id="camera-loading-msg" class="hidden" style="margin-top:0.75rem; font-size:0.8rem; color:var(--primary); font-weight:700;">
+                                ⏳ Iniciando cámara del celular...
+                            </div>
                         </div>
 
                         <!-- VISTA A: HOJA DE RUTA DEL DÍA -->
@@ -1372,7 +1385,7 @@
                 <!-- Campo para ingresar el monto real cobrado (soporta pagos de más y calcula saldo a favor) -->
                 <div class="form-group" id="div-monto-cobrado">
                     <label>Monto Real Cobrado ($)</label>
-                    <input type="number" id="cobro-monto-input" class="form-control" placeholder="Ej: 22000" required style="font-weight: 700; font-size: 1.05rem;">
+                    <input type="number" id="cobro-monto-input" class="form-control" placeholder="Ej: 22000" required inputmode="decimal" step="any" style="font-weight: 800; font-size: 1.15rem; padding: 0.65rem;">
                 </div>
 
                 <!-- Campo condicional para TRANSFERENCIA (Subir/Sacar foto del comprobante) -->
@@ -1539,11 +1552,11 @@
         </div>
     </div>
 
-    <!-- CDNs Externos -->
+    <!-- CDNs Externos y Librerías Locales Offline -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="js/libs/html5-qrcode.min.js"></script>
 
     <!-- Scripts de la Aplicación -->
     <script src="js/modals.js?v=2.0.6"></script>
