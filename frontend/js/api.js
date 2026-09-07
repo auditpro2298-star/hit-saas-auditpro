@@ -686,16 +686,18 @@ class APIClient {
         }
 
         // 6. COBRADOR HOJA DE RUTA
-        if (endpoint === '/cobrador/hoja-de-ruta' && method === 'GET') {
+        if (endpoint.startsWith('/cobrador/hoja-de-ruta') && method === 'GET') {
             const todayStr = new Date().toISOString().split('T')[0];
             const isCobrador = (this.user && this.user.rol === 'COBRADOR');
+            const urlParams = new URLSearchParams(endpoint.includes('?') ? endpoint.split('?')[1] : '');
+            const filtro = urlParams.get('filtro') || 'HOY';
             
             let filteredFicheros = db.ficheros;
             if (isCobrador) {
                 filteredFicheros = db.ficheros.filter(f => f.id_cobrador_asignado === this.user.id_usuario);
             }
             
-            return filteredFicheros.map(f => {
+            let mapped = filteredFicheros.map(f => {
                 const c = db.clientes.find(cli => cli.id_cliente === f.id_cliente) || {};
                 const cuotasFichero = db.cuotas.filter(q => q.id_fichero === f.id_fichero);
                 const cuotasPagadas = cuotasFichero.filter(q => q.estado === 'PAGADO').length;
@@ -724,9 +726,23 @@ class APIClient {
                     proxima_cuota_nro: nextCuota ? nextCuota.nro_cuota : f.cantidad_cuotas,
                     proximo_vencimiento: nextCuota ? nextCuota.fecha_vencimiento : todayStr,
                     cobrado_hoy: cobradoHoy,
-                    no_cobrado_hoy: noCobradoHoy
+                    no_cobrado_hoy: noCobradoHoy,
+                    fecha_creacion: f.fecha_creacion || todayStr
                 };
             });
+
+            if (filtro !== 'TODOS') {
+                mapped = mapped.filter(item => {
+                    if (item.cobrado_hoy > 0) return true;
+                    if (item.no_cobrado_hoy > 0) return true;
+                    if (item.cuotas_saldadas === 0) return true;
+                    if (item.fecha_creacion && item.fecha_creacion.startsWith(todayStr)) return true;
+                    if (item.proximo_vencimiento && item.proximo_vencimiento <= todayStr) return true;
+                    return false;
+                });
+            }
+
+            return mapped;
         }
 
         if (endpoint === '/empresa/reset-asignaciones-mensual' && method === 'POST') {

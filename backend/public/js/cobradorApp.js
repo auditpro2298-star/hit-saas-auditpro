@@ -67,6 +67,51 @@ function updatePocketDisplay(resumen) {
     if (trEl) trEl.innerText = `$${Number(resumen.transferencias_cargadas || 0).toLocaleString('es-AR')}`;
 }
 
+let currentRutaFilter = 'HOY'; // 'HOY' o 'TODOS'
+let currentRutaItems = [];
+
+function setRutaFilter(filter) {
+    currentRutaFilter = filter;
+    const btnHoy = document.getElementById('filter-btn-hoy');
+    const btnTodos = document.getElementById('filter-btn-todos');
+    const titleEl = document.getElementById('hoja-ruta-title');
+
+    if (btnHoy && btnTodos) {
+        if (filter === 'HOY') {
+            btnHoy.className = 'btn btn-primary';
+            btnTodos.className = 'btn btn-outline';
+            if (titleEl) titleEl.innerText = '📋 Hoja de Ruta del Día';
+        } else {
+            btnHoy.className = 'btn btn-outline';
+            btnTodos.className = 'btn btn-primary';
+            if (titleEl) titleEl.innerText = '📂 Toda Mi Cartera de Clientes';
+        }
+    }
+
+    const searchInput = document.getElementById('input-buscar-ruta');
+    if (searchInput) searchInput.value = '';
+
+    syncHojaDeRuta();
+}
+
+function filtrarRutaEnVivo(query) {
+    const cleanQ = (query || '').toLowerCase().trim();
+    if (!cleanQ) {
+        renderHojaDeRutaCards(currentRutaItems, false);
+        return;
+    }
+
+    const filtered = currentRutaItems.filter(item => {
+        const nom = (item.nombre_apellido || '').toLowerCase();
+        const dir = (item.direccion || '').toLowerCase();
+        const bar = (item.barrio || '').toLowerCase();
+        const dni = (item.dni || '').toString().toLowerCase();
+        return nom.includes(cleanQ) || dir.includes(cleanQ) || bar.includes(cleanQ) || dni.includes(cleanQ);
+    });
+
+    renderHojaDeRutaCards(filtered, false, true);
+}
+
 async function syncHojaDeRuta() {
     const rutaList = document.getElementById('hoja-ruta-list');
     if (!rutaList) return;
@@ -76,12 +121,13 @@ async function syncHojaDeRuta() {
     let isFromCache = false;
 
     try {
-        ruta = await api.get('/cobrador/hoja-de-ruta');
+        ruta = await api.get(`/cobrador/hoja-de-ruta?filtro=${currentRutaFilter}`);
         // Guardar copia local en caché para disponibilidad 100% offline en calle
+        localStorage.setItem(`HIT_CACHED_HOJA_RUTA_${currentRutaFilter}`, JSON.stringify(ruta));
         localStorage.setItem('HIT_CACHED_HOJA_RUTA', JSON.stringify(ruta));
     } catch (err) {
         console.warn('📡 Sin conexión directa con el servidor. Cargando hoja de ruta desde memoria local...');
-        const cached = localStorage.getItem('HIT_CACHED_HOJA_RUTA');
+        const cached = localStorage.getItem(`HIT_CACHED_HOJA_RUTA_${currentRutaFilter}`) || localStorage.getItem('HIT_CACHED_HOJA_RUTA');
         if (cached) {
             ruta = JSON.parse(cached);
             isFromCache = true;
@@ -94,6 +140,15 @@ async function syncHojaDeRuta() {
         }
     }
 
+    currentRutaItems = ruta;
+    renderHojaDeRutaCards(ruta, isFromCache);
+}
+
+function renderHojaDeRutaCards(ruta, isFromCache = false, isSearching = false) {
+    const rutaList = document.getElementById('hoja-ruta-list');
+    const badgeCount = document.getElementById('badge-ruta-count');
+    if (!rutaList) return;
+
     // Fusionar cobros pendientes de la cola offline para reflejar el estado verde de inmediato
     const offlineQueue = JSON.parse(localStorage.getItem('HIT_OFFLINE_QUEUE') || '[]');
     const offlinePaidCuotas = new Set(offlineQueue.filter(q => q.medio_pago && q.medio_pago !== 'NO_COBRADO').map(q => q.id_cuota));
@@ -101,7 +156,35 @@ async function syncHojaDeRuta() {
 
     rutaList.innerHTML = '';
 
-    if (isFromCache) {
+    let totalCobrados = 0;
+    let totalPendientes = 0;
+
+    ruta.forEach(item => {
+        let yaCobrado = (item.cobrado_hoy || 0) > 0;
+        if (item.proxima_cuota_id && offlinePaidCuotas.has(item.proxima_cuota_id)) {
+            yaCobrado = true;
+        } else if (offlineQueue.some(q => q.qr_token === item.qr_token && q.medio_pago && q.medio_pago !== 'NO_COBRADO')) {
+            yaCobrado = true;
+        }
+
+        if (yaCobrado) {
+            totalCobrados++;
+        } else {
+            totalPendientes++;
+        }
+    });
+
+    if (badgeCount) {
+        if (currentRutaFilter === 'HOY') {
+            badgeCount.innerText = `${totalPendientes} pdtes | ${totalCobrados} cobrados`;
+            badgeCount.className = totalPendientes === 0 && totalCobrados > 0 ? 'badge badge-success' : 'badge badge-purple';
+        } else {
+            badgeCount.innerText = `${ruta.length} clientes total`;
+            badgeCount.className = 'badge badge-purple';
+        }
+    }
+
+    if (isFromCache && !isSearching) {
         const offBanner = document.createElement('div');
         offBanner.className = 'glass-card animate-fade';
         offBanner.style.padding = '0.65rem 1rem';
@@ -116,7 +199,18 @@ async function syncHojaDeRuta() {
     }
 
     if (ruta.length === 0) {
-        rutaList.innerHTML = `<div class="glass-card text-center" style="padding:2rem;">🎉 ¡Excelente! No tienes visitas pendientes asignadas en tu zona hoy.</div>`;
+        if (isSearching) {
+            rutaList.innerHTML = `<div class="glass-card text-center" style="padding:1.5rem;">🔍 No se encontraron clientes que coincidan con la búsqueda.</div>`;
+        } else if (currentRutaFilter === 'HOY') {
+            rutaList.innerHTML = `<div class="glass-card text-center" style="padding:2rem;">
+                <div style="font-size:2.5rem; margin-bottom:0.5rem;">🎉</div>
+                <h4 style="font-weight:800; font-size:1.1rem; margin-bottom:0.4rem; color:var(--success);">¡Al día! No tienes visitas pendientes hoy</h4>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">Todos los clientes cobrados saldaron su cuota del período. Si deseas ver clientes futuros o adelantar cuotas, toca "📂 Toda la Cartera".</p>
+                <button class="btn btn-outline" style="font-size:0.85rem; padding:0.5rem 1rem;" onclick="setRutaFilter('TODOS')">📂 Ver Toda la Cartera</button>
+            </div>`;
+        } else {
+            rutaList.innerHTML = `<div class="glass-card text-center" style="padding:2rem;">No hay clientes registrados en su cartera.</div>`;
+        }
         return;
     }
 
@@ -841,6 +935,8 @@ function showWhatsappLiveModal(msg) {
     }
 }
 
+window.setRutaFilter = setRutaFilter;
+window.filtrarRutaEnVivo = filtrarRutaEnVivo;
 window.initCobradorApp = initCobradorApp;
 window.startCameraScanner = startCameraScanner;
 window.stopCameraScanner = stopCameraScanner;

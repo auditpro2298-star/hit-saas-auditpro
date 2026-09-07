@@ -950,8 +950,26 @@
 
                         <!-- VISTA A: HOJA DE RUTA DEL DÍA -->
                         <div id="cobrador-vista-ruta">
-                            <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0.5rem 0;">📋 Hoja de Ruta
-                                Priorizada por Zona</h4>
+                            <div class="flex justify-between items-center" style="margin: 0.75rem 0 0.5rem 0;">
+                                <h4 style="font-size: 0.95rem; font-weight: 800; margin: 0;" id="hoja-ruta-title">
+                                    📋 Hoja de Ruta del Día
+                                </h4>
+                                <span class="badge badge-purple" id="badge-ruta-count" style="font-size: 0.72rem;">0 clientes</span>
+                            </div>
+
+                            <!-- Filtro Rápido Móvil y Buscador en Tiempo Real -->
+                            <div style="margin-bottom: 0.75rem;">
+                                <div class="flex gap-2" style="margin-bottom: 0.5rem;">
+                                    <button class="btn btn-primary" id="filter-btn-hoy" style="flex: 1; font-size: 0.78rem; padding: 0.45rem 0.5rem; font-weight: 700;" onclick="setRutaFilter('HOY')">
+                                        🎯 Ruta de Hoy (Pendientes)
+                                    </button>
+                                    <button class="btn btn-outline" id="filter-btn-todos" style="flex: 1; font-size: 0.78rem; padding: 0.45rem 0.5rem;" onclick="setRutaFilter('TODOS')">
+                                        📂 Toda la Cartera
+                                    </button>
+                                </div>
+                                <input type="text" id="input-buscar-ruta" class="form-control" placeholder="🔍 Filtrar por nombre, calle o barrio..." style="font-size: 0.82rem; padding: 0.45rem 0.75rem;" oninput="filtrarRutaEnVivo(this.value)">
+                            </div>
+
                             <div id="hoja-ruta-list">
                                 <!-- Dinámico -->
                             </div>

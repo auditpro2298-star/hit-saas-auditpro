@@ -12,27 +12,52 @@ router.get('/hoja-de-ruta', async (req, res) => {
     const id_empresa = req.user.id_empresa;
     const userRole = req.user.rol;
     const userZone = (req.user.zona_asignada || '').toLowerCase().trim();
+    const { filtro } = req.query; // 'TODOS' o por defecto 'HOY' (Ruta de hoy)
 
     try {
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD en Argentina
 
         let sql = `
-            SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado,
-                   c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token,
+            SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado, f.fecha_creacion, f.fecha_entrega,
+                   c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token, c.dni,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
+                   (SELECT MIN(id_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_id,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) as cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) as no_cobrado_hoy
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) as no_cobrado_hoy,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE' AND date(q.fecha_vencimiento) <= ?) as cuotas_vencidas_pendientes
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
             WHERE f.id_empresa = ? AND f.estado = 'ACTIVO'
         `;
-        const params = [todayStr, todayStr, todayStr, id_empresa];
+        const params = [todayStr, todayStr, todayStr, todayStr, id_empresa];
 
         if (userRole === 'COBRADOR') {
             sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL)`;
             params.push(id_usuario);
+        }
+
+        // Filtro de la Hoja de Ruta del Día (Por defecto 'HOY'):
+        // Muestra cobros hechos hoy (feedback en verde del turno), no cobrados hoy,
+        // clientes con cuotas pendientes vencidas o a vencer hoy (que no pagaron),
+        // o nuevas asignaciones creadas hoy.
+        // Los clientes que pagaron exitosamente en días anteriores y cuya próxima cuota vence en el futuro NO aparecen.
+        if (filtro !== 'TODOS') {
+            sql += `
+                AND (
+                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) > 0
+                    OR
+                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) > 0
+                    OR
+                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') <= ?
+                    OR
+                    date(f.fecha_creacion) = ?
+                    OR
+                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') = 0
+                )
+            `;
+            params.push(todayStr, todayStr, todayStr, todayStr, todayStr);
         }
 
         sql += ` ORDER BY f.orden_visita ASC, c.barrio ASC, c.direccion ASC`;
