@@ -598,8 +598,8 @@ router.get('/ficheros', async (req, res) => {
         const startOfMonth = `${dateParts[0]}-${dateParts[1]}-01`;
         const endOfMonth = `${dateParts[0]}-${dateParts[1]}-${String(lastDayOfMonth).padStart(2, '0')}`;
         let sql = `
-            SELECT f.*, c.nombre_apellido as cliente_nombre, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
-                   c.telefono as cliente_telefono, c.referencia_domicilio, c.nro_cliente_interno,
+            SELECT f.*, c.nombre_apellido as cliente_nombre, c.dni, c.dni as cliente_dni, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
+                   c.telefono as cliente_telefono, c.telefono, c.referencia_domicilio, c.nro_cliente_interno,
                    (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,

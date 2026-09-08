@@ -1292,8 +1292,10 @@
                     </div>
                 </div>
             </div>
-            <button class="btn btn-primary no-print" style="width: 100%;" onclick="window.print()">🖨️ Imprimir Tarjeta
-                QR</button>
+            <div class="flex gap-2 no-print">
+                <button class="btn btn-outline" style="flex:1; font-size: 0.8rem; font-weight: 700;" onclick="descargarQrImagen()">💾 Descargar QR</button>
+                <button class="btn btn-primary" style="flex:1; font-size: 0.8rem; font-weight: 700;" onclick="window.print()">🖨️ Imprimir Tarjeta</button>
+            </div>
         </div>
     </div>
 

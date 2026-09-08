@@ -38,7 +38,7 @@ async function initEmpresaPanel() {
 
     // --- Restricciones UI para el rol ENCARGADO_ZONA ---
     if (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA') {
-        const hideTabs = ['clientes', 'personal'];
+        const hideTabs = ['personal']; // Solo ocultar personal/empleados, permitir Clientes & Mapa
         hideTabs.forEach(t => {
             const el = document.querySelector(`button[data-tab="${t}"]`);
             if (el) el.style.display = 'none';
@@ -54,7 +54,7 @@ async function initEmpresaPanel() {
         if (metricsDashboard) metricsDashboard.style.display = 'none';
 
         await loadEmpresaDashboard();
-        await switchEmpresaTab('ficheros');
+        await switchEmpresaTab('clientes');
         return;
     }
 
@@ -515,25 +515,47 @@ function initMap(clientes) {
     }
 }
 
-function showQrModal(nombreOrCliente, tokenArg) {
-    let nombre = nombreOrCliente;
-    let token = tokenArg;
+function showQrModal(nombreOrCliente, tokenArg, phoneArg, dniArg) {
+    let nombre = 'Cliente';
+    let token = '';
     let docText = '';
+    let telefono = '';
 
     if (typeof nombreOrCliente === 'object' && nombreOrCliente !== null) {
         const c = nombreOrCliente;
-        nombre = c.nombre_apellido;
-        token = c.qr_token;
-        docText = `DNI: ${c.dni}`;
+        nombre = c.nombre_apellido || c.cliente_nombre || 'Cliente';
+        token = c.qr_token || (c.id_cliente ? `HIT-CLI-${c.id_cliente}` : 'HIT-QR-TOKEN');
+        docText = c.dni ? `DNI: ${c.dni}` : (c.cliente_dni ? `DNI: ${c.cliente_dni}` : '');
+        telefono = c.telefono || c.cliente_telefono || '';
+    } else if (typeof nombreOrCliente === 'number') {
+        const idBuscado = nombreOrCliente;
+        const c = (window.currentClientesCache || []).find(item => item.id_cliente === idBuscado) ||
+                  (window.currentFicherosListCache || []).find(item => item.id_cliente === idBuscado);
+        if (c) {
+            nombre = c.nombre_apellido || c.cliente_nombre || 'Cliente';
+            token = c.qr_token || `HIT-CLI-${c.id_cliente}`;
+            docText = c.dni ? `DNI: ${c.dni}` : (c.cliente_dni ? `DNI: ${c.cliente_dni}` : '');
+            telefono = c.telefono || c.cliente_telefono || '';
+        } else {
+            nombre = `Cliente #${idBuscado}`;
+            token = tokenArg || `HIT-CLI-${idBuscado}`;
+            docText = dniArg ? `DNI: ${dniArg}` : '';
+            telefono = phoneArg || '';
+        }
     } else {
-        docText = `DNI: ${tokenArg || ''}`;
+        nombre = nombreOrCliente || 'Cliente';
+        token = tokenArg || 'HIT-QR-TOKEN';
+        docText = dniArg ? `DNI: ${dniArg}` : (tokenArg && !tokenArg.includes('-') ? `DNI: ${tokenArg}` : '');
+        telefono = phoneArg || '';
     }
+
+    window.currentQrClientPhone = telefono;
 
     const nameElem = document.getElementById('modal-qr-client-name');
     if (nameElem) nameElem.innerText = nombre;
 
     const docElem = document.getElementById('modal-qr-client-doc');
-    if (docElem) docElem.innerText = docText;
+    if (docElem) docElem.innerText = docText || 'Cartilla Digital de Cuotas';
 
     const tokenElem = document.getElementById('modal-qr-token-text');
     if (tokenElem) tokenElem.innerText = token;
@@ -541,7 +563,7 @@ function showQrModal(nombreOrCliente, tokenArg) {
     // Generar código QR apuntando a la URL pública de la Cartilla del Cliente
     const fullPublicUrl = `${window.location.origin}/?qr_cartilla=${token}`;
     const qrImage = document.getElementById('modal-qr-image');
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullPublicUrl)}&color=0f172a&bgcolor=ffffff`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(fullPublicUrl)}&color=0f172a&bgcolor=ffffff`;
     if (qrImage) qrImage.src = qrUrl;
 
     // Configurar botones de enlace público
@@ -551,20 +573,77 @@ function showQrModal(nombreOrCliente, tokenArg) {
     document.getElementById('modal-client-qr').classList.remove('hidden');
 }
 
+function abrirQrDesdeFichero(idFichero) {
+    const f = (window.currentFicherosListCache || []).find(item => item.id_fichero == idFichero);
+    if (!f) return;
+    
+    const clientData = {
+        id_cliente: f.id_cliente,
+        nombre_apellido: f.cliente_nombre || 'Cliente',
+        dni: f.cliente_dni || f.dni || '',
+        telefono: f.cliente_telefono || f.telefono || '',
+        qr_token: f.qr_token || `HIT-CLI-${f.id_cliente}`
+    };
+    showQrModal(clientData);
+}
+
 async function copiarLinkCartillaCliente() {
     const linkInput = document.getElementById('modal-qr-public-link');
     if (linkInput && linkInput.value) {
-        navigator.clipboard.writeText(linkInput.value);
-        await showAlert('📋 ¡Enlace público de la Cartilla copiado al portapapeles! Podés pegarlo y mandarlo a cualquier cliente.');
+        try {
+            await navigator.clipboard.writeText(linkInput.value);
+            await showAlert('📋 ¡Enlace público de la Cartilla copiado al portapapeles!\n\nPodés pegarlo y mandarlo a cualquier cliente.');
+        } catch (err) {
+            linkInput.select();
+            document.execCommand('copy');
+            await showAlert('📋 ¡Enlace copiado al portapapeles!');
+        }
     }
 }
 
 function enviarLinkCartillaWhatsapp() {
     const linkInput = document.getElementById('modal-qr-public-link');
-    const nombre = document.getElementById('modal-qr-client-name').innerText;
+    const nombre = document.getElementById('modal-qr-client-name')?.innerText || 'Cliente';
     if (linkInput && linkInput.value) {
         const msg = `Hola *${nombre}*, ingresá al siguiente enlace para ver tu Cartilla Virtual de cuotas en tiempo real:\n\n${linkInput.value}`;
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        let waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+        
+        if (window.currentQrClientPhone) {
+            let cleanPhone = window.currentQrClientPhone.replace(/\D/g, '');
+            if (cleanPhone) {
+                if (cleanPhone.length === 10 && cleanPhone.startsWith('11')) {
+                    cleanPhone = '549' + cleanPhone;
+                } else if (cleanPhone.length === 10) {
+                    cleanPhone = '549' + cleanPhone;
+                } else if (cleanPhone.startsWith('54') && !cleanPhone.startsWith('549')) {
+                    cleanPhone = '549' + cleanPhone.substring(2);
+                }
+                waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
+            }
+        }
+        window.open(waUrl, '_blank');
+    }
+}
+
+async function descargarQrImagen() {
+    const qrImage = document.getElementById('modal-qr-image');
+    const rawNombre = document.getElementById('modal-qr-client-name')?.innerText || 'Cliente';
+    const nombre = rawNombre.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    if (!qrImage || !qrImage.src) return;
+
+    try {
+        const response = await fetch(qrImage.src);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `QR_Cartilla_${nombre}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+        window.open(qrImage.src, '_blank');
     }
 }
 
@@ -855,14 +934,8 @@ async function submitNewClienteForm(event) {
         const mapDiv = document.getElementById('modal-map-container');
         if (mapDiv) mapDiv.style.display = 'none';
 
-        if (!window.currentUser || window.currentUser.rol !== 'ENCARGADO_ZONA') {
-            loadClientesAndMap();
-        } else {
-            api.get('/empresa/clientes').then(clis => {
-                window.currentClientesCache = clis;
-                if (typeof popularSelectsNuevoFichero === 'function') popularSelectsNuevoFichero();
-            }).catch(() => {});
-        }
+        loadClientesAndMap();
+        if (typeof popularSelectsNuevoFichero === 'function') popularSelectsNuevoFichero();
 
         if (res && res.cliente && res.cliente.qr_token) {
             showQrModal(res.cliente);
@@ -1080,6 +1153,9 @@ function renderFicherosTable(ficheros) {
             </td>
             <td>
                 <div class="flex gap-1 items-center flex-wrap">
+                    <button class="btn btn-outline" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color: var(--saas-purple); color: var(--saas-purple); font-weight: 700;" onclick="abrirQrDesdeFichero(${f.id_fichero})" title="Ver tarjeta QR y enlace de la cartilla virtual para enviar al cliente">
+                        📱 Ver QR
+                    </button>
                     <button class="btn btn-purple" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="abrirModalEditarCliente(${f.id_cliente})" title="Editar datos del cliente (Nombre, DNI, dirección, teléfono)">
                         ✏️ Editar Cliente
                     </button>
@@ -2117,9 +2193,7 @@ async function submitEditClienteForm(event) {
         const modal = document.getElementById('modal-edit-cliente');
         if (modal) modal.classList.add('hidden');
         
-        if (!window.currentUser || window.currentUser.rol !== 'ENCARGADO_ZONA') {
-            loadClientesAndMap();
-        }
+        loadClientesAndMap();
         loadFicheros();
     } catch (err) {
         await showAlert('❌ Error al actualizar datos del cliente: ' + (err.message || 'Error interno'));
@@ -2833,7 +2907,14 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
         
         const titleElem = document.getElementById('modal-fich-title');
         if (titleElem) {
-            titleElem.innerText = `📂 Ficheros de: ${nombre_apellido}`;
+            titleElem.innerHTML = `
+                <div class="flex justify-between items-center" style="width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                    <span>📂 Ficheros de: ${nombre_apellido}</span>
+                    <button type="button" class="btn btn-outline" style="font-size: 0.78rem; padding: 0.28rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple); font-weight: 700;" onclick="showQrModal(${id_cliente})" title="Ver y enviar tarjeta QR de este cliente">
+                        📱 Ver QR Cartilla
+                    </button>
+                </div>
+            `;
         }
         
         const contentElem = document.getElementById('modal-fich-content');
@@ -2891,3 +2972,7 @@ window.verFicheroCliente = verFicheroCliente;
 window.openNewFicheroModal = openNewFicheroModal;
 window.popularSelectsNuevoFichero = popularSelectsNuevoFichero;
 window.buscarClientePorIdODni = buscarClientePorIdODni;
+window.abrirQrDesdeFichero = abrirQrDesdeFichero;
+window.descargarQrImagen = descargarQrImagen;
+window.copiarLinkCartillaCliente = copiarLinkCartillaCliente;
+window.enviarLinkCartillaWhatsapp = enviarLinkCartillaWhatsapp;
