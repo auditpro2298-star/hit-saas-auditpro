@@ -577,6 +577,31 @@ class APIClient {
             return { success: true, message: `✅ Fichero #${id} asignado a Encargado de Cobro correctamente.` };
         }
 
+        if (endpoint.startsWith('/empresa/ficheros/') && !endpoint.includes('/asignar') && !endpoint.includes('/orden') && method === 'PUT') {
+            const id = parseInt(endpoint.split('/')[3]);
+            const f = db.ficheros.find(item => item.id_fichero === id);
+            if (f) {
+                f.producto_nombre = body.producto_nombre || f.producto_nombre;
+                f.cantidad_cuotas = parseInt(body.cantidad_cuotas) || f.cantidad_cuotas;
+                f.valor_cuota = parseFloat(body.valor_cuota) || f.valor_cuota;
+                f.monto_total = f.cantidad_cuotas * f.valor_cuota;
+                f.frecuencia_pago = body.frecuencia_pago || f.frecuencia_pago;
+                f.vendedor = body.vendedor || f.vendedor;
+                f.encargado_zona = body.encargado_zona || f.encargado_zona;
+                f.id_cobrador_asignado = body.id_cobrador_asignado || f.id_cobrador_asignado;
+                f.fecha_entrega = body.fecha_entrega || f.fecha_entrega;
+
+                // Actualizar cuotas pendientes
+                db.cuotas.filter(q => q.id_fichero === id && q.estado === 'PENDIENTE').forEach(q => {
+                    q.monto = f.valor_cuota;
+                    q.id_cobrador = f.id_cobrador_asignado;
+                });
+                saveMockDB(db);
+                return { success: true, fichero: f, message: `✅ Fichero #${id} actualizado con éxito.` };
+            }
+            return { error: 'Fichero no encontrado.' };
+        }
+
         if (endpoint === '/empresa/ficheros' && method === 'POST') {
             const nextId = db.ficheros.length ? Math.max(...db.ficheros.map(f => f.id_fichero)) + 1 : 1;
             const monto_total = parseFloat(body.valor_cuota) * parseInt(body.cantidad_cuotas);

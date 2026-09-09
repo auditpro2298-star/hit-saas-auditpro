@@ -1156,8 +1156,11 @@ function renderFicherosTable(ficheros) {
                     <button class="btn btn-outline" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color: var(--saas-purple); color: var(--saas-purple); font-weight: 700;" onclick="abrirQrDesdeFichero(${f.id_fichero})" title="Ver tarjeta QR y enlace de la cartilla virtual para enviar al cliente">
                         📱 Ver QR
                     </button>
+                    <button class="btn btn-primary" style="font-size:0.75rem; padding:0.3rem 0.6rem; font-weight: 700;" onclick="abrirModalEditarFichero(${f.id_fichero})" title="Editar datos de este fichero (Producto, cuotas, valor, vendedor, fechas)">
+                        ✏️ Editar Fichero
+                    </button>
                     <button class="btn btn-purple" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="abrirModalEditarCliente(${f.id_cliente})" title="Editar datos del cliente (Nombre, DNI, dirección, teléfono)">
-                        ✏️ Editar Cliente
+                        👤 Editar Cliente
                     </button>
                     ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
                     <button class="btn btn-danger" style="font-size:0.75rem; padding:0.3rem 0.6rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar fichero por equivocación o cancelación">
@@ -2200,6 +2203,134 @@ async function submitEditClienteForm(event) {
     }
 }
 
+function recalcEditTotalFichero() {
+    const cuotas = parseInt(document.getElementById('edit-fich-cuotas')?.value) || 0;
+    const valor = parseFloat(document.getElementById('edit-fich-valor')?.value) || 0;
+    const total = cuotas * valor;
+    const totalEl = document.getElementById('edit-fich-total-display');
+    if (totalEl) {
+        totalEl.innerText = `$${Number(total).toLocaleString('es-AR')}`;
+    }
+}
+
+async function abrirModalEditarFichero(id_fichero) {
+    let f = null;
+    if (window.currentFicherosCache && window.currentFicherosCache.length > 0) {
+        f = window.currentFicherosCache.find(item => item.id_fichero === id_fichero || item.id_fichero === parseInt(id_fichero));
+    }
+    if (!f && window.allFicherosCache && window.allFicherosCache.length > 0) {
+        f = window.allFicherosCache.find(item => item.id_fichero === id_fichero || item.id_fichero === parseInt(id_fichero));
+    }
+    if (!f) {
+        try {
+            const ficheros = await api.get('/empresa/ficheros');
+            window.currentFicherosCache = ficheros;
+            f = ficheros.find(item => item.id_fichero === id_fichero || item.id_fichero === parseInt(id_fichero));
+        } catch (err) {
+            console.error('Error cargando fichero para edición:', err);
+        }
+    }
+    if (!f) {
+        await showAlert('⚠️ No se encontraron los datos del fichero seleccionado.');
+        return;
+    }
+
+    const titleEl = document.getElementById('edit-fichero-title');
+    const subtitleEl = document.getElementById('edit-fichero-subtitle');
+    const editId = document.getElementById('edit-fich-id');
+    const editIdCliente = document.getElementById('edit-fich-id-cliente');
+    const editProd = document.getElementById('edit-fich-producto');
+    const editCuotas = document.getElementById('edit-fich-cuotas');
+    const editValor = document.getElementById('edit-fich-valor');
+    const editFreq = document.getElementById('edit-fich-frecuencia');
+    const editFecha = document.getElementById('edit-fich-fecha-entrega');
+    const editVend = document.getElementById('edit-fich-vendedor');
+    const editCob = document.getElementById('edit-fich-cobrador');
+    const pagadasInfo = document.getElementById('edit-fich-cuotas-pagadas-info');
+
+    if (titleEl) titleEl.innerText = `✏️ Editar Fichero #${f.id_fichero}`;
+    if (subtitleEl) subtitleEl.innerText = `Cliente: ${f.cliente_nombre || 'Cliente'} (ID #${f.id_cliente})`;
+    if (editId) editId.value = f.id_fichero;
+    if (editIdCliente) editIdCliente.value = f.id_cliente;
+    if (editProd) editProd.value = f.producto_nombre || '';
+    if (editCuotas) editCuotas.value = f.cantidad_cuotas || 1;
+    if (editValor) editValor.value = f.valor_cuota || 0;
+    if (editFreq) editFreq.value = (f.frecuencia_pago || 'SEMANAL').toUpperCase();
+    if (editFecha) editFecha.value = (f.fecha_entrega || '').split('T')[0] || new Date().toISOString().split('T')[0];
+    if (editVend) editVend.value = f.vendedor || '';
+
+    if (pagadasInfo) {
+        const pagadas = f.cuotas_pagadas || 0;
+        if (pagadas > 0) {
+            pagadasInfo.innerHTML = `🛡️ <strong style="color:#059669;">${pagadas} cuota(s) ya pagada(s)</strong> se conservarán intactas.`;
+        } else {
+            pagadasInfo.innerHTML = `💡 0 cuotas pagadas (fichero nuevo)`;
+        }
+    }
+
+    // Poblar select de cobradores
+    if (editCob) {
+        let optionsHtml = `<option value="">-- Sin asignar --</option>`;
+        const encargadosList = window.allEncargadosCache || [];
+        encargadosList.forEach(enc => {
+            const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
+            const prefix = enc.rol === 'COBRADOR' ? '🛵' : '👤';
+            optionsHtml += `<option value="${enc.id_usuario}" ${isSelected ? 'selected' : ''}>${prefix} ${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+        });
+        editCob.innerHTML = optionsHtml;
+    }
+
+    recalcEditTotalFichero();
+
+    const modal = document.getElementById('modal-edit-fichero');
+    if (modal) modal.classList.remove('hidden');
+}
+
+async function submitEditFicheroForm(event) {
+    if (event) event.preventDefault();
+    const id_fichero = document.getElementById('edit-fich-id')?.value;
+    const producto_nombre = (document.getElementById('edit-fich-producto')?.value || '').trim();
+    const cantidad_cuotas = parseInt(document.getElementById('edit-fich-cuotas')?.value, 10);
+    const valor_cuota = parseFloat(document.getElementById('edit-fich-valor')?.value);
+    const frecuencia_pago = document.getElementById('edit-fich-frecuencia')?.value || 'SEMANAL';
+    const fecha_entrega = document.getElementById('edit-fich-fecha-entrega')?.value;
+    const vendedor = (document.getElementById('edit-fich-vendedor')?.value || '').trim();
+    const cobradorSelect = document.getElementById('edit-fich-cobrador');
+    const id_cobrador = cobradorSelect && cobradorSelect.value ? parseInt(cobradorSelect.value) : null;
+    const cobradorNombre = cobradorSelect && cobradorSelect.selectedIndex >= 0 && id_cobrador ? cobradorSelect.options[cobradorSelect.selectedIndex].text.replace(/^[🛵👤]\s*/, '').split(' (')[0] : null;
+
+    if (!id_fichero || !producto_nombre || !cantidad_cuotas || !valor_cuota || !fecha_entrega) {
+        await showAlert('⚠️ Complete todos los campos obligatorios (*).');
+        return;
+    }
+
+    const payload = {
+        producto_nombre,
+        cantidad_cuotas,
+        valor_cuota,
+        frecuencia_pago,
+        fecha_entrega,
+        vendedor: vendedor || 'General',
+        encargado_zona: cobradorNombre || 'Sin asignar',
+        id_cobrador_asignado: id_cobrador
+    };
+
+    try {
+        const res = await api.put(`/empresa/ficheros/${id_fichero}`, payload);
+        await showAlert(res.message || `✅ Fichero #${id_fichero} editado con éxito.`);
+
+        const modal = document.getElementById('modal-edit-fichero');
+        if (modal) modal.classList.add('hidden');
+
+        loadFicheros();
+        if (typeof loadAsignacionRutas === 'function') {
+            loadAsignacionRutas();
+        }
+    } catch (err) {
+        await showAlert('❌ Error al actualizar fichero: ' + (err.message || 'Error interno'));
+    }
+}
+
 // Retrocompatibilidad con llamadas anteriores
 function editarClienteMudanza(id_cliente) {
     abrirModalEditarCliente(id_cliente);
@@ -2500,6 +2631,9 @@ window.drawRouteMap = drawRouteMap;
 window.openNewClienteModal = openNewClienteModal;
 window.verificarDireccionEnMapa = verificarDireccionEnMapa;
 window.focusClientOnMap = focusClientOnMap;
+window.abrirModalEditarFichero = abrirModalEditarFichero;
+window.recalcEditTotalFichero = recalcEditTotalFichero;
+window.submitEditFicheroForm = submitEditFicheroForm;
 
 // ==========================================
 // EXPORTACIÓN A CSV (EXCEL LOCAL)

@@ -700,6 +700,105 @@ router.post('/ficheros', async (req, res) => {
     }
 });
 
+// PUT /api/empresa/ficheros/:id - Editar datos de un fichero existente
+router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega } = req.body;
+
+    if (!producto_nombre || !cantidad_cuotas || !valor_cuota || !fecha_entrega) {
+        return res.status(400).json({ error: 'Faltan datos obligatorios para editar el fichero.' });
+    }
+
+    try {
+        const fichero = await get('SELECT * FROM ficheros WHERE id_fichero = ? AND id_empresa = ?', [id, id_empresa]);
+        if (!fichero) {
+            return res.status(404).json({ error: 'Fichero no encontrado.' });
+        }
+
+        const nuevaCantidad = parseInt(cantidad_cuotas, 10);
+        const nuevoValor = parseFloat(valor_cuota);
+        const nuevaFreq = (frecuencia_pago || fichero.frecuencia_pago || 'SEMANAL').toUpperCase();
+        const nuevaEntrega = fecha_entrega || fichero.fecha_entrega;
+        const monto_total = nuevaCantidad * nuevoValor;
+
+        // Verificar cuotas ya pagadas
+        const cuotasPagadas = await query("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PAGADO' ORDER BY nro_cuota ASC", [id, id_empresa]);
+        if (nuevaCantidad < cuotasPagadas.length) {
+            return res.status(400).json({ 
+                error: `No se puede reducir la cantidad de cuotas a ${nuevaCantidad} porque este fichero ya tiene ${cuotasPagadas.length} cuota(s) pagada(s).` 
+            });
+        }
+
+        let finalEncargado = encargado_zona !== undefined ? encargado_zona : fichero.encargado_zona;
+        let finalCobrador = id_cobrador_asignado !== undefined ? (id_cobrador_asignado || null) : fichero.id_cobrador_asignado;
+
+        if (finalCobrador && !finalEncargado) {
+            const usr = await get('SELECT nombre FROM usuarios WHERE id_usuario = ?', [finalCobrador]);
+            if (usr) finalEncargado = usr.nombre;
+        }
+
+        // 1. Actualizar tabla ficheros
+        await run(`
+            UPDATE ficheros 
+            SET producto_nombre = ?, 
+                cantidad_cuotas = ?, 
+                valor_cuota = ?, 
+                frecuencia_pago = ?, 
+                monto_total = ?, 
+                vendedor = ?, 
+                encargado_zona = ?, 
+                id_cobrador_asignado = ?, 
+                fecha_entrega = ?
+            WHERE id_fichero = ? AND id_empresa = ?
+        `, [producto_nombre.trim(), nuevaCantidad, nuevoValor, nuevaFreq, monto_total, (vendedor || 'General').trim(), (finalEncargado || 'General').trim(), finalCobrador, nuevaEntrega, id, id_empresa]);
+
+        // 2. Actualizar cuotas existentes PENDIENTES
+        const cuotasPendientes = await query("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE' ORDER BY nro_cuota ASC", [id, id_empresa]);
+        
+        for (const q of cuotasPendientes) {
+            if (q.nro_cuota <= nuevaCantidad) {
+                const nuevaFechaVenc = calcularFechaVencimiento(nuevaEntrega, q.nro_cuota, nuevaFreq);
+                await run(`
+                    UPDATE cuotas 
+                    SET monto = ?, 
+                        fecha_vencimiento = ?, 
+                        id_cobrador = ? 
+                    WHERE id_cuota = ? AND id_empresa = ?
+                `, [nuevoValor, nuevaFechaVenc, finalCobrador, q.id_cuota, id_empresa]);
+            } else {
+                // Si la cantidad de cuotas se redujo, borrar cuotas pendientes excedentes
+                await run("DELETE FROM cuotas WHERE id_cuota = ? AND id_empresa = ?", [q.id_cuota, id_empresa]);
+            }
+        }
+
+        // 3. Si la cantidad de cuotas aumentó, insertar las nuevas cuotas faltantes como PENDIENTE
+        const cuotasActuales = await query("SELECT MAX(nro_cuota) as max_nro FROM cuotas WHERE id_fichero = ? AND id_empresa = ?", [id, id_empresa]);
+        const maxNroActual = (cuotasActuales && cuotasActuales[0]?.max_nro) || cuotasPagadas.length;
+
+        if (nuevaCantidad > maxNroActual) {
+            for (let i = maxNroActual + 1; i <= nuevaCantidad; i++) {
+                const fechaVenc = calcularFechaVencimiento(nuevaEntrega, i, nuevaFreq);
+                await run(`
+                    INSERT INTO cuotas (id_fichero, id_empresa, nro_cuota, monto, estado, fecha_vencimiento, id_cobrador) 
+                    VALUES (?, ?, ?, ?, 'PENDIENTE', ?, ?)
+                `, [id, id_empresa, i, nuevoValor, fechaVenc, finalCobrador]);
+            }
+        }
+
+        // 4. Actualizar estado del fichero si corresponde
+        const pendientesRestantes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id, id_empresa]);
+        const nuevoEstado = (pendientesRestantes && pendientesRestantes.restantes === 0) ? 'FINALIZADO' : 'ACTIVO';
+        await run("UPDATE ficheros SET estado = ? WHERE id_fichero = ? AND id_empresa = ?", [nuevoEstado, id, id_empresa]);
+
+        const ficheroActualizado = await get('SELECT * FROM ficheros WHERE id_fichero = ?', [id]);
+        res.json({ success: true, fichero: ficheroActualizado, message: `✅ Fichero #${id} editado y actualizado con éxito.` });
+    } catch (err) {
+        console.error('Error al editar fichero:', err);
+        res.status(500).json({ error: 'Error al actualizar el fichero: ' + err.message });
+    }
+});
+
 // PUT /api/empresa/ficheros/:id/asignar - Asignación dinámica de fichero a un Encargado / Cobrador
 router.put('/ficheros/:id/asignar', async (req, res) => {
     const id_empresa = getEmpresaId(req);
