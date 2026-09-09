@@ -505,9 +505,100 @@ async function initDatabase() {
         // Asentar cobro de cuotas 9 y 10 para Fichero #406 (Wanda Camisay) por Gustavo Garcia
         await autoFixFichero406Wanda();
 
+        // Reparación automática y saneamiento de fechas corruptas o con prefijo +/año extendido
+        await autoRepairCorruptedDates();
+
         console.log('✅ Base de datos inicializada y datos semilla verificados con éxito.');
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
+    }
+}
+
+async function autoRepairCorruptedDates() {
+    try {
+        // 1. Reparar cuotas con fechas corruptas o con prefijo +/año extendido
+        let corruptedCuotas = [];
+        if (!isPostgres) {
+            corruptedCuotas = await query(`
+                SELECT id_cuota, fecha_vencimiento, fecha_pago 
+                FROM cuotas 
+                WHERE fecha_pago LIKE '+%' 
+                   OR fecha_vencimiento LIKE '+%' 
+                   OR fecha_pago LIKE '062026%' 
+                   OR fecha_vencimiento LIKE '062026%'
+                   OR fecha_pago LIKE '032026%' 
+                   OR fecha_vencimiento LIKE '032026%'
+                   OR (fecha_pago IS NOT NULL AND length(fecha_pago) > 25)
+            `);
+        } else {
+            corruptedCuotas = await query(`
+                SELECT id_cuota, fecha_vencimiento::text as fecha_vencimiento, fecha_pago::text as fecha_pago 
+                FROM cuotas 
+                WHERE fecha_pago::text LIKE '+%' 
+                   OR fecha_vencimiento::text LIKE '+%' 
+                   OR fecha_pago::text LIKE '%62026%' 
+                   OR fecha_vencimiento::text LIKE '%32026%'
+            `);
+        }
+
+        for (const q of corruptedCuotas) {
+            let nuevaVenc = q.fecha_vencimiento;
+            let nuevaPago = q.fecha_pago;
+
+            if (nuevaVenc) {
+                const m = String(nuevaVenc).match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})/);
+                if (m) {
+                    nuevaVenc = `${m[2]}-${m[3].padStart(2, '0')}-${m[4].padStart(2, '0')}`;
+                }
+            }
+            if (nuevaPago) {
+                const m = String(nuevaPago).match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+                if (m) {
+                    const timePart = m[5] !== undefined ? ` ${m[5].padStart(2, '0')}:${(m[6] || '00').padStart(2, '0')}:${(m[7] || '00').padStart(2, '0')}` : '';
+                    nuevaPago = `${m[2]}-${m[3].padStart(2, '0')}-${m[4].padStart(2, '0')}${timePart}`;
+                }
+            }
+
+            await run('UPDATE cuotas SET fecha_vencimiento = ?, fecha_pago = ? WHERE id_cuota = ?', [nuevaVenc, nuevaPago, q.id_cuota]);
+        }
+
+        // 2. Reparar ficheros con fecha_entrega corrupta
+        let corruptedFicheros = [];
+        if (!isPostgres) {
+            corruptedFicheros = await query(`
+                SELECT id_fichero, fecha_entrega 
+                FROM ficheros 
+                WHERE fecha_entrega LIKE '+%' 
+                   OR fecha_entrega LIKE '062026%' 
+                   OR fecha_entrega LIKE '032026%'
+                   OR (fecha_entrega IS NOT NULL AND length(fecha_entrega) > 20)
+            `);
+        } else {
+            corruptedFicheros = await query(`
+                SELECT id_fichero, fecha_entrega::text as fecha_entrega 
+                FROM ficheros 
+                WHERE fecha_entrega::text LIKE '+%' 
+                   OR fecha_entrega::text LIKE '%62026%' 
+                   OR fecha_entrega::text LIKE '%32026%'
+            `);
+        }
+
+        for (const f of corruptedFicheros) {
+            let nuevaEntrega = f.fecha_entrega;
+            if (nuevaEntrega) {
+                const m = String(nuevaEntrega).match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})/);
+                if (m) {
+                    nuevaEntrega = `${m[2]}-${m[3].padStart(2, '0')}-${m[4].padStart(2, '0')}`;
+                    await run('UPDATE ficheros SET fecha_entrega = ? WHERE id_fichero = ?', [nuevaEntrega, f.id_fichero]);
+                }
+            }
+        }
+
+        if (corruptedCuotas.length > 0 || corruptedFicheros.length > 0) {
+            console.log(`🧹 Auto-reparación completada: ${corruptedCuotas.length} cuotas y ${corruptedFicheros.length} ficheros con fechas corregidas a año 2026.`);
+        }
+    } catch (e) {
+        console.warn('Auto-repair corrupted dates notice:', e.message);
     }
 }
 

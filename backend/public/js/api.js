@@ -318,6 +318,16 @@ class APIClient {
                 }
             });
 
+            // Ordenar con los cobros más recientes al tope
+            cobrosDetallados.sort((a, b) => {
+                const timeA = a.fecha_pago ? new Date(String(a.fecha_pago).replace(/^\+?0*(\d{1,4})?(20\d{2})/, '$2')).getTime() : 0;
+                const timeB = b.fecha_pago ? new Date(String(b.fecha_pago).replace(/^\+?0*(\d{1,4})?(20\d{2})/, '$2')).getTime() : 0;
+                if (!isNaN(timeA) && !isNaN(timeB) && timeB !== timeA) {
+                    return timeB - timeA;
+                }
+                return (b.id_cuota || 0) - (a.id_cuota || 0);
+            });
+
             return {
                 cierres_cobrador: Object.values(cierresMap),
                 cobros_detallados: cobrosDetallados
@@ -624,11 +634,16 @@ class APIClient {
 
             // Generar cuotas: Cuota 1 en fecha_entrega
             const yaPagadasCount = parseInt(body.cuotas_ya_pagadas || 0, 10);
+            const rawEnt = (body.fecha_entrega || '2026-06-10').trim();
+            const mIso = rawEnt.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})/);
+            const baseYear = mIso ? parseInt(mIso[2], 10) : 2026;
+            const baseMonth = mIso ? parseInt(mIso[3], 10) - 1 : 5;
+            const baseDay = mIso ? parseInt(mIso[4], 10) : 10;
+
             for (let i = 1; i <= body.cantidad_cuotas; i++) {
                 const isPaid = (i <= yaPagadasCount);
-                const parts = (body.fecha_entrega || '2026-06-10').split('-');
-                const baseDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1 + (i - 1), parseInt(parts[2]));
-                const fechaVenc = baseDate.toISOString().split('T')[0];
+                const baseDate = new Date(baseYear, baseMonth + (i - 1), baseDay);
+                const fechaVenc = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
                 db.cuotas.push({
                     id_cuota: Date.now() + i,
                     id_fichero: nextId,

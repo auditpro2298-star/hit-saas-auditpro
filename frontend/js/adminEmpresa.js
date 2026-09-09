@@ -118,35 +118,44 @@ async function switchEmpresaTab(tabName) {
 }
 
 function formatDateTimeStr(dtStr) {
-    if (!dtStr) return 'Hoy';
+    if (!dtStr) return '-';
     try {
-        const matches = dtStr.match(/^(\d{4})[/-](\d{2})[/-](\d{2})(?:[ T](\d{2}):(\d{2}))?/);
-        if (matches) {
-            const yyyy = matches[1];
-            const yy = yyyy.slice(-2);
-            const mm = matches[2];
-            const dd = matches[3];
-            const hh = matches[4] || '00';
-            const min = matches[5] || '00';
+        const s = String(dtStr).trim();
+        // 1. ISO o ISO extendido (+062026-11-11, 2026-09-09T16:00:00, etc.)
+        const mIso = s.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (mIso) {
+            const yy = mIso[2].slice(-2);
+            const mm = mIso[3].padStart(2, '0');
+            const dd = mIso[4].padStart(2, '0');
+            const hh = mIso[5] !== undefined ? mIso[5].padStart(2, '0') : '00';
+            const min = mIso[6] !== undefined ? mIso[6].padStart(2, '0') : '00';
             return `${dd}/${mm}/${yy} ${hh}:${min}`;
         }
-        const parts = dtStr.split(' ');
-        if (parts.length >= 2) {
-            const dateParts = parts[0].split(/[/-]/);
-            const timeParts = parts[1].split(':');
-            if (dateParts.length === 3 && timeParts.length >= 2) {
-                const dd = dateParts[2].length === 2 ? dateParts[2] : dateParts[0];
-                const yy = (dateParts[2].length === 4 ? dateParts[2] : dateParts[0]).slice(-2);
-                const mm = dateParts[1];
-                const hh = timeParts[0];
-                const min = timeParts[1];
-                return `${dd}/${mm}/${yy} ${hh}:${min}`;
-            }
+
+        // 2. Latino: DD/MM/YYYY o DD-MM-YYYY o DD/MM/YY
+        const mLat = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:[ T](\d{1,2}):(\d{1,2}))?/);
+        if (mLat) {
+            const dd = mLat[1].padStart(2, '0');
+            const mm = mLat[2].padStart(2, '0');
+            const yy = mLat[3].length === 4 ? mLat[3].slice(-2) : mLat[3].padStart(2, '0');
+            const hh = mLat[4] !== undefined ? mLat[4].padStart(2, '0') : '00';
+            const min = mLat[5] !== undefined ? mLat[5].padStart(2, '0') : '00';
+            return `${dd}/${mm}/${yy} ${hh}:${min}`;
+        }
+
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) {
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yy = String(d.getFullYear()).slice(-2);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return `${dd}/${mm}/${yy} ${hh}:${min}`;
         }
     } catch (e) {
-        console.error(e);
+        console.error('Error al formatear fecha/hora:', dtStr, e);
     }
-    return dtStr;
+    return String(dtStr);
 }
 
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
@@ -1351,22 +1360,24 @@ function formatFechaSimple(dateStr) {
     if (!dateStr) return '';
     try {
         const str = String(dateStr).trim();
-        const matches = str.match(/^(\d{4})[/-](\d{2})[/-](\d{2})/);
+        // 1. ISO o ISO extendido (+062026-11-11, 2026-09-09, etc.)
+        const matches = str.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})[/-](\d{1,2})[/-](\d{1,2})/);
         if (matches) {
-            const yy = matches[1].slice(-2);
-            const mm = matches[2];
-            const dd = matches[3];
+            const yy = matches[2].slice(-2);
+            const mm = matches[3].padStart(2, '0');
+            const dd = matches[4].padStart(2, '0');
             return `${dd}/${mm}/${yy}`;
         }
-        const matchesAlt = str.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+        // 2. Formato latino DD/MM/YYYY o DD-MM-YYYY
+        const matchesAlt = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
         if (matchesAlt) {
-            const dd = matchesAlt[1];
-            const mm = matchesAlt[2];
-            const yy = matchesAlt[3].slice(-2);
+            const dd = matchesAlt[1].padStart(2, '0');
+            const mm = matchesAlt[2].padStart(2, '0');
+            const yy = matchesAlt[3].length === 4 ? matchesAlt[3].slice(-2) : matchesAlt[3].padStart(2, '0');
             return `${dd}/${mm}/${yy}`;
         }
     } catch (e) {}
-    return dateStr;
+    return String(dateStr);
 }
 
 function renderAsignacionTable(ficheros, cobradores) {
@@ -1683,7 +1694,19 @@ function renderAuditDetails(cobros) {
         return;
     }
 
-    cobros.forEach(q => {
+    // Asegurar que siempre figuren al tope de la lista los últimos cobros realizados
+    const sortedCobros = [...cobros].sort((a, b) => {
+        const cleanA = a.fecha_pago ? String(a.fecha_pago).replace(/^\+?0*(\d{1,4})?(20\d{2})/, '$2') : '';
+        const cleanB = b.fecha_pago ? String(b.fecha_pago).replace(/^\+?0*(\d{1,4})?(20\d{2})/, '$2') : '';
+        const timeA = cleanA ? new Date(cleanA).getTime() : 0;
+        const timeB = cleanB ? new Date(cleanB).getTime() : 0;
+        if (!isNaN(timeA) && !isNaN(timeB) && timeB !== timeA) {
+            return timeB - timeA;
+        }
+        return (b.id_cuota || 0) - (a.id_cuota || 0);
+    });
+
+    sortedCobros.forEach(q => {
         const tr = document.createElement('tr');
         const badgeMedio = q.medio_pago === 'EFECTIVO' ? 'badge-success' : (q.medio_pago === 'TRANSFERENCIA' ? 'badge-purple' : 'badge-danger');
 
@@ -2470,6 +2493,38 @@ async function loadControlOperativoDiario(isManual = false) {
         };
 
         const ficherosFiltrados = ficheros.filter(filterByEncargado);
+
+        // Asegurar que siempre figuren al tope de la lista los últimos cobros realizados en el día
+        ficherosFiltrados.sort((a, b) => {
+            const cobrosA = cobrosDetallados.filter(c => c.id_fichero === a.id_fichero);
+            const cobrosB = cobrosDetallados.filter(c => c.id_fichero === b.id_fichero);
+
+            const cobrosHoyA = cobrosA.filter(c => c.fecha_pago && c.fecha_pago.startsWith(todayStr) && c.estado === 'PAGADO');
+            const cobrosHoyB = cobrosB.filter(c => c.fecha_pago && c.fecha_pago.startsWith(todayStr) && c.estado === 'PAGADO');
+
+            const isPaidHoyA = cobrosHoyA.length > 0;
+            const isPaidHoyB = cobrosHoyB.length > 0;
+
+            if (isPaidHoyA && !isPaidHoyB) return -1;
+            if (!isPaidHoyA && isPaidHoyB) return 1;
+            if (isPaidHoyA && isPaidHoyB) {
+                const maxTimeA = Math.max(...cobrosHoyA.map(c => new Date(c.fecha_pago).getTime() || c.id_cuota || 0));
+                const maxTimeB = Math.max(...cobrosHoyB.map(c => new Date(c.fecha_pago).getTime() || c.id_cuota || 0));
+                if (maxTimeB !== maxTimeA) return maxTimeB - maxTimeA;
+            }
+
+            // Visitas de hoy con rechazo / no cobrado
+            const rechazoHoyA = cobrosA.some(c => c.fecha_pago && c.fecha_pago.startsWith(todayStr) && c.estado === 'NO_COBRADO');
+            const rechazoHoyB = cobrosB.some(c => c.fecha_pago && c.fecha_pago.startsWith(todayStr) && c.estado === 'NO_COBRADO');
+            if (rechazoHoyA && !rechazoHoyB) return -1;
+            if (!rechazoHoyA && rechazoHoyB) return 1;
+
+            // Orden por defecto: orden_visita o id_fichero
+            const ordA = a.orden_visita || 999999;
+            const ordB = b.orden_visita || 999999;
+            if (ordA !== ordB) return ordA - ordB;
+            return (b.id_fichero || 0) - (a.id_fichero || 0);
+        });
 
         let totalAsignados = ficherosFiltrados.length;
         let totalCobrados = 0;

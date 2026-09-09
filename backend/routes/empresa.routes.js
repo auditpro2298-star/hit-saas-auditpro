@@ -1,37 +1,56 @@
-function calcularFechaVencimiento(fechaEntregaStr, nroCuota, frecuencia) {
-    if (!fechaEntregaStr) return new Date().toISOString().split('T')[0];
-    const parts = fechaEntregaStr.split('-');
-    const baseYear = parseInt(parts[0], 10);
-    const baseMonth = parseInt(parts[1], 10) - 1; // 0-indexed
-    const baseDay = parseInt(parts[2], 10);
-
-    const freq = (frecuencia || 'SEMANAL').toUpperCase();
-    const offset = nroCuota - 1;
-
-    if (offset === 0) {
-        return fechaEntregaStr;
+function parseBaseDate(fechaEntregaStr) {
+    if (!fechaEntregaStr) {
+        const now = new Date();
+        return { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
     }
+    const s = String(fechaEntregaStr).trim();
+    // 1. ISO o ISO extendido (+062026-11-11, 2026-09-09, etc.)
+    const mIso = s.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) {
+        return {
+            y: parseInt(mIso[2], 10),
+            m: parseInt(mIso[3], 10) - 1,
+            d: parseInt(mIso[4], 10)
+        };
+    }
+    // 2. Latino: DD/MM/YYYY o DD-MM-YYYY
+    const mLat = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+    if (mLat) {
+        const yRaw = parseInt(mLat[3], 10);
+        const y = yRaw < 100 ? 2000 + yRaw : yRaw;
+        return {
+            y: y,
+            m: parseInt(mLat[2], 10) - 1,
+            d: parseInt(mLat[1], 10)
+        };
+    }
+    const dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+        return { y: dt.getFullYear(), m: dt.getMonth(), d: dt.getDate() };
+    }
+    const now = new Date();
+    return { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+}
 
+function calcularFechaVencimiento(fechaEntregaStr, nroCuota, frecuencia) {
+    const { y: baseYear, m: baseMonth, d: baseDay } = parseBaseDate(fechaEntregaStr);
+    const freq = (frecuencia || 'SEMANAL').toUpperCase();
+    const offset = (nroCuota || 1) - 1;
+
+    let targetDate;
     if (freq === 'MENSUAL') {
-        const targetDate = new Date(baseYear, baseMonth + offset, baseDay);
-        const y = targetDate.getFullYear();
-        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const d = String(targetDate.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        targetDate = new Date(baseYear, baseMonth + offset, baseDay);
     } else if (freq === 'QUINCENAL') {
-        const targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 15));
-        const y = targetDate.getFullYear();
-        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const d = String(targetDate.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 15));
     } else {
         // SEMANAL por defecto (+7 días por cuota)
-        const targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 7));
-        const y = targetDate.getFullYear();
-        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const d = String(targetDate.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        targetDate = new Date(baseYear, baseMonth, baseDay + (offset * 7));
     }
+
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const d = String(targetDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
 
 async function repairHistoricalFicheros(id_empresa) {
