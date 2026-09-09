@@ -502,9 +502,49 @@ async function initDatabase() {
         // Ejecutar limpieza única en producción para borrar personal y datos demo anteriores a hoy (26 de Agosto de 2026)
         await runProductionCleanupOnce();
 
+        // Asentar cobro de cuotas 9 y 10 para Fichero #406 (Wanda Camisay) por Gustavo Garcia
+        await autoFixFichero406Wanda();
+
         console.log('✅ Base de datos inicializada y datos semilla verificados con éxito.');
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
+    }
+}
+
+async function autoFixFichero406Wanda() {
+    try {
+        const fichero = await get(`
+            SELECT f.id_fichero, f.id_empresa, f.valor_cuota, c.id_cliente, c.nombre_apellido
+            FROM ficheros f
+            JOIN clientes c ON f.id_cliente = c.id_cliente
+            WHERE f.id_fichero = 406 OR c.dni = '47629387' OR LOWER(c.nombre_apellido) LIKE '%wanda%camisay%'
+            LIMIT 1
+        `);
+        
+        if (fichero) {
+            const cobrador = await get("SELECT id_usuario, nombre FROM usuarios WHERE LOWER(nombre) LIKE '%gustavo%garcia%' LIMIT 1");
+            const cobradorId = cobrador ? cobrador.id_usuario : null;
+            const cobradorNombre = cobrador ? cobrador.nombre : 'GUSTAVO GARCIA';
+
+            const localDateTime = new Date().toLocaleString('sv', { timeZone: 'America/Argentina/Buenos_Aires' });
+
+            await run(`
+                UPDATE cuotas 
+                SET estado = 'PAGADO',
+                    fecha_pago = COALESCE(fecha_pago, ?),
+                    medio_pago = COALESCE(medio_pago, 'EFECTIVO'),
+                    id_cobrador = COALESCE(id_cobrador, ?),
+                    nombre_cobrador = COALESCE(nombre_cobrador, ?)
+                WHERE id_fichero = ? AND nro_cuota IN (9, 10) AND estado != 'PAGADO'
+            `, [localDateTime, cobradorId, cobradorNombre, fichero.id_fichero]);
+
+            if (cobradorId) {
+                await run("UPDATE ficheros SET id_cobrador_asignado = COALESCE(id_cobrador_asignado, ?) WHERE id_fichero = ?", [cobradorId, fichero.id_fichero]);
+            }
+            console.log(`✅ [Fix Cuotas 9 y 10] Fichero #${fichero.id_fichero} de Wanda Camisay actualizado a PAGADO para las cuotas 9 y 10 por Gustavo Garcia.`);
+        }
+    } catch (e) {
+        console.warn('Auto-fix Fichero 406 notice:', e.message);
     }
 }
 
