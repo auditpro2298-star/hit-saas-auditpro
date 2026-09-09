@@ -58,6 +58,14 @@ async function initCobradorApp() {
 
     // 2. Cargar la hoja de ruta
     await syncHojaDeRuta();
+
+    // 3. Descargar catálogo offline de cartillas QR de la empresa para permitir escaneo 100% offline
+    try {
+        const catalogo = await api.get('/cobrador/catalogo-qr-offline');
+        localStorage.setItem('HIT_CACHED_CATALOGO_QR', JSON.stringify(catalogo));
+    } catch (e) {
+        // Modo offline: continuar con el catálogo previo
+    }
 }
 
 function updatePocketDisplay(resumen) {
@@ -499,9 +507,10 @@ async function simulateQrScan(qrToken) {
         if (cached) {
             data = JSON.parse(cached);
         } else {
-            // Intentar recuperar de la hoja de ruta cacheada
+            // Intentar recuperar de la hoja de ruta cacheada o del catálogo offline
             const cachedRuta = JSON.parse(localStorage.getItem('HIT_CACHED_HOJA_RUTA') || '[]');
-            const matchedItem = cachedRuta.find(r => r.qr_token === cleanToken);
+            const cachedCatalogo = JSON.parse(localStorage.getItem('HIT_CACHED_CATALOGO_QR') || '[]');
+            const matchedItem = cachedRuta.find(r => r.qr_token === cleanToken) || cachedCatalogo.find(r => r.qr_token === cleanToken);
             if (matchedItem) {
                 // Crear estructura sintética a partir del ítem cacheado
                 data = {
@@ -530,7 +539,7 @@ async function simulateQrScan(qrToken) {
                             id_fichero: matchedItem.id_fichero,
                             nro_cuota: i + 1,
                             monto: matchedItem.valor_cuota,
-                            estado: (i + 1 <= matchedItem.cuotas_saldadas) ? 'PAGADO' : 'PENDIENTE'
+                            estado: (i + 1 <= (matchedItem.cuotas_saldadas || 0)) ? 'PAGADO' : 'PENDIENTE'
                         }))
                     }
                 };
@@ -588,9 +597,11 @@ async function buscarClientePorDni() {
             await showAlert(data.warning);
         }
     } catch (err) {
-        // Buscar en caché local de hoja de ruta si está offline
+        // Buscar en caché local de hoja de ruta o catálogo si está offline
         const cachedRuta = JSON.parse(localStorage.getItem('HIT_CACHED_HOJA_RUTA') || '[]');
-        const matched = cachedRuta.find(r => (r.dni && r.dni.toString().includes(dni.trim())) || (r.nombre_apellido && r.nombre_apellido.toLowerCase().includes(dni.toLowerCase().trim())));
+        const cachedCatalogo = JSON.parse(localStorage.getItem('HIT_CACHED_CATALOGO_QR') || '[]');
+        const matched = cachedRuta.find(r => (r.dni && r.dni.toString().includes(dni.trim())) || (r.nombre_apellido && r.nombre_apellido.toLowerCase().includes(dni.toLowerCase().trim())))
+                     || cachedCatalogo.find(r => (r.dni && r.dni.toString().includes(dni.trim())) || (r.nombre_apellido && r.nombre_apellido.toLowerCase().includes(dni.toLowerCase().trim())));
         if (matched) {
             await simulateQrScan(matched.qr_token);
         } else {
@@ -849,7 +860,7 @@ function updateClientCardAndGridInMemory(id_cuota, nuevoEstado, medioPago, monto
 
     // Actualizar también la Hoja de Ruta cacheada
     const cachedRuta = JSON.parse(localStorage.getItem('HIT_CACHED_HOJA_RUTA') || '[]');
-    if (currentScannedData && currentScannedData.cliente && cachedRuta.length > 0) {
+    if (currentScannedData && currentScannedData.cliente) {
         const clientToken = currentScannedData.cliente.qr_token;
         const itemIdx = cachedRuta.findIndex(r => r.qr_token === clientToken);
         if (itemIdx >= 0) {
@@ -859,8 +870,32 @@ function updateClientCardAndGridInMemory(id_cuota, nuevoEstado, medioPago, monto
             } else if (nuevoEstado === 'NO_COBRADO') {
                 cachedRuta[itemIdx].no_cobrado_hoy = 1;
             }
-            localStorage.setItem('HIT_CACHED_HOJA_RUTA', JSON.stringify(cachedRuta));
+        } else if (nuevoEstado === 'PAGADO') {
+            // Si fue un cobro espontáneo de un cliente que no estaba en su hoja de ruta del día
+            const fic = currentScannedData.ficheros ? currentScannedData.ficheros[0] : {};
+            cachedRuta.push({
+                id_cliente: currentScannedData.cliente.id_cliente,
+                nombre_apellido: currentScannedData.cliente.nombre_apellido,
+                direccion: currentScannedData.cliente.direccion,
+                barrio: currentScannedData.cliente.barrio,
+                piso_dpto: currentScannedData.cliente.piso_dpto,
+                referencia_domicilio: currentScannedData.cliente.referencia_domicilio,
+                telefono: currentScannedData.cliente.telefono,
+                dni: currentScannedData.cliente.dni,
+                qr_token: currentScannedData.cliente.qr_token,
+                id_fichero: fic.id_fichero,
+                producto_nombre: fic.producto_nombre,
+                valor_cuota: fic.valor_cuota,
+                cantidad_cuotas: fic.cantidad_cuotas,
+                monto_total: fic.monto_total,
+                cuotas_saldadas: 1,
+                cobrado_hoy: 1,
+                no_cobrado_hoy: 0
+            });
         }
+        localStorage.setItem('HIT_CACHED_HOJA_RUTA', JSON.stringify(cachedRuta));
+        currentRutaItems = cachedRuta;
+        renderHojaDeRutaCards(cachedRuta);
     }
 }
 

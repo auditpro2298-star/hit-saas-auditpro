@@ -34,8 +34,8 @@ router.get('/hoja-de-ruta', async (req, res) => {
         const params = [todayStr, todayStr, todayStr, todayStr, id_empresa];
 
         if (userRole === 'COBRADOR') {
-            sql += ` AND f.id_cobrador_asignado = ?`;
-            params.push(id_usuario);
+            sql += ` AND (f.id_cobrador_asignado = ? OR f.id_fichero IN (SELECT q.id_fichero FROM cuotas q WHERE q.id_cobrador = ? AND date(q.fecha_pago) = ?))`;
+            params.push(id_usuario, id_usuario, todayStr);
         }
 
         // Filtro de la Hoja de Ruta del Día (Por defecto 'HOY'):
@@ -67,6 +67,26 @@ router.get('/hoja-de-ruta', async (req, res) => {
     } catch (err) {
         console.error('Error sincronizando hoja de ruta:', err);
         res.status(500).json({ error: 'Error cargando hoja de ruta.', details: err.message });
+    }
+});
+
+// GET /api/cobrador/catalogo-qr-offline - Catálogo liviano para permitir escaneo QR 100% offline de clientes no asignados
+router.get('/catalogo-qr-offline', async (req, res) => {
+    const id_empresa = req.user.id_empresa;
+    try {
+        const catalogo = await query(`
+            SELECT c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio,
+                   c.piso_dpto, c.referencia_domicilio, c.telefono, c.dni, c.qr_token,
+                   f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas
+            FROM clientes c
+            JOIN ficheros f ON c.id_cliente = f.id_cliente
+            WHERE c.id_empresa = ? AND f.estado = 'ACTIVO'
+        `, [id_empresa]);
+        res.json(catalogo);
+    } catch (err) {
+        console.error('Error cargando catalogo offline:', err);
+        res.status(500).json({ error: 'Error cargando catalogo offline.' });
     }
 });
 
@@ -208,7 +228,7 @@ router.post('/cobrar', async (req, res) => {
                 WHERE id_cuota = ? AND id_empresa = ?
             `, [localDateTime, medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, finalNotas || null, cobrado, id_cuota, id_empresa]);
 
-            await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
+            await run("UPDATE ficheros SET saldo_favor = ?, id_cobrador_asignado = COALESCE(id_cobrador_asignado, ?) WHERE id_fichero = ?", [nuevoSaldoFavor, id_cobrador, cuota.id_fichero]);
 
             // Verificar si el fichero completó todas sus cuotas para pasarlo a FINALIZADO
             const pendientes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND estado = 'PENDIENTE'", [cuota.id_fichero]);
@@ -326,7 +346,7 @@ router.post('/sync-offline', async (req, res) => {
                     WHERE id_cuota = ? AND id_empresa = ?
                 `, [item.fecha_pago || null, localDateTime, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, finalNotas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
 
-                await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, cuota.id_fichero]);
+                await run("UPDATE ficheros SET saldo_favor = ?, id_cobrador_asignado = COALESCE(id_cobrador_asignado, ?) WHERE id_fichero = ?", [nuevoSaldoFavor, id_cobrador, cuota.id_fichero]);
 
                 // Generar WhatsApp de sincronización
                 const fichero = await get('SELECT f.*, c.id_cliente, c.nombre_apellido, c.telefono, c.qr_token FROM ficheros f JOIN clientes c ON f.id_cliente = c.id_cliente WHERE f.id_fichero = ?', [cuota.id_fichero]);

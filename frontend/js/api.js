@@ -748,6 +748,31 @@ class APIClient {
             return mapped;
         }
 
+        if (endpoint === '/cobrador/catalogo-qr-offline' && method === 'GET') {
+            return db.clientes.map(c => {
+                const f = db.ficheros.find(fic => fic.id_cliente === c.id_cliente && fic.estado === 'ACTIVO') || {};
+                const cuotasFichero = db.cuotas.filter(q => q.id_fichero === f.id_fichero);
+                const cuotasPagadas = cuotasFichero.filter(q => q.estado === 'PAGADO').length;
+                return {
+                    id_cliente: c.id_cliente,
+                    nombre_apellido: c.nombre_apellido || 'Cliente Demo',
+                    direccion: c.direccion || '',
+                    barrio: c.barrio || 'General',
+                    piso_dpto: c.piso_dpto || '',
+                    referencia_domicilio: c.referencia_domicilio || '',
+                    telefono: c.telefono || '',
+                    dni: c.dni || '',
+                    qr_token: c.qr_token || 'HIT-QR-DEMO',
+                    id_fichero: f.id_fichero,
+                    producto_nombre: f.producto_nombre,
+                    valor_cuota: f.valor_cuota,
+                    cantidad_cuotas: f.cantidad_cuotas,
+                    monto_total: f.monto_total,
+                    cuotas_saldadas: cuotasPagadas
+                };
+            });
+        }
+
         if (endpoint === '/empresa/reset-asignaciones-mensual' && method === 'POST') {
             db.ficheros.forEach(f => {
                 f.id_cobrador_asignado = null;
