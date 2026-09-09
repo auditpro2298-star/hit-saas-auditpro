@@ -34,7 +34,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
         const params = [todayStr, todayStr, todayStr, todayStr, id_empresa];
 
         if (userRole === 'COBRADOR') {
-            sql += ` AND (f.id_cobrador_asignado = ? OR f.id_cobrador_asignado IS NULL)`;
+            sql += ` AND f.id_cobrador_asignado = ?`;
             params.push(id_usuario);
         }
 
