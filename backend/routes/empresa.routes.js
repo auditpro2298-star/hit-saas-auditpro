@@ -828,7 +828,11 @@ router.put('/ficheros/:id/asignar', async (req, res) => {
         let encName = encargado_zona;
         if (encName === undefined) {
             // No se proporcionó encargado_zona (por ejemplo, asignación hecha por el propio Encargado de Cobro al Cobrador)
-            await run('UPDATE ficheros SET id_cobrador_asignado = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, id, id_empresa]);
+            if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
+                await run("UPDATE ficheros SET id_cobrador_asignado = ?, encargado_zona = COALESCE(NULLIF(encargado_zona, 'Sin asignar'), ?) WHERE id_fichero = ? AND id_empresa = ?", [id_cobrador_asignado || null, req.user.nombre, id, id_empresa]);
+            } else {
+                await run('UPDATE ficheros SET id_cobrador_asignado = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, id, id_empresa]);
+            }
             await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
             res.json({ success: true, message: `✅ Cobrador asignado con éxito al fichero #${id}.` });
         } else {

@@ -1457,7 +1457,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                     </div>
                     ${(!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA') ? `
                         <div class="flex items-center gap-2">
-                            <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
+                            <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}" onchange="asignarFichero(${f.id_fichero})">
                                 ${optionsHtml}
                             </select>
                             <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})" title="Reasignar cobrador">
@@ -1467,7 +1467,7 @@ function renderAsignacionTable(ficheros, cobradores) {
                     ` : ''}
                 ` : `
                     <div class="flex items-center gap-2">
-                        <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}">
+                        <select class="form-control" style="padding:0.4rem; font-size:0.85rem;" id="select-assign-${f.id_fichero}" onchange="asignarFichero(${f.id_fichero})">
                             ${optionsHtml}
                         </select>
                         <button class="btn btn-primary" style="font-size:0.75rem; padding:0.4rem 0.8rem;" onclick="asignarFichero(${f.id_fichero})">
