@@ -25,8 +25,8 @@ router.get('/cartilla/:token', async (req, res) => {
             const pagadas = cuotas.filter(q => q.estado === 'PAGADO');
             const pendientes = cuotas.filter(q => q.estado === 'PENDIENTE');
             
-            totalSaldado += pagadas.reduce((sum, q) => sum + q.monto, 0);
-            totalPendiente += pendientes.reduce((sum, q) => sum + q.monto, 0);
+            totalSaldado += pagadas.reduce((sum, q) => sum + (parseFloat(q.monto) || 0), 0);
+            totalPendiente += pendientes.reduce((sum, q) => sum + (parseFloat(q.monto) || 0), 0);
 
             cartillas.push({
                 fichero: f,

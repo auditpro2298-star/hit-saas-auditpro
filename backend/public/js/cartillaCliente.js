@@ -102,11 +102,11 @@ function renderCartillaUI(data) {
             </div>
             <div>
                 <div style="font-size:0.72rem; opacity:0.7;">Total Pagado</div>
-                <div style="font-size:1.2rem; font-weight:800; color:#34d399;">$${Number(resumen_global.total_saldado).toLocaleString('es-AR')}</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#34d399;">$${(parseFloat(resumen_global.total_saldado) || 0).toLocaleString('es-AR')}</div>
             </div>
             <div>
                 <div style="font-size:0.72rem; opacity:0.7;">Saldo Pendiente</div>
-                <div style="font-size:1.2rem; font-weight:800; color:#fbbf24;">$${Number(resumen_global.total_pendiente).toLocaleString('es-AR')}</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#fbbf24;">$${(parseFloat(resumen_global.total_pendiente) || 0).toLocaleString('es-AR')}</div>
             </div>
         </div>
     `;
