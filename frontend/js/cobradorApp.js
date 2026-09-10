@@ -630,8 +630,50 @@ function renderPlanillaDigital(data) {
         fichBox.style.marginBottom = '1.5rem';
         fichBox.style.padding = '1.25rem';
 
-        let gridHtml = '';
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex justify-between items-center';
+        headerDiv.style.marginBottom = '0.75rem';
+        
+        const infoDiv = document.createElement('div');
+        const h4 = document.createElement('h4');
+        h4.style.fontSize = '1.1rem';
+        h4.style.fontWeight = '800';
+        h4.style.color = 'var(--text-primary)';
+        h4.innerText = `Fichero #${f.id_fichero}: ${f.producto_nombre}`;
+        infoDiv.appendChild(h4);
+
+        const subInfo = document.createElement('div');
+        subInfo.style.fontSize = '0.82rem';
+        subInfo.style.color = 'var(--text-secondary)';
+        subInfo.style.marginTop = '0.25rem';
+        subInfo.style.lineHeight = '1.4';
+        subInfo.innerHTML = `
+            <span>🗓️ Frecuencia: <strong style="color:var(--primary);">${f.frecuencia_pago || 'SEMANAL'}</strong> (${f.cantidad_cuotas} cuotas de $${Number(f.valor_cuota).toLocaleString('es-AR')})</span><br>
+            <span>👤 Vendedor: <strong>${f.vendedor || 'Milagros'}</strong> &nbsp;|&nbsp; 🛵 Encargado: <strong>${f.encargado_zona || 'Natasha'}</strong></span>
+            ${Number(f.saldo_favor || 0) > 0 ? `<br><span>💰 Saldo favor acumulado: <strong style="color:#059669; font-size:0.85rem;">$${Number(f.saldo_favor).toLocaleString('es-AR')}</strong> (Se descontará en el próximo pago)</span>` : ''}
+        `;
+        infoDiv.appendChild(subInfo);
+        headerDiv.appendChild(infoDiv);
+
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = `badge ${pagadas === f.cantidad_cuotas ? 'badge-success' : 'badge-purple'}`;
+        badgeSpan.innerText = `${pagadas} / ${f.cantidad_cuotas} saldadas`;
+        headerDiv.appendChild(badgeSpan);
+
+        fichBox.appendChild(headerDiv);
+
+        const tipDiv = document.createElement('div');
+        tipDiv.style.fontSize = '0.78rem';
+        tipDiv.style.color = 'var(--text-muted)';
+        tipDiv.style.marginBottom = '0.5rem';
+        tipDiv.innerText = '💡 Toca cualquier casillero para asentar el cobro (efectivo/transferencia) o la visita no cobrada:';
+        fichBox.appendChild(tipDiv);
+
+        const gridDiv = document.createElement('div');
+        gridDiv.className = 'cuota-grid';
+
         casilleros.forEach(q => {
+            const cell = document.createElement('div');
             let cellClass = 'pendiente';
             let icon = '';
             if (q.estado === 'PAGADO') {
@@ -642,33 +684,28 @@ function renderPlanillaDigital(data) {
                 icon = '❌ RECHAZO';
             }
 
-            gridHtml += `
-                <div class="cuota-cell ${cellClass}" onclick="openCobroModal(${q.id_cuota}, ${q.nro_cuota}, ${q.monto}, '${q.estado}', '${f.producto_nombre}', ${f.saldo_favor || 0}, ${f.id_fichero})">
-                    <span class="cuota-number">${q.nro_cuota}</span>
-                    <span class="cuota-status-icon">${icon}</span>
-                </div>
+            cell.className = `cuota-cell ${cellClass}`;
+            cell.innerHTML = `
+                <span class="cuota-number">${q.nro_cuota}</span>
+                <span class="cuota-status-icon">${icon}</span>
             `;
+
+            cell.addEventListener('click', () => {
+                openCobroModal(
+                    q.id_cuota,
+                    q.nro_cuota,
+                    parseFloat(q.monto) || 0,
+                    q.estado,
+                    f.producto_nombre,
+                    parseFloat(f.saldo_favor) || 0,
+                    f.id_fichero
+                );
+            });
+
+            gridDiv.appendChild(cell);
         });
 
-        fichBox.innerHTML = `
-            <div class="flex justify-between items-center" style="margin-bottom:0.75rem;">
-                <div>
-                    <h4 style="font-size:1.1rem; font-weight:800; color:var(--text-primary);">Fichero #${f.id_fichero}: ${f.producto_nombre}</h4>
-                    <div style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.25rem; line-height:1.4;">
-                        <span>🗓️ Frecuencia: <strong style="color:var(--primary);">${f.frecuencia_pago || 'SEMANAL'}</strong> (${f.cantidad_cuotas} cuotas de $${Number(f.valor_cuota).toLocaleString('es-AR')})</span><br>
-                        <span>👤 Vendedor: <strong>${f.vendedor || 'Milagros'}</strong> &nbsp;|&nbsp; 🛵 Encargado: <strong>${f.encargado_zona || 'Natasha'}</strong></span>
-                        ${Number(f.saldo_favor || 0) > 0 ? `<br><span>💰 Saldo favor acumulado: <strong style="color:#059669; font-size:0.85rem;">$${Number(f.saldo_favor).toLocaleString('es-AR')}</strong> (Se descontará en el próximo pago)</span>` : ''}
-                    </div>
-                </div>
-                <span class="badge ${pagadas === f.cantidad_cuotas ? 'badge-success' : 'badge-purple'}">${pagadas} / ${f.cantidad_cuotas} saldadas</span>
-            </div>
-            <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.5rem;">
-                💡 Toca cualquier casillero para asentar el cobro (efectivo/transferencia) o la visita no cobrada:
-            </div>
-            <div class="cuota-grid">
-                ${gridHtml}
-            </div>
-        `;
+        fichBox.appendChild(gridDiv);
         container.appendChild(fichBox);
     });
 }
