@@ -1218,17 +1218,19 @@ function renderFicherosTable(ficheros) {
 async function cambiarEncargadoFichero(id_fichero, val) {
     const id_cobrador = val ? parseInt(val) : null;
     const selectedEnc = (window.allEncargadosCache || []).find(e => e.id_usuario === id_cobrador);
-    const encName = selectedEnc ? selectedEnc.nombre : '';
+    
+    // Si se eligió un Cobrador, no sobreescribir el Encargado de Zona (mantener el supervisor)
+    let payload = { id_cobrador_asignado: id_cobrador };
+    if (selectedEnc && selectedEnc.rol === 'ENCARGADO_ZONA') {
+        payload.encargado_zona = selectedEnc.nombre;
+    }
 
     try {
-        const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, {
-            id_cobrador_asignado: id_cobrador,
-            encargado_zona: encName
-        });
-        await showAlert(res.message || '✅ Encargado de Cobro asignado con éxito.');
+        const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, payload);
+        await showAlert(res.message || '✅ Cobrador / Encargado asignado con éxito.');
         await loadFicheros();
     } catch (err) {
-        await showAlert('❌ Error al asignar Encargado de Cobro: ' + err.message);
+        await showAlert('❌ Error al asignar: ' + err.message);
     }
 }
 
