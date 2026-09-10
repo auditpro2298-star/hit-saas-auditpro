@@ -230,7 +230,9 @@ router.post('/cobrar', async (req, res) => {
                     nombre_cobrador = ?,
                     lat_long_cobro = ?,
                     notas = ?,
-                    monto = ?
+                    monto = ?,
+                    promesa_pago_fecha = NULL,
+                    motivo_no_cobro = NULL
                 WHERE id_cuota = ? AND id_empresa = ?
             `, [localDateTime, medio_pago, comprobante_img_url || null, id_cobrador, nombre_cobrador, lat_long_cobro || null, finalNotas || null, cobrado, id_cuota, id_empresa]);
 
@@ -348,7 +350,9 @@ router.post('/sync-offline', async (req, res) => {
                         nombre_cobrador = ?,
                         lat_long_cobro = ?,
                         notas = ?,
-                        monto = ?
+                        monto = ?,
+                        promesa_pago_fecha = NULL,
+                        motivo_no_cobro = NULL
                     WHERE id_cuota = ? AND id_empresa = ?
                 `, [item.fecha_pago || null, localDateTime, item.medio_pago, item.comprobante_img_url || null, id_cobrador, nombre_cobrador, item.lat_long_cobro || null, finalNotas || 'Sincronizado desde cola offline', cobrado, item.id_cuota, id_empresa]);
 

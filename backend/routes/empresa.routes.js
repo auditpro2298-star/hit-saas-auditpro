@@ -1169,7 +1169,7 @@ router.get('/promesas', async (req, res) => {
             JOIN ficheros f ON q.id_fichero = f.id_fichero
             JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN usuarios u ON q.id_cobrador = u.id_usuario
-            WHERE q.id_empresa = ? AND (q.promesa_pago_fecha IS NOT NULL OR q.estado = 'NO_COBRADO')
+            WHERE q.id_empresa = ? AND q.estado = 'NO_COBRADO'
         `;
         const userNombre = (req.user.nombre || '').toLowerCase().trim();
         const promesasParams = [id_empresa];
