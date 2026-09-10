@@ -669,17 +669,12 @@ router.post('/ficheros', async (req, res) => {
 
     try {
         let finalEncargado = encargado_zona;
-        if (id_cobrador_asignado && !finalEncargado) {
-            const usr = await get('SELECT nombre FROM usuarios WHERE id_usuario = ?', [id_cobrador_asignado]);
-            if (usr) finalEncargado = usr.nombre;
-        }
         if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
-            if (!finalEncargado || finalEncargado === 'General' || finalEncargado === 'Sin asignar') {
-                finalEncargado = req.user.nombre;
-            }
+            // Auto-asignar automáticamente al Encargado de Zona que está creando el fichero
+            finalEncargado = req.user.nombre;
         } else if (!finalEncargado) {
             const clientObj = await get('SELECT encargado_zona FROM clientes WHERE id_cliente = ?', [id_cliente]);
-            finalEncargado = clientObj ? clientObj.encargado_zona : 'General';
+            finalEncargado = clientObj && clientObj.encargado_zona ? clientObj.encargado_zona : 'Sin asignar';
         }
 
         const monto_total = parseFloat(valor_cuota) * parseInt(cantidad_cuotas);
