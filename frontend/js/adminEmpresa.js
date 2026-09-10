@@ -1107,7 +1107,7 @@ function renderFicherosTable(ficheros) {
     const toIndex = Math.min(fromIndex + pageSize, ficheros.length);
     const visibleFicheros = ficheros.slice(fromIndex, toIndex);
 
-    const encargadosList = window.allEncargadosCache || [];
+    const encargadosList = (window.allEncargadosCache || []).filter(e => e.rol === 'ENCARGADO_ZONA');
 
     visibleFicheros.forEach(f => {
         const tr = document.createElement('tr');
@@ -1116,17 +1116,16 @@ function renderFicherosTable(ficheros) {
         else if (f.estado === 'CANCELADO') badgeStatus = 'badge-danger';
         else if (f.estado === 'MOROSO') badgeStatus = 'badge-warning';
 
-        let encargadoTdContent = `🛵 <strong>${f.encargado_zona || f.cobrador_nombre || 'Sin asignar'}</strong>`;
+        let encargadoTdContent = `👤 <strong>${f.encargado_zona || 'Sin asignar'}</strong>`;
 
         if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA') {
             let optionsHtml = `<option value="">-- Sin asignar --</option>`;
             encargadosList.forEach(enc => {
-                const isSelected = (f.id_cobrador_asignado === enc.id_usuario || f.encargado_zona === enc.nombre);
-                const prefix = enc.rol === 'COBRADOR' ? '🛵' : '👤';
-                optionsHtml += `<option value="${enc.id_usuario}" ${isSelected ? 'selected' : ''}>${prefix} ${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+                const isSelected = (f.encargado_zona && f.encargado_zona.toLowerCase().trim() === enc.nombre.toLowerCase().trim());
+                optionsHtml += `<option value="${enc.nombre}" ${isSelected ? 'selected' : ''}>👤 ${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
             });
             encargadoTdContent = `
-                <select class="form-control" style="font-size:0.78rem; padding:0.25rem 0.4rem; font-weight:600; border:1px solid #8b5cf6; border-radius: var(--radius-md); max-width: 170px;" onchange="cambiarEncargadoFichero(${f.id_fichero}, this.value)">
+                <select class="form-control" style="font-size:0.78rem; padding:0.25rem 0.4rem; font-weight:600; border:1px solid #8b5cf6; border-radius: var(--radius-md); max-width: 170px;" onchange="cambiarEncargadoFichero(${f.id_fichero}, this.value)" title="Designar Encargado de Zona responsable">
                     ${optionsHtml}
                 </select>
             `;
@@ -1216,21 +1215,16 @@ function renderFicherosTable(ficheros) {
 }
 
 async function cambiarEncargadoFichero(id_fichero, val) {
-    const id_cobrador = val ? parseInt(val) : null;
-    const selectedEnc = (window.allEncargadosCache || []).find(e => e.id_usuario === id_cobrador);
-    
-    // Si se eligió un Cobrador, no sobreescribir el Encargado de Zona (mantener el supervisor)
-    let payload = { id_cobrador_asignado: id_cobrador };
-    if (selectedEnc && selectedEnc.rol === 'ENCARGADO_ZONA') {
-        payload.encargado_zona = selectedEnc.nombre;
-    }
+    const encName = (val || '').trim();
 
     try {
-        const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, payload);
-        await showAlert(res.message || '✅ Cobrador / Encargado asignado con éxito.');
+        const res = await api.put(`/empresa/ficheros/${id_fichero}/asignar`, {
+            encargado_zona: encName || 'Sin asignar'
+        });
+        await showAlert(res.message || '✅ Encargado de Zona asignado con éxito.');
         await loadFicheros();
     } catch (err) {
-        await showAlert('❌ Error al asignar: ' + err.message);
+        await showAlert('❌ Error al asignar Encargado de Zona: ' + err.message);
     }
 }
 

@@ -825,9 +825,16 @@ router.put('/ficheros/:id/asignar', async (req, res) => {
     const { id_cobrador_asignado, encargado_zona } = req.body;
 
     try {
-        let encName = encargado_zona;
-        if (encName === undefined) {
-            // No se proporcionó encargado_zona (por ejemplo, asignación hecha por el propio Encargado de Cobro al Cobrador)
+        if (encargado_zona !== undefined && id_cobrador_asignado !== undefined) {
+            await run('UPDATE ficheros SET id_cobrador_asignado = ?, encargado_zona = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, encargado_zona || 'Sin asignar', id, id_empresa]);
+            await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
+            res.json({ success: true, message: `✅ Fichero #${id} asignado a Encargado: ${encargado_zona || 'Sin asignar'}.` });
+        } else if (encargado_zona !== undefined) {
+            // Solapa 2: Designar exclusivamente Encargado de Zona (Supervisor)
+            await run('UPDATE ficheros SET encargado_zona = ? WHERE id_fichero = ? AND id_empresa = ?', [encargado_zona || 'Sin asignar', id, id_empresa]);
+            res.json({ success: true, message: `✅ Encargado de Zona actualizado a: ${encargado_zona || 'Sin asignar'}` });
+        } else if (id_cobrador_asignado !== undefined) {
+            // Solapa 4: Asignar exclusivamente Cobrador de Calle
             if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
                 await run("UPDATE ficheros SET id_cobrador_asignado = ?, encargado_zona = COALESCE(NULLIF(encargado_zona, 'Sin asignar'), ?) WHERE id_fichero = ? AND id_empresa = ?", [id_cobrador_asignado || null, req.user.nombre, id, id_empresa]);
             } else {
@@ -836,14 +843,11 @@ router.put('/ficheros/:id/asignar', async (req, res) => {
             await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
             res.json({ success: true, message: `✅ Cobrador asignado con éxito al fichero #${id}.` });
         } else {
-            // Se proporcionó encargado_zona de forma explícita (Admin asignando el Encargado de Cobro)
-            await run('UPDATE ficheros SET id_cobrador_asignado = ?, encargado_zona = ? WHERE id_fichero = ? AND id_empresa = ?', [id_cobrador_asignado || null, encName || 'Sin asignar', id, id_empresa]);
-            await run("UPDATE cuotas SET id_cobrador = ? WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id_cobrador_asignado || null, id, id_empresa]);
-            res.json({ success: true, message: `✅ Fichero #${id} asignado a ${encName || 'Sin asignar'}` });
+            res.status(400).json({ error: 'Debe especificar encargado_zona o id_cobrador_asignado.' });
         }
     } catch (err) {
         console.error('Error al asignar fichero:', err);
-        res.status(500).json({ error: 'Error en asignación de Encargado de Zona.' });
+        res.status(500).json({ error: 'Error en asignación: ' + err.message });
     }
 });
 
