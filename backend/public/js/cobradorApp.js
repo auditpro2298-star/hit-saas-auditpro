@@ -531,7 +531,7 @@ async function simulateQrScan(qrToken) {
                         valor_cuota: matchedItem.valor_cuota,
                         cantidad_cuotas: matchedItem.cantidad_cuotas,
                         frecuencia_pago: 'SEMANAL',
-                        saldo_favor: 0
+                        saldo_favor: parseFloat(matchedItem.saldo_favor) || 0
                     }],
                     cuotas: {
                         [matchedItem.id_fichero]: Array.from({ length: matchedItem.cantidad_cuotas }, (_, i) => ({
@@ -850,6 +850,11 @@ async function submitCobroForm(event) {
         // 2. Cerrar el modal
         document.getElementById('modal-registrar-cobro').classList.add('hidden');
 
+        // Limpiar caché individual del cliente para forzar datos frescos en el próximo escaneo
+        if (payload.qr_token) {
+            localStorage.removeItem(`HIT_CACHED_FICHERO_${payload.qr_token}`);
+        }
+
         // 3. Notificación de éxito
         await showAlert('✅ ' + res.message);
 
@@ -885,6 +890,17 @@ function updateClientCardAndGridInMemory(id_cuota, nuevoEstado, medioPago, monto
                 }
             });
         });
+
+        // Actualizar saldo a favor en memoria para el fichero afectado
+        if (currentScannedData.ficheros && nuevoEstado === 'PAGADO') {
+            const currentFichero = currentScannedData.ficheros.find(f => f.id_fichero === (selectedCuotaToPay?.id_fichero || f.id_fichero)) || currentScannedData.ficheros[0];
+            if (currentFichero) {
+                const saldoActual = parseFloat(currentFichero.saldo_favor) || 0;
+                const valorCuota = parseFloat(currentFichero.valor_cuota) || (selectedCuotaToPay?.monto || 0);
+                const cobrado = parseFloat(monto) || 0;
+                currentFichero.saldo_favor = Math.max(0, (cobrado + saldoActual) - valorCuota);
+            }
+        }
 
         // Guardar la versión actualizada en caché local
         if (currentScannedData.cliente && currentScannedData.cliente.qr_token) {

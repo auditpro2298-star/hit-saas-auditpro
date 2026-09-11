@@ -1719,12 +1719,41 @@ function renderAuditDetails(cobros) {
             fechaStr = formatDateTimeStr(q.fecha_pago);
         }
 
-        const notasStr = q.notas ? `<div style="font-size:0.75rem; color:#854d0e; font-weight:600; margin-top:3px; background: #fef9c3; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Cobrador: ${q.notas}</div>` : '';
+        let displayNotas = '';
+        let saldoFavorBadge = '';
+        if (q.notas) {
+            const matchFavor = q.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+            if (matchFavor) {
+                const favorVal = parseFloat(matchFavor[1]) || 0;
+                if (favorVal > 0) {
+                    saldoFavorBadge = `<div style="margin-top:3px;"><span class="badge badge-success" style="font-size:0.72rem; font-weight:700; background-color: var(--success); color: white;" title="Saldo a favor generado en este cobro">🎁 Saldo a favor: +$${Number(favorVal).toLocaleString('es-AR')}</span></div>`;
+                }
+            }
+            const matchDesc = q.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
+            if (matchDesc) {
+                const descVal = parseFloat(matchDesc[1]) || 0;
+                if (descVal > 0) {
+                    saldoFavorBadge = `<div style="margin-top:3px;"><span class="badge badge-purple" style="font-size:0.72rem; font-weight:700;" title="Descuento aplicado por saldo a favor previo">💰 Saldo a favor usado: -$${Number(descVal).toLocaleString('es-AR')}</span></div>`;
+                }
+            }
+
+            const cleanNotes = q.notas
+                .replace(/\[SALDO_A_FAVOR_GENERADO:\d+(\.\d+)?\]/g, '')
+                .replace(/\[DESCUENTO_APLICADO:\d+(\.\d+)?\]/g, '')
+                .replace(/\[DEUDA_CUBIERTA:\d+(\.\d+)?\]/g, '')
+                .replace(/\[NUEVA_DEUDA_GENERADA:\d+(\.\d+)?\]/g, '')
+                .trim();
+            if (cleanNotes) {
+                displayNotas = `<div style="font-size:0.75rem; color:#854d0e; font-weight:600; margin-top:3px; background: #fef9c3; padding: 2px 6px; border-radius: 4px; display: inline-block;">📝 Cobrador: ${cleanNotes}</div>`;
+            }
+        }
+
         tr.innerHTML = `
             <td><strong>${fechaStr}</strong></td>
             <td>
                 <strong>${q.cliente_nombre}</strong> (${q.barrio})
-                ${notasStr}
+                ${saldoFavorBadge}
+                ${displayNotas}
             </td>
             <td>Fichero #${q.id_fichero} - <strong>Cuota #${q.nro_cuota}</strong></td>
             <td><strong>$${Number(q.monto).toLocaleString('es-AR')}</strong></td>

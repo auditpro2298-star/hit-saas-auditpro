@@ -452,6 +452,53 @@ async function initDatabase() {
             // Ignorar si la columna ya existe
         }
 
+        // Sincronización / Backfill automático de saldo_favor para ficheros existentes a partir de sus pagos
+        try {
+            const ficherosConPagos = await query(`
+                SELECT f.id_fichero, f.valor_cuota, f.saldo_favor
+                FROM ficheros f
+                WHERE f.estado = 'ACTIVO'
+            `);
+
+            if (ficherosConPagos && ficherosConPagos.length > 0) {
+                for (const f of ficherosConPagos) {
+                    const cuotas = await query(`
+                        SELECT id_cuota, nro_cuota, monto, estado, notas, fecha_pago
+                        FROM cuotas
+                        WHERE id_fichero = ? AND estado = 'PAGADO'
+                        ORDER BY nro_cuota ASC
+                    `, [f.id_fichero]);
+
+                    if (cuotas && cuotas.length > 0) {
+                        let acumuladoFavor = 0;
+                        for (const q of cuotas) {
+                            if (q.notas) {
+                                const matchGen = q.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                                if (matchGen) {
+                                    acumuladoFavor = parseFloat(matchGen[1]) || 0;
+                                } else {
+                                    const matchDesc = q.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
+                                    if (matchDesc) {
+                                        acumuladoFavor = Math.max(0, acumuladoFavor - (parseFloat(matchDesc[1]) || 0));
+                                    }
+                                }
+                            } else if (Number(q.monto || 0) > Number(f.valor_cuota || 0)) {
+                                acumuladoFavor = Number(q.monto) - Number(f.valor_cuota);
+                            }
+                        }
+
+                        if (acumuladoFavor > 0 && Number(f.saldo_favor || 0) !== acumuladoFavor) {
+                            console.log(`💰 Sincronizando saldo_favor en Fichero #${f.id_fichero}: $${acumuladoFavor}`);
+                            await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [acumuladoFavor, f.id_fichero]);
+                        }
+                    }
+                }
+                console.log("✅ Sincronización de 'saldo_favor' en ficheros completada.");
+            }
+        } catch (err) {
+            console.error("Error en sincronización de saldo_favor en ficheros:", err);
+        }
+
         // Migración: Agregar columna nro_cliente_interno a la tabla clientes
         try {
             if (isPostgres && pgPool) {

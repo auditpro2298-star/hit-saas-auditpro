@@ -19,7 +19,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
         const startOfMonth = todayStr.substring(0, 7) + '-01';
 
         let sql = `
-            SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.estado as fichero_estado, f.fecha_creacion, f.fecha_entrega, f.orden_visita,
+            SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.saldo_favor, f.estado as fichero_estado, f.fecha_creacion, f.fecha_entrega, f.orden_visita,
                    c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token, c.dni,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
                    (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
@@ -83,7 +83,7 @@ router.get('/catalogo-qr-offline', async (req, res) => {
         const catalogo = await query(`
             SELECT c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio,
                    c.piso_dpto, c.referencia_domicilio, c.telefono, c.dni, c.qr_token,
-                   f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total,
+                   f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.saldo_favor,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas
             FROM clientes c
             JOIN ficheros f ON c.id_cliente = f.id_cliente
