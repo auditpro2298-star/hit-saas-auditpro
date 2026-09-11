@@ -126,18 +126,46 @@ async function autoCerrarCajasPendientes(id_empresa) {
             const fecha = c.fecha_cobro;
             if (!cobrador_id || !fecha) continue;
             
+            // Calcular saldo a favor generado en esa fecha por este cobrador
+            const cuotasCobro = await query(`
+                SELECT q.id_cuota, q.monto, q.notas, f.valor_cuota
+                FROM cuotas q
+                JOIN ficheros f ON q.id_fichero = f.id_fichero
+                WHERE q.id_empresa = ? AND q.id_cobrador = ? AND date(q.fecha_pago) = ? AND q.estado = 'PAGADO'
+            `, [id_empresa, cobrador_id, fecha]);
+
+            let saldoFavorDia = 0;
+            for (const item of cuotasCobro) {
+                if (item.notas) {
+                    const match = item.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                    if (match) {
+                        saldoFavorDia += parseFloat(match[1]) || 0;
+                        continue;
+                    }
+                }
+                if (Number(item.monto) > Number(item.valor_cuota)) {
+                    saldoFavorDia += (Number(item.monto) - Number(item.valor_cuota));
+                }
+            }
+
             // Check if there is already a closure for this cobrador and date
             const existing = await get(`
-                SELECT id_caja FROM auditoria_caja 
+                SELECT id_caja, total_saldo_favor FROM auditoria_caja 
                 WHERE id_empresa = ? AND id_cobrador = ? AND fecha_caja = ?
             `, [id_empresa, cobrador_id, fecha]);
             
             if (!existing) {
                 console.log(`🔒 Auto-cerrando caja pendiente para cobrador ID ${cobrador_id} en fecha ${fecha}...`);
                 await run(`
-                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                    VALUES (?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', 'Cierre Automático (Fin de Jornada)', CURRENT_TIMESTAMP)
-                `, [id_empresa, cobrador_id, fecha, c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados]);
+                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, total_saldo_favor, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', 'Cierre Automático (Fin de Jornada)', CURRENT_TIMESTAMP)
+                `, [id_empresa, cobrador_id, fecha, c.recaudado_efectivo, c.recaudado_transferencia, saldoFavorDia, c.cobros_realizados]);
+            } else if (Number(existing.total_saldo_favor || 0) === 0 && saldoFavorDia > 0) {
+                await run(`
+                    UPDATE auditoria_caja 
+                    SET total_saldo_favor = ?
+                    WHERE id_caja = ?
+                `, [saldoFavorDia, existing.id_caja]);
             }
         }
     } catch (err) {
@@ -1108,6 +1136,30 @@ router.get('/auditoria', async (req, res) => {
         cierresSql += ` GROUP BY u.id_usuario, u.nombre, u.zona_asignada`;
         const cierresCobrador = await query(cierresSql, cierresParams);
 
+        // Calcular saldo a favor generado hoy por cada cobrador
+        for (const cc of cierresCobrador) {
+            const cuotasCc = await query(`
+                SELECT q.monto, q.notas, f.valor_cuota
+                FROM cuotas q
+                JOIN ficheros f ON q.id_fichero = f.id_fichero
+                WHERE q.id_empresa = ? AND q.id_cobrador = ? AND date(q.fecha_pago) = ? AND q.estado = 'PAGADO'
+            `, [id_empresa, cc.id_usuario, todayStr]);
+            let saldoFavorCc = 0;
+            for (const item of cuotasCc) {
+                if (item.notas) {
+                    const match = item.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                    if (match) {
+                        saldoFavorCc += parseFloat(match[1]) || 0;
+                        continue;
+                    }
+                }
+                if (Number(item.monto) > Number(item.valor_cuota)) {
+                    saldoFavorCc += (Number(item.monto) - Number(item.valor_cuota));
+                }
+            }
+            cc.recaudado_saldo_favor = saldoFavorCc;
+        }
+
         // Últimos cobros con o sin comprobante + cobrador histórico
         let cobrosSql = `
             SELECT q.id_cuota, q.nro_cuota, q.monto, q.fecha_pago, q.medio_pago, q.comprobante_img_url, q.motivo_no_cobro, q.promesa_pago_fecha, q.estado, q.notas,
@@ -1561,6 +1613,28 @@ router.post('/caja-cierre', async (req, res) => {
         for (const c of cobrosHoy) {
             const cobrador_id = c.id_cobrador;
             if (!cobrador_id) continue;
+
+            // Calcular saldo a favor generado hoy por este cobrador
+            const cuotasCobro = await query(`
+                SELECT q.id_cuota, q.monto, q.notas, f.valor_cuota
+                FROM cuotas q
+                JOIN ficheros f ON q.id_fichero = f.id_fichero
+                WHERE q.id_empresa = ? AND q.id_cobrador = ? AND date(q.fecha_pago) = ? AND q.estado = 'PAGADO'
+            `, [id_empresa, cobrador_id, todayStr]);
+
+            let saldoFavorHoy = 0;
+            for (const item of cuotasCobro) {
+                if (item.notas) {
+                    const match = item.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                    if (match) {
+                        saldoFavorHoy += parseFloat(match[1]) || 0;
+                        continue;
+                    }
+                }
+                if (Number(item.monto) > Number(item.valor_cuota)) {
+                    saldoFavorHoy += (Number(item.monto) - Number(item.valor_cuota));
+                }
+            }
             
             // Check if there is already a closure for this cobrador and date
             const existing = await get(`
@@ -1572,15 +1646,15 @@ router.post('/caja-cierre', async (req, res) => {
                 // Update existing closure
                 await run(`
                     UPDATE auditoria_caja 
-                    SET total_efectivo = ?, total_transferencias = ?, cantidad_cobros = ?, estado_caja = 'CERRADA_CONCILIADA', observaciones = ?, fecha_actualizacion = CURRENT_TIMESTAMP
+                    SET total_efectivo = ?, total_transferencias = ?, total_saldo_favor = ?, cantidad_cobros = ?, estado_caja = 'CERRADA_CONCILIADA', observaciones = ?, fecha_actualizacion = CURRENT_TIMESTAMP
                     WHERE id_caja = ?
-                `, [c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados, observaciones || '', existing.id_caja]);
+                `, [c.recaudado_efectivo, c.recaudado_transferencia, saldoFavorHoy, c.cobros_realizados, observaciones || '', existing.id_caja]);
             } else {
                 // Insert new closure
                 await run(`
-                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                    VALUES (?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', ?, CURRENT_TIMESTAMP)
-                `, [id_empresa, cobrador_id, todayStr, c.recaudado_efectivo, c.recaudado_transferencia, c.cobros_realizados, observaciones || '']);
+                    INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, total_saldo_favor, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'CERRADA_CONCILIADA', ?, CURRENT_TIMESTAMP)
+                `, [id_empresa, cobrador_id, todayStr, c.recaudado_efectivo, c.recaudado_transferencia, saldoFavorHoy, c.cobros_realizados, observaciones || '']);
             }
         }
         

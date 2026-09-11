@@ -1660,7 +1660,7 @@ function renderAuditSummary(cierres) {
     tbody.innerHTML = '';
 
     if (!cierres || cierres.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No se han registrado cobros hoy en calle.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No se han registrado cobros hoy en calle.</td></tr>`;
         return;
     }
 
@@ -1673,6 +1673,7 @@ function renderAuditSummary(cierres) {
             </td>
             <td><strong>$${Number(c.recaudado_efectivo || 0).toLocaleString('es-AR')}</strong></td>
             <td><strong>$${Number(c.recaudado_transferencia || 0).toLocaleString('es-AR')}</strong></td>
+            <td>${Number(c.recaudado_saldo_favor || 0) > 0 ? `<strong style="color:var(--success);">+$${Number(c.recaudado_saldo_favor).toLocaleString('es-AR')}</strong>` : '<span class="text-muted">$0</span>'}</td>
             <td><span class="badge badge-success">${c.cobros_realizados || 0} cuotas</span></td>
             <td><span class="badge badge-danger">${c.visitas_no_cobradas || 0} rechazos</span></td>
         `;
@@ -2550,9 +2551,30 @@ async function loadControlOperativoDiario(isManual = false) {
                 let saldoStr = `$${Number(f.valor_cuota || 0).toLocaleString('es-AR')}`;
                 let proxNota = `Prioridad #${f.orden_visita || (idx + 1)}`;
 
+                const paidCuotasHoy = cobroFicheroHoy.filter(c => c.estado === 'PAGADO');
+
+                // Calcular saldo a favor generado en cobros de hoy
+                let saldoFavorHoyFichero = 0;
+                paidCuotasHoy.forEach(c => {
+                    let extra = 0;
+                    if (c.notas) {
+                        const matchFavor = c.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                        if (matchFavor) extra = parseFloat(matchFavor[1]) || 0;
+                    }
+                    if (extra === 0 && Number(c.monto || 0) > Number(f.valor_cuota || 0)) {
+                        extra = Number(c.monto) - Number(f.valor_cuota);
+                    }
+                    saldoFavorHoyFichero += extra;
+                });
+
+                if (paidCuotasHoy.length > 0 && saldoFavorHoyFichero === 0 && Number(f.saldo_favor || 0) > 0) {
+                    saldoFavorHoyFichero = Number(f.saldo_favor);
+                }
+
+                totalSaldoFavor += saldoFavorHoyFichero;
+
                 if (ultimoCobro) {
                     if (ultimoCobro.estado === 'PAGADO') {
-                        const paidCuotasHoy = cobroFicheroHoy.filter(c => c.estado === 'PAGADO');
                         totalCobrados += paidCuotasHoy.length;
                         const sumaMontoHoy = paidCuotasHoy.reduce((sum, c) => sum + Number(c.monto || 0), 0);
                         montoCobrado += sumaMontoHoy;
@@ -2564,32 +2586,27 @@ async function loadControlOperativoDiario(isManual = false) {
                             montoStr = `<span class="text-muted" style="font-size:0.8rem;">$0<br>(Abonado ${fechaPagoCortada})</span>`;
                         }
 
-                        // Extraer tags de descuento aplicado, deuda cubierta, saldo a favor generado, nueva deuda generada en las notas
-                        let descuentoAplicado = 0;
-                        let deudaCubierta = 0;
-                        if (ultimoCobro.notas) {
-                            const matchDesc = ultimoCobro.notas.match(/\[DESCUENTO_APLICADO:(\d+(\.\d+)?)\]/);
-                            if (matchDesc) descuentoAplicado = parseFloat(matchDesc[1]) || 0;
-                            
-                            const matchDeuda = ultimoCobro.notas.match(/\[DEUDA_CUBIERTA:(\d+(\.\d+)?)\]/);
-                            if (matchDeuda) deudaCubierta = parseFloat(matchDeuda[1]) || 0;
-                        }
-
-                        const totalAcreditado = Number(ultimoCobro.monto || 0) + descuentoAplicado - deudaCubierta;
-
-                        if (totalAcreditado > Number(f.valor_cuota || 0)) {
-                            const favor = totalAcreditado - Number(f.valor_cuota);
-                            totalSaldoFavor += favor;
-                            estadoHtml = `<span class="badge badge-success">✅ PAGADO + SALDO A FAVOR</span>`;
-                            saldoStr = `<strong style="color:var(--success);">+$${favor.toLocaleString('es-AR')} a favor</strong>`;
-                        } else if (totalAcreditado < Number(f.valor_cuota || 0) && totalAcreditado > 0) {
-                            totalParciales++;
-                            const resto = Number(f.valor_cuota) - totalAcreditado;
-                            estadoHtml = `<span class="badge badge-purple">💵 PAGO PARCIAL</span>`;
-                            saldoStr = `<strong style="color:#d97706;">Resta $${resto.toLocaleString('es-AR')}</strong>`;
+                        if (paidCuotasHoy.length > 0) {
+                            if (saldoFavorHoyFichero > 0) {
+                                estadoHtml = `<span class="badge badge-success">✅ PAGADO + SALDO A FAVOR</span>`;
+                                saldoStr = `<strong style="color:var(--success);">+$${saldoFavorHoyFichero.toLocaleString('es-AR')} a favor</strong>`;
+                            } else if (sumaMontoHoy < Number(f.valor_cuota || 0) && sumaMontoHoy > 0) {
+                                totalParciales++;
+                                const resto = Number(f.valor_cuota) - sumaMontoHoy;
+                                estadoHtml = `<span class="badge badge-purple">💵 PAGO PARCIAL</span>`;
+                                saldoStr = `<strong style="color:#d97706;">Resta $${resto.toLocaleString('es-AR')}</strong>`;
+                            } else {
+                                estadoHtml = `<span class="badge badge-success">✅ PAGADO COMPLETO</span>`;
+                                saldoStr = `$0 al día`;
+                            }
                         } else {
-                            estadoHtml = `<span class="badge badge-success">✅ PAGADO COMPLETO</span>`;
-                            saldoStr = `$0 al día`;
+                            // Abonado en un día anterior del mes
+                            if (Number(f.saldo_favor || 0) > 0) {
+                                saldoStr = `<span style="color:var(--success); font-weight:600;">💰 Saldo a favor: $${Number(f.saldo_favor).toLocaleString('es-AR')}</span>`;
+                            } else {
+                                saldoStr = `$0 al día`;
+                            }
+                            estadoHtml = `<span class="badge badge-success">✅ PAGADO (ANTERIOR)</span>`;
                         }
                     } else if (ultimoCobro.estado === 'NO_COBRADO') {
                         totalPromesas++;
@@ -2766,14 +2783,15 @@ function exportarCierresCajaCSV() {
         showAlert('No hay cierres de caja registrados para exportar hoy.');
         return;
     }
-    const headers = ['Cobrador', 'Zona Asignada', 'Efectivo en Mano', 'Transferencias', 'Cantidad Cobros', 'Visitas Rechazadas'];
+    const headers = ['Cobrador', 'Zona Asignada', 'Efectivo en Mano', 'Transferencias', 'Saldo a Favor Generado', 'Cantidad Cobros', 'Visitas Rechazadas'];
     const rows = cierres.map(c => [
         c.cobrador_nombre,
         c.zona_asignada,
-        c.recaudado_efectivo,
-        c.recaudado_transferencia,
-        c.cobros_realizados,
-        c.visitas_no_cobradas
+        c.recaudado_efectivo || 0,
+        c.recaudado_transferencia || 0,
+        c.recaudado_saldo_favor || 0,
+        c.cobros_realizados || 0,
+        c.visitas_no_cobradas || 0
     ]);
     const dateStr = new Date().toISOString().split('T')[0];
     exportToCSV(`reporte_cierre_caja_${dateStr}.csv`, headers, rows);
@@ -2909,7 +2927,7 @@ async function cargarHistorialCierres() {
         tbody.innerHTML = '';
 
         if (cierres.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Aún no se han registrado cierres de caja consolidados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Aún no se han registrado cierres de caja consolidados.</td></tr>`;
             return;
         }
 
@@ -2927,6 +2945,7 @@ async function cargarHistorialCierres() {
                 </td>
                 <td><strong>$${Number(c.total_efectivo || 0).toLocaleString('es-AR')}</strong></td>
                 <td><strong>$${Number(c.total_transferencias || 0).toLocaleString('es-AR')}</strong></td>
+                <td>${Number(c.total_saldo_favor || 0) > 0 ? `<strong style="color:var(--success);">+$${Number(c.total_saldo_favor).toLocaleString('es-AR')}</strong>` : '<span class="text-muted">$0</span>'}</td>
                 <td><span class="badge badge-success">${c.cantidad_cobros || 0} cuotas</span></td>
                 <td style="font-size:0.8rem; color:var(--text-secondary); max-width: 250px; white-space: normal; word-break: break-word;">
                     ${c.observaciones || '<span class="text-muted">—</span>'}
@@ -2953,7 +2972,7 @@ function exportarHistorialCierresCSV() {
         showAlert('No hay historial de cierres registrado para exportar.');
         return;
     }
-    const headers = ['Semana ISO', 'Fecha Cierre', 'Cobrador', 'Zona', 'Efectivo Rendido', 'Transferencias', 'Cant. Cobros', 'Observaciones'];
+    const headers = ['Semana ISO', 'Fecha Cierre', 'Cobrador', 'Zona', 'Efectivo Rendido', 'Transferencias', 'Saldo a Favor', 'Cant. Cobros', 'Observaciones'];
     const rows = cierres.map(c => {
         const dateObj = new Date(c.fecha_caja);
         const weekStr = getWeekNumber(dateObj);
@@ -2964,6 +2983,7 @@ function exportarHistorialCierresCSV() {
             c.zona_asignada || 'General',
             c.total_efectivo || 0,
             c.total_transferencias || 0,
+            c.total_saldo_favor || 0,
             c.cantidad_cobros || 0,
             c.observaciones || ''
         ];

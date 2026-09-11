@@ -475,6 +475,49 @@ async function initDatabase() {
         } catch (err) {
             console.error("Error en migración nro_cliente_interno:", err);
         }
+
+        // Migración: Agregar columna total_saldo_favor a la tabla auditoria_caja
+        try {
+            if (isPostgres && pgPool) {
+                await pgPool.query("ALTER TABLE auditoria_caja ADD COLUMN IF NOT EXISTS total_saldo_favor DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+            } else {
+                await run("ALTER TABLE auditoria_caja ADD COLUMN total_saldo_favor DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+            }
+            console.log("✅ Columna 'total_saldo_favor' verificada/agregada a la tabla 'auditoria_caja'.");
+
+            // Rellenar total_saldo_favor en cierres de caja existentes que tengan 0.00
+            const pastClosures = await query("SELECT id_caja, id_empresa, id_cobrador, fecha_caja FROM auditoria_caja WHERE total_saldo_favor = 0 OR total_saldo_favor IS NULL");
+            if (pastClosures && pastClosures.length > 0) {
+                for (const pc of pastClosures) {
+                    const cuotas = await query(`
+                        SELECT q.monto, q.notas, f.valor_cuota
+                        FROM cuotas q
+                        JOIN ficheros f ON q.id_fichero = f.id_fichero
+                        WHERE q.id_empresa = ? AND q.id_cobrador = ? AND date(q.fecha_pago) = ? AND q.estado = 'PAGADO'
+                    `, [pc.id_empresa, pc.id_cobrador, pc.fecha_caja]);
+
+                    let favorSum = 0;
+                    for (const item of cuotas) {
+                        if (item.notas) {
+                            const match = item.notas.match(/\[SALDO_A_FAVOR_GENERADO:(\d+(\.\d+)?)\]/);
+                            if (match) {
+                                favorSum += parseFloat(match[1]) || 0;
+                                continue;
+                            }
+                        }
+                        if (Number(item.monto) > Number(item.valor_cuota)) {
+                            favorSum += (Number(item.monto) - Number(item.valor_cuota));
+                        }
+                    }
+                    if (favorSum > 0) {
+                        await run("UPDATE auditoria_caja SET total_saldo_favor = ? WHERE id_caja = ?", [favorSum, pc.id_caja]);
+                    }
+                }
+                console.log("✅ Recalculación de total_saldo_favor en cierres anteriores completada.");
+            }
+        } catch (err) {
+            // Ignorar si la columna ya existe
+        }
         
         // Solo asegurar datos semilla si no hay ningún usuario en la base de datos
         const userCount = await get('SELECT COUNT(*) as count FROM usuarios');
@@ -828,9 +871,9 @@ async function restoreBackup(id_empresa, backup) {
                     const newCobradorId = oldToNewUserId[a.id_cobrador] || null;
                     
                     await client.query(`
-                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
+                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, total_saldo_favor, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.total_saldo_favor || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
                 }
             }
             
@@ -925,9 +968,9 @@ async function restoreBackup(id_empresa, backup) {
                     const newCobradorId = oldToNewUserId[a.id_cobrador] || null;
                     
                     await run(`
-                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
+                        INSERT INTO auditoria_caja (id_empresa, id_cobrador, fecha_caja, total_efectivo, total_transferencias, total_saldo_favor, cantidad_cobros, estado_caja, observaciones, fecha_actualizacion)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [id_empresa, newCobradorId, a.fecha_caja || a.fecha_arqueo, a.total_efectivo || a.recaudado_efectivo || 0.00, a.total_transferencias || a.recaudado_transferencia || 0.00, a.total_saldo_favor || 0.00, a.cantidad_cobros || a.cobros_realizados || 0, a.estado_caja || 'ABIERTA', a.observaciones || a.notes || a.notas || '', a.fecha_actualizacion || a.fecha_creacion].map(x => x === undefined ? null : x));
                 }
             }
             await run("COMMIT");

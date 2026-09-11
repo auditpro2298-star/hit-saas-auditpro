@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS auditoria_caja (
     fecha_caja DATE NOT NULL,
     total_efectivo DECIMAL(12,2) DEFAULT 0.00,
     total_transferencias DECIMAL(12,2) DEFAULT 0.00,
+    total_saldo_favor DECIMAL(12,2) DEFAULT 0.00,
     cantidad_cobros INTEGER DEFAULT 0,
     estado_caja VARCHAR(30) DEFAULT 'ABIERTA', -- 'ABIERTA', 'CERRADA_CONCILIADA'
     observaciones TEXT,
