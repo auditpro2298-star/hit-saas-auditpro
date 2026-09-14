@@ -833,7 +833,18 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
             WHERE id_fichero = ? AND id_empresa = ?
         `, [producto_nombre.trim(), nuevaCantidad, nuevoValor, nuevaFreq, monto_total, (vendedor || 'General').trim(), (finalEncargado || 'General').trim(), finalCobrador, nuevaEntrega, nuevoSaldoFavor, id, id_empresa]);
 
-        // 2. Actualizar cuotas existentes PENDIENTES
+        // 2. Actualizar monto de todas las cuotas del fichero (tanto pagadas como pendientes) para mantener consistencia
+        await run("UPDATE cuotas SET monto = ? WHERE id_fichero = ? AND id_empresa = ?", [nuevoValor, id, id_empresa]);
+
+        if (nuevoSaldoFavor === 0) {
+            const cuotasConNotas = await query("SELECT id_cuota, notas FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND notas LIKE '%SALDO_A_FAVOR_GENERADO%'", [id, id_empresa]);
+            for (const c of (cuotasConNotas || [])) {
+                const cleanedNotas = (c.notas || '').replace(/\[SALDO_A_FAVOR_GENERADO:[^\]]+\]/g, '').trim();
+                await run("UPDATE cuotas SET notas = ? WHERE id_cuota = ? AND id_empresa = ?", [cleanedNotas || null, c.id_cuota, id_empresa]);
+            }
+        }
+
+        // 3. Actualizar fechas y cobrador de cuotas PENDIENTES existentes
         const cuotasPendientes = await query("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE' ORDER BY nro_cuota ASC", [id, id_empresa]);
         
         for (const q of cuotasPendientes) {
@@ -852,7 +863,7 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
             }
         }
 
-        // 3. Si la cantidad de cuotas aumentó, insertar las nuevas cuotas faltantes como PENDIENTE
+        // 4. Si la cantidad de cuotas aumentó, insertar las nuevas cuotas faltantes como PENDIENTE
         const cuotasActuales = await query("SELECT MAX(nro_cuota) as max_nro FROM cuotas WHERE id_fichero = ? AND id_empresa = ?", [id, id_empresa]);
         const maxNroActual = (cuotasActuales && cuotasActuales[0]?.max_nro) || cuotasPagadas.length;
 
@@ -866,7 +877,7 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
             }
         }
 
-        // 4. Actualizar estado del fichero si corresponde
+        // 5. Actualizar estado del fichero si corresponde
         const pendientesRestantes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE'", [id, id_empresa]);
         const nuevoEstado = (pendientesRestantes && pendientesRestantes.restantes === 0) ? 'FINALIZADO' : 'ACTIVO';
         await run("UPDATE ficheros SET estado = ? WHERE id_fichero = ? AND id_empresa = ?", [nuevoEstado, id, id_empresa]);
