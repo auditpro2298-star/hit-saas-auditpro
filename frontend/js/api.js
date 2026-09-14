@@ -682,6 +682,9 @@ class APIClient {
                 f.encargado_zona = body.encargado_zona || f.encargado_zona;
                 f.id_cobrador_asignado = body.id_cobrador_asignado || f.id_cobrador_asignado;
                 f.fecha_entrega = body.fecha_entrega || f.fecha_entrega;
+                if (body.saldo_favor !== undefined) {
+                    f.saldo_favor = parseFloat(body.saldo_favor || 0);
+                }
 
                 // Actualizar cuotas pendientes
                 db.cuotas.filter(q => q.id_fichero === id && q.estado === 'PENDIENTE').forEach(q => {

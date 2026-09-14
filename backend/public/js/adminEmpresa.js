@@ -2472,6 +2472,8 @@ async function abrirModalEditarFichero(id_fichero) {
     if (editFreq) editFreq.value = (f.frecuencia_pago || 'SEMANAL').toUpperCase();
     if (editFecha) editFecha.value = (f.fecha_entrega || '').split('T')[0] || new Date().toISOString().split('T')[0];
     if (editVend) editVend.value = f.vendedor || '';
+    const editSaldo = document.getElementById('edit-fich-saldo-favor');
+    if (editSaldo) editSaldo.value = f.saldo_favor || 0;
 
     if (pagadasInfo) {
         const pagadas = f.cuotas_pagadas || 0;
@@ -2509,6 +2511,7 @@ async function submitEditFicheroForm(event) {
     const frecuencia_pago = document.getElementById('edit-fich-frecuencia')?.value || 'SEMANAL';
     const fecha_entrega = document.getElementById('edit-fich-fecha-entrega')?.value;
     const vendedor = (document.getElementById('edit-fich-vendedor')?.value || '').trim();
+    const saldo_favor = parseFloat(document.getElementById('edit-fich-saldo-favor')?.value || 0);
     const cobradorSelect = document.getElementById('edit-fich-cobrador');
     const id_cobrador = cobradorSelect && cobradorSelect.value ? parseInt(cobradorSelect.value) : null;
     const cobradorNombre = cobradorSelect && cobradorSelect.selectedIndex >= 0 && id_cobrador ? cobradorSelect.options[cobradorSelect.selectedIndex].text.replace(/^[🛵👤]\s*/, '').split(' (')[0] : null;
@@ -2524,6 +2527,7 @@ async function submitEditFicheroForm(event) {
         valor_cuota,
         frecuencia_pago,
         fecha_entrega,
+        saldo_favor: isNaN(saldo_favor) ? 0 : saldo_favor,
         vendedor: vendedor || 'General',
         encargado_zona: cobradorNombre || 'Sin asignar',
         id_cobrador_asignado: id_cobrador

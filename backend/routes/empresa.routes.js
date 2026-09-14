@@ -657,6 +657,15 @@ router.get('/ficheros', async (req, res) => {
                 );
             }
         }
+
+        // Ajuste puntual para Fichero #575 (Trinidad Valle: corrección de valor_cuota 173.000 y reseteo de saldo_favor falso)
+        const fich575 = await get('SELECT id_fichero, saldo_favor, encargado_zona FROM ficheros WHERE id_fichero = 575');
+        if (fich575 && (parseFloat(fich575.saldo_favor || 0) > 0 || String(fich575.encargado_zona || '').includes(''))) {
+            await run("UPDATE ficheros SET saldo_favor = 0, valor_cuota = 173000, monto_total = 2076000, encargado_zona = 'LUIS ROMERO' WHERE id_fichero = 575");
+            await run("UPDATE cuotas SET monto = 173000 WHERE id_fichero = 575 AND (monto = 173 OR monto = '173.00')");
+            await run("UPDATE cuotas SET notas = NULL WHERE id_fichero = 575 AND nro_cuota = 4");
+            console.log('🔧 Fichero #575 corregido: saldo_favor restablecido a 0 y cuotas ajustadas a $173.000.');
+        }
     } catch (e) {
         console.error("Error auto-finalizing or fixing files:", e);
     }
@@ -773,7 +782,7 @@ router.post('/ficheros', async (req, res) => {
 router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
     const id_empresa = getEmpresaId(req);
     const { id } = req.params;
-    const { producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega } = req.body;
+    const { producto_nombre, cantidad_cuotas, valor_cuota, frecuencia_pago, vendedor, encargado_zona, id_cobrador_asignado, fecha_entrega, saldo_favor } = req.body;
 
     if (!producto_nombre || !cantidad_cuotas || !valor_cuota || !fecha_entrega) {
         return res.status(400).json({ error: 'Faltan datos obligatorios para editar el fichero.' });
@@ -790,6 +799,7 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
         const nuevaFreq = (frecuencia_pago || fichero.frecuencia_pago || 'SEMANAL').toUpperCase();
         const nuevaEntrega = fecha_entrega || fichero.fecha_entrega;
         const monto_total = nuevaCantidad * nuevoValor;
+        const nuevoSaldoFavor = saldo_favor !== undefined ? Math.max(0, parseFloat(saldo_favor || 0)) : (fichero.saldo_favor || 0);
 
         // Verificar cuotas ya pagadas
         const cuotasPagadas = await query("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PAGADO' ORDER BY nro_cuota ASC", [id, id_empresa]);
@@ -818,9 +828,10 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
                 vendedor = ?, 
                 encargado_zona = ?, 
                 id_cobrador_asignado = ?, 
-                fecha_entrega = ?
+                fecha_entrega = ?,
+                saldo_favor = ?
             WHERE id_fichero = ? AND id_empresa = ?
-        `, [producto_nombre.trim(), nuevaCantidad, nuevoValor, nuevaFreq, monto_total, (vendedor || 'General').trim(), (finalEncargado || 'General').trim(), finalCobrador, nuevaEntrega, id, id_empresa]);
+        `, [producto_nombre.trim(), nuevaCantidad, nuevoValor, nuevaFreq, monto_total, (vendedor || 'General').trim(), (finalEncargado || 'General').trim(), finalCobrador, nuevaEntrega, nuevoSaldoFavor, id, id_empresa]);
 
         // 2. Actualizar cuotas existentes PENDIENTES
         const cuotasPendientes = await query("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado = 'PENDIENTE' ORDER BY nro_cuota ASC", [id, id_empresa]);
