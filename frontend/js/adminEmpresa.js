@@ -124,12 +124,12 @@ function formatDateTimeStr(dtStr) {
         // 1. ISO o ISO extendido (+062026-11-11, 2026-09-09T16:00:00, etc.)
         const mIso = s.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
         if (mIso) {
-            const yy = mIso[2].slice(-2);
+            const yyyy = mIso[2];
             const mm = mIso[3].padStart(2, '0');
             const dd = mIso[4].padStart(2, '0');
             const hh = mIso[5] !== undefined ? mIso[5].padStart(2, '0') : '00';
             const min = mIso[6] !== undefined ? mIso[6].padStart(2, '0') : '00';
-            return `${dd}/${mm}/${yy} ${hh}:${min}`;
+            return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
         }
 
         // 2. Latino: DD/MM/YYYY o DD-MM-YYYY o DD/MM/YY
@@ -137,26 +137,63 @@ function formatDateTimeStr(dtStr) {
         if (mLat) {
             const dd = mLat[1].padStart(2, '0');
             const mm = mLat[2].padStart(2, '0');
-            const yy = mLat[3].length === 4 ? mLat[3].slice(-2) : mLat[3].padStart(2, '0');
+            const yyyy = mLat[3].length === 2 ? `20${mLat[3]}` : mLat[3];
             const hh = mLat[4] !== undefined ? mLat[4].padStart(2, '0') : '00';
             const min = mLat[5] !== undefined ? mLat[5].padStart(2, '0') : '00';
-            return `${dd}/${mm}/${yy} ${hh}:${min}`;
+            return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
         }
 
         const d = new Date(s);
         if (!isNaN(d.getTime())) {
             const dd = String(d.getDate()).padStart(2, '0');
             const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const yy = String(d.getFullYear()).slice(-2);
+            const yyyy = d.getFullYear();
             const hh = String(d.getHours()).padStart(2, '0');
             const min = String(d.getMinutes()).padStart(2, '0');
-            return `${dd}/${mm}/${yy} ${hh}:${min}`;
+            return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
         }
     } catch (e) {
         console.error('Error al formatear fecha/hora:', dtStr, e);
     }
     return String(dtStr);
 }
+
+function formatDateOnlyStr(dtStr) {
+    if (!dtStr) return '-';
+    try {
+        const s = String(dtStr).trim();
+        // 1. ISO o ISO extendido (2026-09-10T00:00:00.000Z o 2026-09-10)
+        const mIso = s.match(/^\+?0*(\d{1,4})?(20\d{2}|19\d{2})-(\d{1,2})-(\d{1,2})/);
+        if (mIso) {
+            const yyyy = mIso[2];
+            const mm = mIso[3].padStart(2, '0');
+            const dd = mIso[4].padStart(2, '0');
+            return `${dd}/${mm}/${yyyy}`;
+        }
+
+        // 2. Latino: DD/MM/YYYY o DD-MM-YYYY o DD/MM/YY
+        const mLat = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+        if (mLat) {
+            const dd = mLat[1].padStart(2, '0');
+            const mm = mLat[2].padStart(2, '0');
+            const yyyy = mLat[3].length === 2 ? `20${mLat[3]}` : mLat[3];
+            return `${dd}/${mm}/${yyyy}`;
+        }
+
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) {
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        }
+    } catch (e) {
+        console.error('Error al formatear fecha:', dtStr, e);
+    }
+    return String(dtStr);
+}
+
+window.formatDateOnlyStr = formatDateOnlyStr;
 
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
 async function loadClientesAndMap() {
@@ -3391,7 +3428,7 @@ async function abrirModalAsentarTransferencia(id_fichero) {
         let optionsHtml = '';
         pendientes.forEach((q, idx) => {
             const isFirst = idx === 0;
-            const vencStr = q.fecha_vencimiento ? ` (Vence: ${q.fecha_vencimiento})` : '';
+            const vencStr = q.fecha_vencimiento ? ` (Vence: ${formatDateOnlyStr(q.fecha_vencimiento)})` : '';
             optionsHtml += `<option value="${q.id_cuota}" ${isFirst ? 'selected' : ''}>Cuota #${q.nro_cuota} de $${Number(q.monto).toLocaleString('es-AR')}${vencStr}</option>`;
         });
         selectCuota.innerHTML = optionsHtml;
