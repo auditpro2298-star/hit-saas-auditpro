@@ -532,39 +532,6 @@ function renderClientesTable(clientes) {
     tbody.appendChild(paginationTr);
 }
 
-    // Paginador moderno por páginas
-    const paginationTr = document.createElement('tr');
-    paginationTr.id = 'tr-pagination-clientes';
-    paginationTr.innerHTML = `
-        <td colspan="7" class="text-center" style="padding: 0.9rem 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
-            <div class="flex justify-between items-center flex-wrap gap-3">
-                <div class="text-muted" style="font-size:0.88rem; font-weight:600;">
-                    Mostrando <strong>${fromIndex + 1} - ${toIndex}</strong> de <strong>${clientes.length}</strong> clientes.
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">Ver:</span>
-                    <select class="form-control" style="font-size:0.8rem; padding:0.25rem 0.5rem; width:auto; border-radius: 6px;" onchange="setClientesPageSize(this.value)">
-                        <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 por pág</option>
-                        <option value="200" ${pageSize === 200 ? 'selected' : ''}>200 por pág</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setClientesPage(${currentPage - 1})">
-                        ◀ Anterior
-                    </button>
-                    <span style="font-size:0.88rem; font-weight:700; color:var(--saas-purple); padding: 0 0.4rem;">
-                        Página ${currentPage} de ${totalPages}
-                    </span>
-                    <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;" ${currentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="setClientesPage(${currentPage + 1})">
-                        Siguiente ▶
-                    </button>
-                </div>
-            </div>
-        </td>
-    `;
-    tbody.appendChild(paginationTr);
-}
-
 function focusClientOnMap(id_cliente) {
     if (!mapInstance) return;
 
