@@ -868,6 +868,120 @@ router.put('/ficheros/:id', requireAdminOrEncargado, async (req, res) => {
     }
 });
 
+// GET /api/empresa/ficheros/:id/cuotas - Listar todas las cuotas de un fichero
+router.get('/ficheros/:id/cuotas', async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    try {
+        const cuotas = await query('SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? ORDER BY nro_cuota ASC', [id, id_empresa]);
+        res.json(cuotas);
+    } catch (err) {
+        console.error('Error obteniendo cuotas del fichero:', err);
+        res.status(500).json({ error: 'Error al obtener cuotas.' });
+    }
+});
+
+// POST /api/empresa/ficheros/:id/pagar-transferencia - Asentar pago por transferencia directa (Encargados de Cobro y Admin)
+router.post('/ficheros/:id/pagar-transferencia', requireAdminOrEncargado, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { id_cuota, monto_cobrado, comprobante_img_url, notas } = req.body;
+
+    try {
+        const fichero = await get('SELECT f.*, c.nombre_apellido, c.telefono, c.qr_token FROM ficheros f JOIN clientes c ON f.id_cliente = c.id_cliente WHERE f.id_fichero = ? AND f.id_empresa = ?', [id, id_empresa]);
+        if (!fichero) {
+            return res.status(404).json({ error: 'Fichero no encontrado o no pertenece a su empresa.' });
+        }
+
+        let cuota;
+        if (id_cuota) {
+            cuota = await get("SELECT * FROM cuotas WHERE id_cuota = ? AND id_fichero = ? AND id_empresa = ? AND estado != 'PAGADO'", [id_cuota, id, id_empresa]);
+            if (!cuota) {
+                return res.status(404).json({ error: 'La cuota seleccionada no existe o ya fue pagada.' });
+            }
+        } else {
+            cuota = await get("SELECT * FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado != 'PAGADO' ORDER BY nro_cuota ASC LIMIT 1", [id, id_empresa]);
+            if (!cuota) {
+                return res.status(400).json({ error: 'Este fichero ya no tiene cuotas pendientes de pago.' });
+            }
+        }
+
+        const cobrado = parseFloat(monto_cobrado !== undefined && monto_cobrado !== null && monto_cobrado !== '' ? monto_cobrado : cuota.monto);
+        const saldoFavorActual = parseFloat(fichero.saldo_favor || 0);
+        const totalCredited = cobrado + saldoFavorActual;
+        const nuevoSaldoFavor = totalCredited - cuota.monto;
+
+        let finalNotas = notas ? String(notas).trim() : '';
+        if (saldoFavorActual > 0) {
+            finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DESCUENTO_APLICADO:${saldoFavorActual}]`;
+        } else if (saldoFavorActual < 0) {
+            finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[DEUDA_CUBIERTA:${Math.abs(saldoFavorActual)}]`;
+        }
+        if (nuevoSaldoFavor > 0) {
+            finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[SALDO_A_FAVOR_GENERADO:${nuevoSaldoFavor}]`;
+        } else if (nuevoSaldoFavor < 0) {
+            finalNotas = (finalNotas ? finalNotas + ' ' : '') + `[NUEVA_DEUDA_GENERADA:${Math.abs(nuevoSaldoFavor)}]`;
+        }
+
+        const localDateTime = new Date().toLocaleString('sv', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const nombreRegistrador = req.user.rol === 'ENCARGADO_ZONA'
+            ? `Encargado: ${req.user.nombre}`
+            : (req.user.rol === 'SUPER_ADMIN' ? `Súper Admin: ${req.user.nombre}` : `Admin: ${req.user.nombre}`);
+
+        await run(`
+            UPDATE cuotas SET 
+                estado = 'PAGADO',
+                fecha_pago = ?,
+                medio_pago = 'TRANSFERENCIA',
+                comprobante_img_url = ?,
+                id_cobrador = ?,
+                nombre_cobrador = ?,
+                notas = ?,
+                monto = ?,
+                promesa_pago_fecha = NULL,
+                motivo_no_cobro = NULL
+            WHERE id_cuota = ? AND id_empresa = ?
+        `, [localDateTime, comprobante_img_url || null, req.user.id_usuario, nombreRegistrador, finalNotas || null, cobrado, cuota.id_cuota, id_empresa]);
+
+        await run("UPDATE ficheros SET saldo_favor = ? WHERE id_fichero = ?", [nuevoSaldoFavor, id]);
+
+        const pendientes = await get("SELECT COUNT(*) as restantes FROM cuotas WHERE id_fichero = ? AND id_empresa = ? AND estado != 'PAGADO'", [id, id_empresa]);
+        if (pendientes && pendientes.restantes === 0) {
+            await run("UPDATE ficheros SET estado = 'FINALIZADO' WHERE id_fichero = ? AND id_empresa = ?", [id, id_empresa]);
+        }
+
+        const pagadas = await get("SELECT IFNULL(SUM(monto), 0) as total_pagado FROM cuotas WHERE id_fichero = ? AND estado = 'PAGADO'", [id]);
+        const saldoRestante = Math.max(0, (fichero.monto_total || 0) - (pagadas ? pagadas.total_pagado : 0));
+
+        let messageText = `✅ Transferencia de $${cobrado.toLocaleString('es-AR')} asentada con éxito para la Cuota #${cuota.nro_cuota} de ${fichero.nombre_apellido}.`;
+        if (nuevoSaldoFavor > 0) {
+            messageText += ` (Generó $${nuevoSaldoFavor.toLocaleString('es-AR')} de saldo a favor)`;
+        } else if (nuevoSaldoFavor < 0) {
+            messageText += ` (Se aplicó descuento previo de $${Math.abs(nuevoSaldoFavor).toLocaleString('es-AR')})`;
+        }
+
+        const whatsappMsg = `Hola ${fichero.nombre_apellido || 'Cliente'}, confirmamos la recepción de tu pago por TRANSFERENCIA de la cuota #${cuota.nro_cuota} ($${cobrado.toLocaleString('es-AR')}). Saldo restante: $${saldoRestante.toLocaleString('es-AR')}. Mirá tu cartilla digital: https://hit-saas-auditpro-1.onrender.com/?qr_cartilla=${fichero.qr_token || 'TOKEN'}`;
+
+        await run(`INSERT INTO whatsapp_notifications (id_empresa, id_cliente, id_cuota, telefono_cliente, mensaje, estado) VALUES (?, ?, ?, ?, ?, 'ENVIADO')`,
+            [id_empresa, fichero.id_cliente, cuota.id_cuota, fichero.telefono || 'Sin teléfono', whatsappMsg]
+        );
+
+        res.json({
+            success: true,
+            message: messageText,
+            id_cuota: cuota.id_cuota,
+            nro_cuota: cuota.nro_cuota,
+            monto_cobrado: cobrado,
+            saldo_restante: saldoRestante,
+            saldo_favor: nuevoSaldoFavor,
+            fichero_finalizado: pendientes && pendientes.restantes === 0
+        });
+    } catch (err) {
+        console.error('Error al asentar transferencia:', err);
+        res.status(500).json({ error: 'Error al asentar pago por transferencia: ' + err.message });
+    }
+});
+
 // PUT /api/empresa/ficheros/:id/asignar - Asignación dinámica de fichero a un Encargado / Cobrador
 router.put('/ficheros/:id/asignar', async (req, res) => {
     const id_empresa = getEmpresaId(req);

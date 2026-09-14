@@ -1284,6 +1284,11 @@ function renderFicherosTable(ficheros) {
             </td>
             <td>
                 <div class="flex gap-1 items-center flex-wrap">
+                    ${(f.estado === 'ACTIVO' && (window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA'))) ? `
+                    <button class="btn btn-success" style="font-size:0.75rem; padding:0.3rem 0.6rem; font-weight: 800; background: #10b981; color: #fff; display: inline-flex; align-items: center; gap: 4px;" onclick="abrirModalAsentarTransferencia(${f.id_fichero})" title="Asentar pago por transferencia bancaria recibido de este cliente">
+                        📲 Asentar Transferencia
+                    </button>
+                    ` : ''}
                     <button class="btn btn-outline" style="font-size:0.75rem; padding:0.3rem 0.6rem; border-color: var(--saas-purple); color: var(--saas-purple); font-weight: 700;" onclick="abrirQrDesdeFichero(${f.id_fichero})" title="Ver tarjeta QR y enlace de la cartilla virtual para enviar al cliente">
                         📱 Ver QR
                     </button>
@@ -3311,6 +3316,11 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
                             <span style="font-weight: 800; font-size: 0.95rem; color: var(--saas-purple);">Fichero #${f.id_fichero}</span>
                             <div class="flex items-center gap-2">
                                 <span class="badge ${f.estado === 'ACTIVO' ? 'badge-success' : 'badge-purple'}" style="font-size: 0.7rem;">${f.estado}</span>
+                                ${(f.estado === 'ACTIVO' && (window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA'))) ? `
+                                <button class="btn btn-success" style="font-size: 0.72rem; padding: 0.2rem 0.55rem; font-weight: 800; background: #10b981; color: #fff;" onclick="abrirModalAsentarTransferencia(${f.id_fichero})" title="Asentar transferencia de este crédito">
+                                    📲 Asentar Transferencia
+                                </button>
+                                ` : ''}
                                 ${(window.currentUser && (window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN' || window.currentUser.rol === 'ENCARGADO_ZONA')) ? `
                                 <button class="btn btn-danger" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;" onclick="eliminarFicheroConfirmado(${f.id_fichero})" title="Eliminar este fichero duplicado o cancelado">
                                     🗑️ Eliminar Fichero
@@ -3341,6 +3351,154 @@ async function verFicheroCliente(id_cliente, nombre_apellido) {
         showAlert('❌ Error al cargar los ficheros del cliente: ' + err.message);
     }
 }
+
+// ============================================================================
+// MODAL: ASENTAR PAGO POR TRANSFERENCIA DIRECTA (ENCARGADOS Y ADMIN)
+// ============================================================================
+
+window.currentFicheroTransfCache = null;
+window.currentCuotasTransfCache = [];
+
+async function abrirModalAsentarTransferencia(id_fichero) {
+    try {
+        const ficheros = window.currentFicherosListCache || await api.get('/empresa/ficheros') || [];
+        const fichero = ficheros.find(f => f.id_fichero === id_fichero);
+        if (!fichero) {
+            await showAlert('⚠️ Fichero no encontrado.');
+            return;
+        }
+
+        window.currentFicheroTransfCache = fichero;
+
+        document.getElementById('transf-id-fichero').value = id_fichero;
+        document.getElementById('transf-cliente-nombre').innerText = `👤 ${fichero.cliente_nombre || 'Cliente'} (ID #${fichero.nro_cliente_interno || fichero.id_cliente})`;
+        document.getElementById('transf-fichero-info').innerText = `📦 ${fichero.producto_nombre} — Fichero #${fichero.id_fichero} (${fichero.frecuencia_pago || 'SEMANAL'})`;
+        document.getElementById('transf-direccion-info').innerText = `📍 ${fichero.direccion || ''} (${fichero.barrio || ''})`;
+
+        const selectCuota = document.getElementById('transf-select-cuota');
+        selectCuota.innerHTML = '<option value="">Cargando cuotas...</option>';
+
+        // Cargar cuotas del fichero
+        const cuotas = await api.get(`/empresa/ficheros/${id_fichero}/cuotas`) || [];
+        window.currentCuotasTransfCache = cuotas;
+
+        const pendientes = cuotas.filter(q => q.estado !== 'PAGADO');
+        if (pendientes.length === 0) {
+            await showAlert('ℹ️ Este fichero ya se encuentra totalmente saldado (0 cuotas pendientes).');
+            return;
+        }
+
+        let optionsHtml = '';
+        pendientes.forEach((q, idx) => {
+            const isFirst = idx === 0;
+            const vencStr = q.fecha_vencimiento ? ` (Vence: ${q.fecha_vencimiento})` : '';
+            optionsHtml += `<option value="${q.id_cuota}" ${isFirst ? 'selected' : ''}>Cuota #${q.nro_cuota} de $${Number(q.monto).toLocaleString('es-AR')}${vencStr}</option>`;
+        });
+        selectCuota.innerHTML = optionsHtml;
+
+        // Prellenar monto sugerido con la cuota seleccionada
+        const firstPendiente = pendientes[0];
+        document.getElementById('transf-monto').value = firstPendiente ? firstPendiente.monto : (fichero.valor_cuota || 0);
+
+        // Limpiar campos opcionales
+        document.getElementById('transf-file-input').value = '';
+        document.getElementById('transf-comprobante-ref').value = '';
+        document.getElementById('transf-comprobante-base64').value = '';
+        document.getElementById('transf-notas').value = '';
+
+        document.getElementById('modal-asentar-transferencia').classList.remove('hidden');
+    } catch (err) {
+        console.error('Error al abrir modal de transferencia:', err);
+        await showAlert('❌ Error al preparar cobro por transferencia: ' + err.message);
+    }
+}
+
+function onTransfCuotaChange() {
+    const idCuota = parseInt(document.getElementById('transf-select-cuota').value, 10);
+    const cuota = (window.currentCuotasTransfCache || []).find(q => q.id_cuota === idCuota);
+    if (cuota) {
+        document.getElementById('transf-monto').value = cuota.monto;
+    }
+}
+
+function cerrarModalAsentarTransferencia() {
+    const modal = document.getElementById('modal-asentar-transferencia');
+    if (modal) modal.classList.add('hidden');
+    document.getElementById('form-asentar-transferencia')?.reset();
+    document.getElementById('transf-comprobante-base64').value = '';
+}
+
+function procesarFotoComprobante(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('transf-comprobante-base64').value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function confirmarAsentarTransferencia(event) {
+    event.preventDefault();
+    const id_fichero = parseInt(document.getElementById('transf-id-fichero').value, 10);
+    const id_cuota = parseInt(document.getElementById('transf-select-cuota').value, 10);
+    const monto_cobrado = parseFloat(document.getElementById('transf-monto').value);
+    const comprobante_foto = document.getElementById('transf-comprobante-base64').value;
+    const comprobante_ref = document.getElementById('transf-comprobante-ref').value.trim();
+    const notas = document.getElementById('transf-notas').value.trim();
+
+    const submitBtn = document.getElementById('btn-submit-transferencia');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = '⏳ Asentando...';
+    }
+
+    try {
+        let comprobanteFinal = null;
+        if (comprobante_foto) {
+            comprobanteFinal = comprobante_foto;
+        } else if (comprobante_ref) {
+            comprobanteFinal = comprobante_ref;
+        }
+
+        const payload = {
+            id_cuota,
+            monto_cobrado,
+            comprobante_img_url: comprobanteFinal,
+            notas: notas || (comprobante_ref ? `Ref: ${comprobante_ref}` : null)
+        };
+
+        const res = await api.post(`/empresa/ficheros/${id_fichero}/pagar-transferencia`, payload);
+
+        cerrarModalAsentarTransferencia();
+        await showAlert(`✅ ${res.message}\n\n📉 Saldo restante del crédito: $${Number(res.saldo_restante || 0).toLocaleString('es-AR')}`);
+
+        // Recargar ficheros, clientes y dashboard
+        await loadFicheros();
+        await loadEmpresaDashboard();
+
+        // Si el modal de ficheros del cliente está abierto, refrescarlo
+        const modalClientFich = document.getElementById('modal-client-fichero');
+        if (modalClientFich && !modalClientFich.classList.contains('hidden') && window.currentFicheroTransfCache?.id_cliente) {
+            await verFicheroCliente(window.currentFicheroTransfCache.id_cliente, window.currentFicheroTransfCache.cliente_nombre);
+        }
+    } catch (err) {
+        console.error('Error al asentar transferencia:', err);
+        await showAlert('❌ Error al asentar transferencia: ' + err.message);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = '✅ Asentar Transferencia';
+        }
+    }
+}
+
+window.abrirModalAsentarTransferencia = abrirModalAsentarTransferencia;
+window.onTransfCuotaChange = onTransfCuotaChange;
+window.cerrarModalAsentarTransferencia = cerrarModalAsentarTransferencia;
+window.procesarFotoComprobante = procesarFotoComprobante;
+window.confirmarAsentarTransferencia = confirmarAsentarTransferencia;
 window.verFicheroCliente = verFicheroCliente;
 window.openNewFicheroModal = openNewFicheroModal;
 window.popularSelectsNuevoFichero = popularSelectsNuevoFichero;

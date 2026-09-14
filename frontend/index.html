@@ -1674,6 +1674,75 @@
         </div>
     </div>
 
+    <!-- MODAL 9: ASENTAR PAGO POR TRANSFERENCIA DIRECTA (ENCARGADOS Y ADMIN) -->
+    <div id="modal-asentar-transferencia" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 520px; border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); border: 2px solid #3b82f6;">
+            <div class="flex justify-between items-center" style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #3b82f6; display: flex; align-items: center; gap: 8px;">
+                    📲 Asentar Pago por Transferencia
+                </h3>
+                <button class="btn btn-outline" style="border:none; font-size:1.1rem; padding: 0.2rem;" onclick="cerrarModalAsentarTransferencia()">✖</button>
+            </div>
+
+            <form id="form-asentar-transferencia" onsubmit="confirmarAsentarTransferencia(event)">
+                <input type="hidden" id="transf-id-fichero">
+                
+                <!-- Info del Cliente y Fichero -->
+                <div style="background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid rgba(59,130,246,0.2); margin-bottom: 1rem;">
+                    <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary);" id="transf-cliente-nombre">Cliente</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;" id="transf-fichero-info">Producto: - | Plan: -</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;" id="transf-direccion-info">📍 -</div>
+                </div>
+
+                <!-- Selección de Cuota a Asentar -->
+                <div class="form-group">
+                    <label style="font-weight: 700; color: var(--text-primary);">📅 Cuota a Asentar</label>
+                    <select id="transf-select-cuota" class="form-control" onchange="onTransfCuotaChange()" required>
+                        <option value="">Cargando cuotas pendientes...</option>
+                    </select>
+                </div>
+
+                <!-- Monto Abonado -->
+                <div class="form-group">
+                    <label style="font-weight: 700; color: var(--text-primary);">💵 Monto Abonado ($)</label>
+                    <input type="number" id="transf-monto" class="form-control" step="0.01" min="1" required style="font-size: 1.1rem; font-weight: 800; color: #10b981;">
+                    <span style="font-size: 0.72rem; color: var(--text-secondary);">
+                        💡 Sugerido: valor exacto de la cuota seleccionada.
+                    </span>
+                </div>
+
+                <!-- Comprobante / Foto (100% Opcional) -->
+                <div class="form-group" style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                    <label style="font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>📷 Foto o Nro de Comprobante</span>
+                        <span style="color: var(--text-muted); font-size: 0.75rem; font-weight: 400;">(Opcional)</span>
+                    </label>
+                    <input type="file" id="transf-file-input" class="form-control" accept="image/*" style="font-size: 0.78rem; margin-top: 0.35rem;" onchange="procesarFotoComprobante(event)">
+                    <input type="text" id="transf-comprobante-ref" class="form-control" placeholder="Ej: Operación MP #987654321 o CBU (Opcional)" style="margin-top: 0.4rem; font-size: 0.8rem;">
+                    <input type="hidden" id="transf-comprobante-base64">
+                </div>
+
+                <!-- Observaciones (Opcional) -->
+                <div class="form-group">
+                    <label style="font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>📝 Observaciones</span>
+                        <span style="color: var(--text-muted); font-size: 0.75rem; font-weight: 400;">(Opcional)</span>
+                    </label>
+                    <textarea id="transf-notas" class="form-control" rows="2" placeholder="Ej: Comprobante enviado por WhatsApp al encargado."></textarea>
+                </div>
+
+                <div class="flex justify-between items-center" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 0.8rem;">
+                    <button type="button" class="btn btn-outline" onclick="cerrarModalAsentarTransferencia()">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="btn-submit-transferencia" class="btn btn-primary" style="font-weight: 800; padding: 0.6rem 1.25rem;">
+                        ✅ Asentar Transferencia
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- CDNs Externos y Librerías Locales Offline -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>

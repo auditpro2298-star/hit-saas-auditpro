@@ -603,6 +603,59 @@ class APIClient {
             });
         }
 
+        if (endpoint.startsWith('/empresa/ficheros/') && endpoint.endsWith('/cuotas') && method === 'GET') {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            const cuotas = db.cuotas.filter(q => q.id_fichero === id).sort((a, b) => a.nro_cuota - b.nro_cuota);
+            return cuotas;
+        }
+
+        if (endpoint.startsWith('/empresa/ficheros/') && endpoint.endsWith('/pagar-transferencia') && method === 'POST') {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            const f = db.ficheros.find(item => item.id_fichero === id);
+            if (!f) return { error: 'Fichero no encontrado' };
+
+            let q;
+            if (body.id_cuota) {
+                q = db.cuotas.find(item => item.id_cuota === body.id_cuota && item.id_fichero === id);
+            } else {
+                q = db.cuotas.filter(item => item.id_fichero === id && item.estado !== 'PAGADO').sort((a, b) => a.nro_cuota - b.nro_cuota)[0];
+            }
+            if (!q) return { error: 'No hay cuotas pendientes' };
+
+            const cobrado = parseFloat(body.monto_cobrado || q.monto);
+            const saldoFavor = parseFloat(f.saldo_favor || 0);
+            const nuevoSaldoFavor = (cobrado + saldoFavor) - q.monto;
+
+            q.estado = 'PAGADO';
+            q.medio_pago = 'TRANSFERENCIA';
+            q.fecha_pago = new Date().toISOString();
+            q.comprobante_img_url = body.comprobante_img_url || null;
+            q.nombre_cobrador = (this.user && this.user.rol === 'ENCARGADO_ZONA') ? `Encargado: ${this.user.nombre}` : `Admin: ${(this.user && this.user.nombre) || 'Admin'}`;
+            q.id_cobrador = (this.user && this.user.id_usuario) || 1;
+            q.notas = body.notas || null;
+            q.monto = cobrado;
+
+            f.saldo_favor = nuevoSaldoFavor;
+            const pendientes = db.cuotas.filter(item => item.id_fichero === id && item.estado !== 'PAGADO');
+            if (pendientes.length === 0) {
+                f.estado = 'FINALIZADO';
+            }
+
+            const totalPagado = db.cuotas.filter(item => item.id_fichero === id && item.estado === 'PAGADO').reduce((acc, item) => acc + (item.monto || 0), 0);
+            const saldoRestante = Math.max(0, (f.monto_total || 0) - totalPagado);
+
+            saveMockDB(db);
+            return {
+                success: true,
+                message: `✅ Transferencia de $${cobrado.toLocaleString('es-AR')} asentada con éxito para la Cuota #${q.nro_cuota}.`,
+                id_cuota: q.id_cuota,
+                nro_cuota: q.nro_cuota,
+                monto_cobrado: cobrado,
+                saldo_restante: saldoRestante,
+                saldo_favor: nuevoSaldoFavor
+            };
+        }
+
         if (endpoint.startsWith('/empresa/ficheros/') && endpoint.endsWith('/asignar') && method === 'PUT') {
             const id = parseInt(endpoint.split('/')[3]);
             const f = db.ficheros.find(item => item.id_fichero === id);
