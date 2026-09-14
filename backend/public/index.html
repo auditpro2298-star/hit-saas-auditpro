@@ -312,7 +312,7 @@
                             <option value="ALL">📍 Todos los Barrios</option>
                         </select>
                     </div>
-                    <div style="flex: 1; min-width: 190px;">
+                    <div id="container-filter-encargado-cliente" style="flex: 1; min-width: 190px;">
                         <label
                             style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; display: block; margin-bottom: 0.2rem;">👤
                             Encargado de Zona</label>
@@ -391,7 +391,7 @@
                                 placeholder="Buscar por Fichero (#38 o 38), Cliente (c:15 o nombre), producto..."
                                 style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarFicheros()">
                         </div>
-                        <div style="min-width: 200px;">
+                        <div style="min-width: 180px;">
                             <label
                                 style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">📊
                                 Filtrar por Estado</label>
@@ -402,6 +402,16 @@
                                 <option value="FINALIZADO">🟣 Finalizados (Totalmente Pagados)</option>
                                 <option value="CANCELADO">🔴 Cancelados</option>
                                 <option value="MOROSO">🟡 Morosos</option>
+                            </select>
+                        </div>
+                        <div id="container-filter-ficheros-encargado" style="min-width: 200px;">
+                            <label
+                                style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; display: block; margin-bottom: 0.2rem;">👤
+                                Encargado de Zona</label>
+                            <select id="select-filter-ficheros-encargado" class="form-control"
+                                style="font-size: 0.82rem; padding: 0.45rem; border-color: #8b5cf6;" onchange="filtrarFicheros()">
+                                <option value="ALL">👤 Todos los Encargados</option>
+                                <option value="SIN_ENCARGADO">⚠️ Sin Encargado Asignado</option>
                             </select>
                         </div>
                     </div>

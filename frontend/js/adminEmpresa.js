@@ -217,13 +217,24 @@ async function loadClientesAndMap() {
 
     // Poblar selector de Encargados de Zona en Solapa 1
     const selectEncargado = document.getElementById('select-filter-encargado-cliente');
-    if (selectEncargado) {
-        let encHtml = '<option value="ALL">👤 Todos los Encargados</option>';
-        encHtml += '<option value="SIN_ENCARGADO">⚠️ Sin Encargado Designado</option>';
-        (encargados || []).forEach(e => {
-            encHtml += `<option value="${e.nombre}">👤 ${e.nombre} (${e.zona_asignada || 'General'})</option>`;
-        });
-        selectEncargado.innerHTML = encHtml;
+    const containerEncargadoCli = document.getElementById('container-filter-encargado-cliente');
+    const isEncargadoUser = (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA');
+
+    if (isEncargadoUser && containerEncargadoCli) {
+        containerEncargadoCli.style.display = 'none';
+    } else {
+        if (containerEncargadoCli) containerEncargadoCli.style.display = '';
+        if (selectEncargado) {
+            const currentVal = selectEncargado.value || 'ALL';
+            let encHtml = '<option value="ALL">👤 Todos los Encargados</option>';
+            encHtml += '<option value="SIN_ENCARGADO">⚠️ Sin Encargado Designado</option>';
+            const encargadosOnly = (encargados || []).filter(e => e.rol === 'ENCARGADO_ZONA');
+            encargadosOnly.forEach(e => {
+                encHtml += `<option value="${e.nombre}">👤 ${e.nombre} (${e.zona_asignada || 'General'})</option>`;
+            });
+            selectEncargado.innerHTML = encHtml;
+            selectEncargado.value = currentVal;
+        }
     }
 
     filtrarClientesPorBarrioYTexto();
@@ -1180,7 +1191,29 @@ async function loadFicheros() {
         console.error('Error cargando encargados y cobradores:', e);
     }
 
-    // 2. Cargar ficheros y filtrar
+    // 2. Poblar selector de Encargados de Zona en Solapa 2
+    const selectEncargadoFich = document.getElementById('select-filter-ficheros-encargado');
+    const containerEncargadoFich = document.getElementById('container-filter-ficheros-encargado');
+    const isEncargadoUser = (window.currentUser && window.currentUser.rol === 'ENCARGADO_ZONA');
+
+    if (isEncargadoUser && containerEncargadoFich) {
+        containerEncargadoFich.style.display = 'none';
+    } else {
+        if (containerEncargadoFich) containerEncargadoFich.style.display = '';
+        if (selectEncargadoFich) {
+            const currentVal = selectEncargadoFich.value || 'ALL';
+            let encHtml = '<option value="ALL">👤 Todos los Encargados</option>';
+            encHtml += '<option value="SIN_ENCARGADO">⚠️ Sin Encargado Asignado</option>';
+            const encargadosOnly = (window.allEncargadosCache || []).filter(e => e.rol === 'ENCARGADO_ZONA');
+            encargadosOnly.forEach(e => {
+                encHtml += `<option value="${e.nombre}">👤 ${e.nombre} (${e.zona_asignada || 'General'})</option>`;
+            });
+            selectEncargadoFich.innerHTML = encHtml;
+            selectEncargadoFich.value = currentVal;
+        }
+    }
+
+    // 3. Cargar ficheros y filtrar
     try {
         const ficheros = await api.get('/empresa/ficheros');
         window.currentFicherosListCache = ficheros;
@@ -1193,7 +1226,7 @@ async function loadFicheros() {
         }
     }
 
-    // 3. Poblar selects para el modal de nuevo fichero de forma independiente
+    // 4. Poblar selects para el modal de nuevo fichero de forma independiente
     await popularSelectsNuevoFichero();
 }
 
@@ -3223,12 +3256,30 @@ function filtrarFicheros(resetPage = true) {
     const rawQuery = rawInput.trim();
     const queryStr = rawQuery.toLowerCase();
     const selectedEstado = document.getElementById('select-filter-ficheros-estado')?.value || 'ALL';
+    const selectedEncargado = document.getElementById('select-filter-ficheros-encargado')?.value || 'ALL';
 
-    // Si no hay búsqueda de texto, filtrar solo por estado
+    const checkBaseFilters = (f) => {
+        // 1. Filtro por Estado
+        if (selectedEstado !== 'ALL' && f.estado !== selectedEstado) {
+            return false;
+        }
+
+        // 2. Filtro por Encargado de Zona
+        const isUnassigned = !f.encargado_zona || f.encargado_zona === 'Sin asignar' || f.encargado_zona.trim() === '' || f.encargado_zona === 'General' || f.encargado_zona === '-- Sin asignar --';
+        if (selectedEncargado === 'SIN_ENCARGADO') {
+            if (!isUnassigned) return false;
+        } else if (selectedEncargado !== 'ALL') {
+            if (!f.encargado_zona || f.encargado_zona.toLowerCase().trim() !== selectedEncargado.toLowerCase().trim()) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    // Si no hay búsqueda de texto, filtrar solo por estado y encargado
     if (!rawQuery) {
-        const filtered = window.currentFicherosListCache.filter(f => {
-            return selectedEstado === 'ALL' || f.estado === selectedEstado;
-        });
+        const filtered = window.currentFicherosListCache.filter(checkBaseFilters);
         renderFicherosTable(filtered);
         return;
     }
@@ -3238,8 +3289,7 @@ function filtrarFicheros(resetPage = true) {
     if (clientPrefixMatch) {
         const targetClientId = parseInt(clientPrefixMatch[1], 10);
         const filtered = window.currentFicherosListCache.filter(f => {
-            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-            if (!matchEstado) return false;
+            if (!checkBaseFilters(f)) return false;
             return f.id_cliente === targetClientId || (f.nro_cliente_interno && f.nro_cliente_interno === targetClientId);
         });
         renderFicherosTable(filtered);
@@ -3256,16 +3306,14 @@ function filtrarFicheros(resetPage = true) {
         // Búsqueda explícita por ID de Fichero (#38)
         const targetId = parseInt(numericPart, 10);
         filtered = window.currentFicherosListCache.filter(f => {
-            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-            return matchEstado && f.id_fichero === targetId;
+            return checkBaseFilters(f) && f.id_fichero === targetId;
         });
     } else if (isPureNumber) {
         // Búsqueda numérica (ej: "38" o "15") -> Coincide con ID de Fichero Y con ID/N° de Cliente
         const targetNum = parseInt(numericPart, 10);
 
         filtered = window.currentFicherosListCache.filter(f => {
-            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-            if (!matchEstado) return false;
+            if (!checkBaseFilters(f)) return false;
 
             // a) Coincidencia exacta de ID de Fichero (#38)
             if (f.id_fichero === targetNum) return true;
@@ -3304,8 +3352,7 @@ function filtrarFicheros(resetPage = true) {
         // Búsqueda general de texto (nombre, producto, barrio, dirección, etc.)
         const terms = queryStr.split(/\s+/).filter(Boolean);
         filtered = window.currentFicherosListCache.filter(f => {
-            const matchEstado = selectedEstado === 'ALL' || f.estado === selectedEstado;
-            if (!matchEstado) return false;
+            if (!checkBaseFilters(f)) return false;
 
             const nroCli = f.nro_cliente_interno ? `cliente:${f.nro_cliente_interno} c:${f.nro_cliente_interno}` : '';
             const idCli = `cliente:${f.id_cliente} c:${f.id_cliente}`;

@@ -324,11 +324,11 @@ router.get('/clientes', async (req, res) => {
         // Si es ENCARGADO_ZONA, solo mostrar los clientes creados por él o asignados a él
         if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (
-                LOWER(COALESCE(c.encargado_zona, '')) = LOWER(?)
+                LOWER(TRIM(COALESCE(c.encargado_zona, ''))) = LOWER(TRIM(?))
                 OR c.id_cliente IN (
                     SELECT id_cliente FROM ficheros 
                     WHERE id_empresa = ? 
-                      AND (id_cobrador_asignado = ? OR LOWER(COALESCE(encargado_zona, '')) = LOWER(?))
+                      AND (id_cobrador_asignado = ? OR LOWER(TRIM(COALESCE(encargado_zona, ''))) = LOWER(TRIM(?)))
                 )
             )`;
             params.push(req.user.nombre, id_empresa, req.user.id_usuario, req.user.nombre);
@@ -700,8 +700,8 @@ router.get('/ficheros', async (req, res) => {
         if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
             sql += ` AND (
                 f.id_cobrador_asignado = ?
-                OR LOWER(COALESCE(f.encargado_zona, '')) = LOWER(?)
-                OR LOWER(COALESCE(c.encargado_zona, '')) = LOWER(?)
+                OR LOWER(TRIM(COALESCE(f.encargado_zona, ''))) = LOWER(TRIM(?))
+                OR LOWER(TRIM(COALESCE(c.encargado_zona, ''))) = LOWER(TRIM(?))
             )`;
             params.push(req.user.id_usuario, req.user.nombre, req.user.nombre);
         }

@@ -587,8 +587,10 @@ class APIClient {
             if (this.user && this.user.rol === 'ENCARGADO_ZONA') {
                 const userName = (this.user.nombre || '').toLowerCase().trim();
                 list = list.filter(item => {
-                    const encName = (item.encargado_zona || '').toLowerCase();
-                    return (encName && userName && encName.includes(userName)) || 
+                    const encName = (item.encargado_zona || '').toLowerCase().trim();
+                    const cliEncName = (item.cliente_encargado_zona || item.encargado_zona || '').toLowerCase().trim();
+                    return (encName && userName && (encName === userName || encName.includes(userName))) || 
+                           (cliEncName && userName && (cliEncName === userName || cliEncName.includes(userName))) ||
                            (item.id_cobrador_asignado === this.user.id_usuario);
                 });
             }
