@@ -160,18 +160,33 @@ function formatDateTimeStr(dtStr) {
 
 // SOLAPA 1: CLIENTES Y GEOLOCALIZACIÓN
 async function loadClientesAndMap() {
-    const clientes = await api.get('/empresa/clientes');
+    const [clientes, encargados] = await Promise.all([
+        api.get('/empresa/clientes'),
+        api.get('/empresa/encargados').catch(() => [])
+    ]);
     window.currentClientesCache = clientes;
+    window.allEncargadosCache = encargados;
 
     // Poblar selector de barrios unicos en Solapa 1
     const selectBarrio = document.getElementById('select-filter-barrio-map');
     if (selectBarrio) {
         const barrios = [...new Set(clientes.map(c => c.barrio).filter(Boolean))].sort();
-        let html = '<option value="ALL">📍 Todos los Barrios / Zonas</option>';
+        let html = '<option value="ALL">📍 Todos los Barrios</option>';
         barrios.forEach(b => {
             html += `<option value="${b}">🏘️ ${b}</option>`;
         });
         selectBarrio.innerHTML = html;
+    }
+
+    // Poblar selector de Encargados de Zona en Solapa 1
+    const selectEncargado = document.getElementById('select-filter-encargado-cliente');
+    if (selectEncargado) {
+        let encHtml = '<option value="ALL">👤 Todos los Encargados</option>';
+        encHtml += '<option value="SIN_ENCARGADO">⚠️ Sin Encargado Designado</option>';
+        (encargados || []).forEach(e => {
+            encHtml += `<option value="${e.nombre}">👤 ${e.nombre} (${e.zona_asignada || 'General'})</option>`;
+        });
+        selectEncargado.innerHTML = encHtml;
     }
 
     filtrarClientesPorBarrioYTexto();
@@ -194,6 +209,24 @@ function setClientesPageSize(size) {
 window.setClientesPage = setClientesPage;
 window.setClientesPageSize = setClientesPageSize;
 
+async function cambiarEncargadoCliente(id_cliente, nuevoEncargado) {
+    try {
+        const res = await api.put(`/empresa/clientes/${id_cliente}/encargado`, { encargado_zona: nuevoEncargado || 'Sin asignar' });
+        console.log('Encargado cliente actualizado:', res.message);
+        
+        if (window.currentClientesCache) {
+            const cIdx = window.currentClientesCache.findIndex(x => x.id_cliente === id_cliente);
+            if (cIdx >= 0) {
+                window.currentClientesCache[cIdx].encargado_zona = nuevoEncargado || 'Sin asignar';
+            }
+        }
+        filtrarClientesPorBarrioYTexto(false);
+    } catch (err) {
+        await showAlert('Error al actualizar Encargado de Zona: ' + err.message);
+    }
+}
+window.cambiarEncargadoCliente = cambiarEncargadoCliente;
+
 function filtrarClientesPorBarrioYTexto(resetPage = true) {
     if (!window.currentClientesCache) return;
 
@@ -205,82 +238,124 @@ function filtrarClientesPorBarrioYTexto(resetPage = true) {
     const rawQuery = rawInput.trim();
     const queryStr = rawQuery.toLowerCase();
     const selectedBarrio = document.getElementById('select-filter-barrio-map')?.value || 'ALL';
+    const selectedEncargado = document.getElementById('select-filter-encargado-cliente')?.value || 'ALL';
+    const selectedEstadoCobro = document.getElementById('select-filter-estado-cobro')?.value || 'ALL';
 
-    if (!rawQuery) {
-        const filtered = window.currentClientesCache.filter(c => {
-            return selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-        });
-        renderClientesTable(filtered);
-        const hasActiveFilter = selectedBarrio !== 'ALL';
-        if (hasActiveFilter) {
-            initMap(filtered);
-        } else {
-            initMap([]);
+    const checkFilters = (c) => {
+        // 1. Filtro Barrio
+        if (selectedBarrio !== 'ALL' && (!c.barrio || c.barrio.toLowerCase() !== selectedBarrio.toLowerCase())) {
+            return false;
         }
-        return;
-    }
 
-    const isExplicitId = rawQuery.startsWith('#');
-    const numericPart = rawQuery.replace(/^#\s*/, '').trim();
-    const isPureNumber = /^\d+$/.test(numericPart);
+        // 2. Filtro Encargado de Zona
+        const isUnassignedEnc = !c.encargado_zona || c.encargado_zona === 'Sin asignar' || c.encargado_zona.trim() === '';
+        if (selectedEncargado === 'SIN_ENCARGADO') {
+            if (!isUnassignedEnc) return false;
+        } else if (selectedEncargado !== 'ALL') {
+            if (!c.encargado_zona || c.encargado_zona.toLowerCase().trim() !== selectedEncargado.toLowerCase().trim()) {
+                return false;
+            }
+        }
+
+        // 3. Filtro Estado de Cobro
+        const hasActiveFicheros = (c.ficheros_activos || 0) > 0;
+        const cuotasPendientes = c.cuotas_pendientes || 0;
+        const cobradoMes = (c.pagado_este_mes || 0) > 0;
+
+        if (selectedEstadoCobro === 'PAGADOS_AL_DIA') {
+            if (!hasActiveFicheros || (cuotasPendientes > 0 && !cobradoMes)) return false;
+        } else if (selectedEstadoCobro === 'PENDIENTES_DEUDA') {
+            if (!hasActiveFicheros || cuotasPendientes === 0) return false;
+        } else if (selectedEstadoCobro === 'SIN_FICHERO') {
+            if (hasActiveFicheros) return false;
+        }
+
+        return true;
+    };
 
     let filtered = [];
 
-    if (isExplicitId && isPureNumber) {
-        // Búsqueda explícita por ID: #38 o # 38
-        const targetId = parseInt(numericPart, 10);
-        filtered = window.currentClientesCache.filter(c => {
-            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-            if (!matchBarrio) return false;
-            return (c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId;
-        });
-    } else if (isPureNumber) {
-        // Búsqueda numérica (ej: 38 o DNI)
-        const targetId = parseInt(numericPart, 10);
-
-        filtered = window.currentClientesCache.filter(c => {
-            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-            if (!matchBarrio) return false;
-
-            // 1. Coincidencia exacta por N° interno o ID
-            if ((c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId) return true;
-
-            // 2. Coincidencia de N° interno o ID que empiece con el número
-            if (c.nro_cliente_interno && String(c.nro_cliente_interno).startsWith(numericPart)) return true;
-            if (String(c.id_cliente).startsWith(numericPart)) return true;
-
-            // 3. Coincidencia en DNI
-            if (c.dni && c.dni.toString().trim().includes(numericPart)) return true;
-
-            // 4. Coincidencia en nombre
-            if (c.nombre_apellido && c.nombre_apellido.toLowerCase().includes(queryStr)) return true;
-
-            return false;
-        });
-
-        // Ordenar con máxima prioridad para coincidencia exacta de ID/N° interno
-        filtered.sort((a, b) => {
-            const isExactA = (a.nro_cliente_interno === targetId || a.id_cliente === targetId || (a.dni && a.dni.toString().trim() === numericPart));
-            const isExactB = (b.nro_cliente_interno === targetId || b.id_cliente === targetId || (b.dni && b.dni.toString().trim() === numericPart));
-            if (isExactA && !isExactB) return -1;
-            if (!isExactA && isExactB) return 1;
-            return (a.nro_cliente_interno || a.id_cliente) - (b.nro_cliente_interno || b.id_cliente);
-        });
+    if (!rawQuery) {
+        filtered = window.currentClientesCache.filter(checkFilters);
     } else {
-        // Búsqueda general de texto (nombre, dirección, barrio, etc.)
-        const terms = queryStr.split(/\s+/).filter(Boolean);
-        filtered = window.currentClientesCache.filter(c => {
-            const matchBarrio = selectedBarrio === 'ALL' || (c.barrio && c.barrio.toLowerCase() === selectedBarrio.toLowerCase());
-            if (!matchBarrio) return false;
+        const isExplicitId = rawQuery.startsWith('#');
+        const numericPart = rawQuery.replace(/^#\s*/, '').trim();
+        const isPureNumber = /^\d+$/.test(numericPart);
 
-            const nroInt = c.nro_cliente_interno ? `#${c.nro_cliente_interno} ${c.nro_cliente_interno}` : '';
-            const fullText = `#${c.id_cliente} ${c.id_cliente} ${nroInt} ${c.nombre_apellido || ''} ${c.direccion || ''} ${c.barrio || ''} ${c.dni || ''} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
-            return terms.every(term => fullText.includes(term));
+        if (isExplicitId && isPureNumber) {
+            // Búsqueda explícita por ID: #38 o # 38
+            const targetId = parseInt(numericPart, 10);
+            filtered = window.currentClientesCache.filter(c => {
+                if (!checkFilters(c)) return false;
+                return (c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId;
+            });
+        } else if (isPureNumber) {
+            // Búsqueda numérica (ej: 38 o DNI)
+            const targetId = parseInt(numericPart, 10);
+
+            filtered = window.currentClientesCache.filter(c => {
+                if (!checkFilters(c)) return false;
+                if ((c.nro_cliente_interno && c.nro_cliente_interno === targetId) || c.id_cliente === targetId) return true;
+                if (c.nro_cliente_interno && String(c.nro_cliente_interno).startsWith(numericPart)) return true;
+                if (String(c.id_cliente).startsWith(numericPart)) return true;
+                if (c.dni && c.dni.toString().trim().includes(numericPart)) return true;
+                if (c.nombre_apellido && c.nombre_apellido.toLowerCase().includes(queryStr)) return true;
+                return false;
+            });
+
+            filtered.sort((a, b) => {
+                const isExactA = (a.nro_cliente_interno === targetId || a.id_cliente === targetId || (a.dni && a.dni.toString().trim() === numericPart));
+                const isExactB = (b.nro_cliente_interno === targetId || b.id_cliente === targetId || (b.dni && b.dni.toString().trim() === numericPart));
+                if (isExactA && !isExactB) return -1;
+                if (!isExactA && isExactB) return 1;
+                return (a.nro_cliente_interno || a.id_cliente) - (b.nro_cliente_interno || b.id_cliente);
+            });
+        } else {
+            // Búsqueda general de texto (nombre, dirección, barrio, etc.)
+            const terms = queryStr.split(/\s+/).filter(Boolean);
+            filtered = window.currentClientesCache.filter(c => {
+                if (!checkFilters(c)) return false;
+                const nroInt = c.nro_cliente_interno ? `#${c.nro_cliente_interno} ${c.nro_cliente_interno}` : '';
+                const fullText = `#${c.id_cliente} ${c.id_cliente} ${nroInt} ${c.nombre_apellido || ''} ${c.direccion || ''} ${c.barrio || ''} ${c.dni || ''} ${c.encargado_zona || ''} ${c.piso_dpto || ''} ${c.referencia_domicilio || ''}`.toLowerCase();
+                return terms.every(term => fullText.includes(term));
+            });
+        }
+    }
+
+    // Actualizar badges de métricas en vivo
+    const summaryBadges = document.getElementById('clientes-summary-badges');
+    if (summaryBadges) {
+        let pagadosCnt = 0;
+        let pendientesCnt = 0;
+        let sinEncargadoCnt = 0;
+
+        filtered.forEach(c => {
+            const isUnassigned = !c.encargado_zona || c.encargado_zona === 'Sin asignar' || c.encargado_zona.trim() === '';
+            if (isUnassigned) sinEncargadoCnt++;
+            if ((c.ficheros_activos || 0) > 0) {
+                if ((c.cuotas_pendientes || 0) === 0 || (c.pagado_este_mes || 0) > 0) {
+                    pagadosCnt++;
+                } else {
+                    pendientesCnt++;
+                }
+            }
         });
+
+        summaryBadges.innerHTML = `
+            <span class="badge badge-purple" style="font-size:0.75rem;">Total: <strong>${filtered.length}</strong></span>
+            <span class="badge badge-success" style="font-size:0.75rem; background:#10b981; color:#fff;">✅ Al Día/Pagados: <strong>${pagadosCnt}</strong></span>
+            <span class="badge badge-danger" style="font-size:0.75rem; background:#ef4444; color:#fff;">🔴 Con Deuda: <strong>${pendientesCnt}</strong></span>
+            ${sinEncargadoCnt > 0 ? `<span class="badge badge-warning" style="font-size:0.75rem; background:#f59e0b; color:#fff; font-weight:700;">⚠️ Sin Encargado: <strong>${sinEncargadoCnt}</strong></span>` : ''}
+        `;
     }
 
     renderClientesTable(filtered);
-    initMap(filtered);
+    const hasActiveFilter = selectedBarrio !== 'ALL' || selectedEncargado !== 'ALL' || selectedEstadoCobro !== 'ALL' || !!rawQuery;
+    if (hasActiveFilter) {
+        initMap(filtered);
+    } else {
+        initMap([]);
+    }
 }
 
 function renderClientesTable(clientes) {
@@ -289,7 +364,7 @@ function renderClientesTable(clientes) {
     tbody.innerHTML = '';
 
     if (clientes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No se encontraron clientes para esta búsqueda o zona.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">No se encontraron clientes para esta búsqueda o filtros seleccionados.</td></tr>`;
         return;
     }
 
@@ -302,6 +377,8 @@ function renderClientesTable(clientes) {
     const fromIndex = (currentPage - 1) * pageSize;
     const toIndex = Math.min(fromIndex + pageSize, clientes.length);
     const visibleClientes = clientes.slice(fromIndex, toIndex);
+
+    const encargadosList = window.allEncargadosCache || [];
 
     visibleClientes.forEach(c => {
         const tr = document.createElement('tr');
@@ -316,10 +393,10 @@ function renderClientesTable(clientes) {
         let selectBgColor = '#10b981'; // green-500
         let selectTextColor = '#ffffff';
         if (c.calificacion === 'REGULAR') {
-            selectBgColor = '#f59e0b'; // yellow-500
+            selectBgColor = '#f59e0b';
             selectTextColor = '#ffffff';
         } else if (c.calificacion === 'MOROSO') {
-            selectBgColor = '#ef4444'; // red-500
+            selectBgColor = '#ef4444';
             selectTextColor = '#ffffff';
         }
 
@@ -332,42 +409,89 @@ function renderClientesTable(clientes) {
             </select>
         `;
 
-        let estadoDeudaHtml = '';
-        if (c.ficheros_activos > 0) {
-            estadoDeudaHtml = `<div style="font-size: 0.73rem; color: #10b981; font-weight: 700; margin-left: 1.1rem; margin-top: 0.15rem;">🟢 Activo (Restan ${c.cuotas_pendientes || 0} cuotas)</div>`;
+        // 1. Selector / Visualizador de Encargado de Zona
+        let encargadoTdContent = '';
+        const isUnassignedEnc = !c.encargado_zona || c.encargado_zona === 'Sin asignar' || c.encargado_zona.trim() === '';
+        
+        if (!window.currentUser || window.currentUser.rol === 'ADMIN_EMPRESA' || window.currentUser.rol === 'SUPER_ADMIN') {
+            let optionsHtml = `<option value="">-- Sin asignar --</option>`;
+            encargadosList.forEach(enc => {
+                const isSelected = (c.encargado_zona && c.encargado_zona.toLowerCase().trim() === enc.nombre.toLowerCase().trim());
+                optionsHtml += `<option value="${enc.nombre}" ${isSelected ? 'selected' : ''}>👤 ${enc.nombre} (${enc.zona_asignada || 'General'})</option>`;
+            });
+            const borderStyle = isUnassignedEnc ? 'border: 1.5px solid #f59e0b; background: rgba(245, 158, 11, 0.08);' : 'border: 1px solid #8b5cf6;';
+            encargadoTdContent = `
+                <select class="form-control" style="font-size:0.78rem; padding:0.25rem 0.4rem; font-weight:700; border-radius: var(--radius-md); max-width: 170px; ${borderStyle}" onchange="cambiarEncargadoCliente(${c.id_cliente}, this.value)" title="Designar o reasignar Encargado de Zona">
+                    ${optionsHtml}
+                </select>
+                ${isUnassignedEnc ? `<div style="font-size:0.7rem; color:#d97706; font-weight:700; margin-top:2px;">⚠️ Sin Encargado</div>` : ''}
+            `;
         } else {
-            estadoDeudaHtml = `<div style="font-size: 0.73rem; color: var(--text-muted); margin-left: 1.1rem; margin-top: 0.15rem;">⚪ Inactivo (Sin deuda)</div>`;
+            encargadoTdContent = isUnassignedEnc
+                ? `<span class="badge badge-warning" style="background:#f59e0b; color:#fff; font-size:0.75rem;">⚠️ Sin Asignar</span>`
+                : `👤 <strong style="color:var(--text-primary); font-size:0.85rem;">${c.encargado_zona}</strong>`;
+        }
+
+        // 2. Columna de Estado de Cobro y Cuotas
+        let estadoCobroTdContent = '';
+        if ((c.ficheros_activos || 0) > 0) {
+            const pend = c.cuotas_pendientes || 0;
+            const pag = c.cuotas_pagadas || 0;
+            const tot = c.cuotas_totales || (pend + pag);
+            const montoPend = Number(c.monto_deuda_pendiente || 0);
+            const pagadoEsteMes = (c.pagado_este_mes || 0) > 0;
+
+            if (pend === 0) {
+                estadoCobroTdContent = `
+                    <div style="font-weight:700; color:#10b981; font-size:0.83rem;">✅ Totalmente Al Día</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted);">${pag}/${tot} cuotas saldadas</div>
+                `;
+            } else if (pagadoEsteMes) {
+                estadoCobroTdContent = `
+                    <div style="font-weight:700; color:#10b981; font-size:0.83rem;">🟢 Cobrado este mes</div>
+                    <div style="font-size:0.72rem; color:var(--text-secondary);">Restan <strong>${pend} cuotas</strong> ($${montoPend.toLocaleString('es-AR')})</div>
+                `;
+            } else {
+                estadoCobroTdContent = `
+                    <div style="font-weight:700; color:#ef4444; font-size:0.83rem;">🔴 Deuda Pendiente</div>
+                    <div style="font-size:0.72rem; color:#ef4444; font-weight:600;">Restan <strong>${pend} cuotas</strong> ($${montoPend.toLocaleString('es-AR')})</div>
+                `;
+            }
+        } else {
+            estadoCobroTdContent = `
+                <span class="badge" style="background:rgba(255,255,255,0.06); color:var(--text-muted); font-size:0.73rem;">⚪ Sin Fichero Activo</span>
+            `;
         }
 
         tr.innerHTML = `
-            <td><strong style="color: var(--saas-purple); font-weight: 700;">${c.nro_cliente_interno || c.id_cliente}</strong></td>
+            <td><strong style="color: var(--saas-purple); font-weight: 700;">#${c.nro_cliente_interno || c.id_cliente}</strong></td>
             <td>
                 <strong style="color: var(--primary); cursor: pointer; text-decoration: underline;" 
                     onclick="focusClientOnMap(${c.id_cliente})" 
                     title="Hacer clic para ubicar en el mapa">
                     📍 ${nombreDisplay}
                 </strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.1rem;">${docLabel}: ${docValue}</div>
-                ${estadoDeudaHtml}
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${docLabel}: ${docValue}</div>
             </td>
+            <td>${encargadoTdContent}</td>
+            <td>${estadoCobroTdContent}</td>
             <td>📍 ${c.direccion}${pisoStr} (${c.barrio})${refStr}</td>
             <td>${c.telefono || '-'}</td>
-            <td><span class="badge badge-purple" style="font-family: monospace;">${c.qr_token}</span></td>
             <td>${selectCalificacion}</td>
             <td>
                 <div class="flex gap-1 items-center flex-wrap">
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick='showQrModal(${clientJsonStr})'>
-                        📱 Ver QR
+                        📱 QR
                     </button>
                     <button class="btn btn-outline" style="font-size: 0.78rem; padding: 0.35rem 0.65rem; border-color: var(--saas-purple); color: var(--saas-purple);" onclick="verFicheroCliente(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Ver todos los ficheros de venta asociados a este cliente">
-                        📂 Ver Fichero
+                        📂 Fichero
                     </button>
-                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="abrirModalEditarCliente(${c.id_cliente})" title="Editar datos del cliente (Nombre, DNI, dirección, teléfono, etc.)">
-                        ✏️ Editar Datos
+                    <button class="btn btn-purple" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="abrirModalEditarCliente(${c.id_cliente})" title="Editar datos del cliente">
+                        ✏️ Editar
                     </button>
                     ${(window.currentUser && window.currentUser.rol !== 'VENDEDOR') ? `
-                    <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Eliminar cliente por error o cuando termina de pagar todo">
-                        🗑️ Eliminar
+                    <button class="btn btn-danger" style="font-size: 0.78rem; padding: 0.35rem 0.65rem;" onclick="eliminarClienteConfirmado(${c.id_cliente}, '${nombreDisplay.replace(/'/g, "\\'")}')" title="Eliminar cliente">
+                        🗑️
                     </button>
                     ` : ''}
                 </div>
@@ -375,6 +499,38 @@ function renderClientesTable(clientes) {
         `;
         tbody.appendChild(tr);
     });
+
+    // Paginador moderno por páginas
+    const paginationTr = document.createElement('tr');
+    paginationTr.id = 'tr-pagination-clientes';
+    paginationTr.innerHTML = `
+        <td colspan="8" class="text-center" style="padding: 0.9rem 1.2rem; background: rgba(99,102,241,0.05); border-top: 1px solid var(--border-color);">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+                <div class="text-muted" style="font-size:0.88rem; font-weight:600;">
+                    Mostrando <strong>${fromIndex + 1} - ${toIndex}</strong> de <strong>${clientes.length}</strong> clientes.
+                </div>
+                <div class="flex items-center gap-2">
+                    <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">Ver:</span>
+                    <select class="form-control" style="font-size:0.8rem; padding:0.25rem 0.5rem; width:auto; border-radius: 6px;" onchange="setClientesPageSize(this.value)">
+                        <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                        <option value="200" ${pageSize === 200 ? 'selected' : ''}>200</option>
+                        <option value="500" ${pageSize === 500 ? 'selected' : ''}>500</option>
+                    </select>
+                    <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">por pág.</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="setClientesPage(1)" ${currentPage === 1 ? 'disabled' : ''} title="Primera página">«</button>
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="setClientesPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} title="Página anterior">‹</button>
+                    <span style="font-size:0.85rem; font-weight:700; padding:0 0.5rem; color:var(--primary);">Pág. ${currentPage} de ${totalPages}</span>
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="setClientesPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} title="Página siguiente">›</button>
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.8rem;" onclick="setClientesPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} title="Última página">»</button>
+                </div>
+            </div>
+        </td>
+    `;
+    tbody.appendChild(paginationTr);
+}
 
     // Paginador moderno por páginas
     const paginationTr = document.createElement('tr');

@@ -292,24 +292,46 @@
 
             <!-- SOLAPA 1: Clientes y Mapa -->
             <div id="tab-content-clientes" class="empresa-tab-content hidden animate-fade">
-                <!-- Barra de Búsqueda y Filtro por Zona / Barrio -->
+                <!-- Barra de Búsqueda y Filtros por Zona, Encargado y Estado de Cobro -->
                 <div class="flex gap-2 items-center flex-wrap"
                     style="margin-bottom: 1.25rem; background: rgba(59,130,246,0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                    <div style="flex: 1; min-width: 220px;">
+                    <div style="flex: 1.2; min-width: 200px;">
                         <label
                             style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🔍
                             Buscador en Mapa y Lista</label>
                         <input type="text" id="input-search-clientes-map" class="form-control"
-                            placeholder="Buscar por ID (#38 o 38), nombre, DNI, barrio o calle..."
+                            placeholder="Buscar por ID (#38), nombre, DNI, barrio o calle..."
                             style="font-size: 0.82rem; padding: 0.45rem;" oninput="filtrarClientesPorBarrioYTexto()">
                     </div>
-                    <div style="min-width: 200px;">
+                    <div style="flex: 0.9; min-width: 170px;">
                         <label
                             style="font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 0.2rem;">🏘️
-                            Agrupar por Zona / Barrio</label>
+                            Zona / Barrio</label>
                         <select id="select-filter-barrio-map" class="form-control"
                             style="font-size: 0.82rem; padding: 0.45rem;" onchange="filtrarClientesPorBarrioYTexto()">
-                            <option value="ALL">📍 Todos los Barrios / Zonas</option>
+                            <option value="ALL">📍 Todos los Barrios</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 190px;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: #8b5cf6; display: block; margin-bottom: 0.2rem;">👤
+                            Encargado de Zona</label>
+                        <select id="select-filter-encargado-cliente" class="form-control"
+                            style="font-size: 0.82rem; padding: 0.45rem; border-color: #8b5cf6;" onchange="filtrarClientesPorBarrioYTexto()">
+                            <option value="ALL">👤 Todos los Encargados</option>
+                            <option value="SIN_ENCARGADO">⚠️ Sin Encargado Designado</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 190px;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 700; color: #10b981; display: block; margin-bottom: 0.2rem;">💳
+                            Estado de Cobro</label>
+                        <select id="select-filter-estado-cobro" class="form-control"
+                            style="font-size: 0.82rem; padding: 0.45rem; border-color: #10b981;" onchange="filtrarClientesPorBarrioYTexto()">
+                            <option value="ALL">📊 Todos los Estados</option>
+                            <option value="PAGADOS_AL_DIA">✅ Pagados / Al Día</option>
+                            <option value="PENDIENTES_DEUDA">🔴 Pendientes de Pago (Con Deuda)</option>
+                            <option value="SIN_FICHERO">⚪ Sin Fichero Activo (Inactivos)</option>
                         </select>
                     </div>
                 </div>
@@ -321,21 +343,22 @@
                         <div id="map-container" style="height: 380px;"></div>
                     </div>
                     <div class="glass-card">
-                        <div class="flex justify-between items-center" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                             <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0;">👥 Listado de Clientes con Código QR</h3>
-
+                            <div id="clientes-summary-badges" class="flex gap-2 items-center flex-wrap" style="font-size: 0.78rem;"></div>
                         </div>
-                        <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                        <div class="table-container" style="max-height: 520px; overflow-y: auto;">
                             <table class="styled-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Cliente</th>
+                                        <th>Encargado de Zona</th>
+                                        <th>Estado de Cobro</th>
                                         <th>Dirección / Barrio</th>
                                         <th>Teléfono</th>
-                                        <th>Token QR</th>
                                         <th>Calificación</th>
-                                        <th>QR</th>
+                                        <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-clientes"></tbody>

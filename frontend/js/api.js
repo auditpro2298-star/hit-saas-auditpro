@@ -403,15 +403,44 @@ class APIClient {
             return clientesList.map(c => {
                 const activeFicheros = db.ficheros.filter(f => f.id_cliente === c.id_cliente && f.estado === 'ACTIVO');
                 const activeFicIds = activeFicheros.map(f => f.id_fichero);
-                const cuotasPendientes = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PENDIENTE').length;
-                const cuotasTotales = activeFicheros.reduce((sum, f) => sum + f.cantidad_cuotas, 0);
+                const cuotasPendientes = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && (q.estado === 'PENDIENTE' || q.estado === 'NO_COBRADO')).length;
+                const cuotasPagadas = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PAGADO').length;
+                const cuotasTotales = activeFicheros.reduce((sum, f) => sum + (f.cantidad_cuotas || 0), 0);
+                const montoDeuda = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && (q.estado === 'PENDIENTE' || q.estado === 'NO_COBRADO')).reduce((acc, q) => acc + Number(q.monto || 0), 0);
+                const now = new Date();
+                const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const pagosEsteMes = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PAGADO' && (q.fecha_pago || '').startsWith(currentMonthStr)).length;
+                const ultimoPago = db.cuotas.filter(q => activeFicIds.includes(q.id_fichero) && q.estado === 'PAGADO').sort((a, b) => (b.fecha_pago || '').localeCompare(a.fecha_pago || ''))[0];
+                const encZona = c.encargado_zona || (activeFicheros.length > 0 ? activeFicheros[0].encargado_zona : null) || 'Sin asignar';
+
                 return {
                     ...c,
+                    encargado_zona: encZona,
                     ficheros_activos: activeFicheros.length,
                     cuotas_pendientes: cuotasPendientes,
-                    cuotas_totales: cuotasTotales
+                    cuotas_pagadas: cuotasPagadas,
+                    cuotas_totales: cuotasTotales,
+                    monto_deuda_pendiente: montoDeuda,
+                    pagado_este_mes: pagosEsteMes,
+                    fecha_ultimo_pago: ultimoPago ? ultimoPago.fecha_pago : null
                 };
             });
+        }
+
+        if (endpoint.startsWith('/empresa/clientes/') && endpoint.endsWith('/encargado') && method === 'PUT') {
+            const id = parseInt(endpoint.split('/')[3], 10);
+            const target = db.clientes.find(c => c.id_cliente === id);
+            if (target) {
+                target.encargado_zona = body.encargado_zona || null;
+                db.ficheros.forEach(f => {
+                    if (f.id_cliente === id && (f.estado === 'ACTIVO' || f.estado === 'MOROSO')) {
+                        f.encargado_zona = body.encargado_zona || null;
+                    }
+                });
+                saveMockDB(db);
+                return { success: true, message: `Encargado de zona para "${target.nombre_apellido}" actualizado a "${body.encargado_zona || 'Sin asignar'}".` };
+            }
+            return { error: 'Cliente no encontrado.' };
         }
 
         if (endpoint === '/empresa/clientes' && method === 'POST') {

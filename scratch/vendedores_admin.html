@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin — Génesis Electrodomésticos</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #f8fafc;
+            --secondary-color: #38bdf8;
+            --accent-color: #2563eb;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 24px;
+            background: var(--bg-color);
+            color: var(--primary-color);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 800;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topRow {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            gap: 20px;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .git-config {
+            flex: 1;
+            min-width: 320px;
+        }
+
+        .git-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--secondary-color);
+            margin-bottom: 8px;
+        }
+
+        .token-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--primary-color);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+        }
+
+        button {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        button:hover {
+            background: #3b82f6;
+            transform: translateY(-1px);
+        }
+
+        button.secondary {
+            background: #059669;
+        }
+
+        button.secondary:hover {
+            background: #10b981;
+        }
+
+        button.danger {
+            background: #dc2626;
+        }
+
+        button.danger:hover {
+            background: #ef4444;
+        }
+
+        form {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 25px;
+            display: none;
+            box-shadow: var(--shadow-md);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1.8fr 1.2fr;
+                gap: 30px;
+            }
+        }
+
+        /* Zona de arrastrar fotos */
+        .dropZone {
+            border: 2px dashed var(--secondary-color);
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--primary-color);
+            margin-top: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .dropZone:hover,
+        .dropZone.dragover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 15px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            text-align: left;
+        }
+
+        th {
+            background: var(--accent-color);
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        td {
+            background: rgba(15, 23, 42, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f8fafc;
+        }
+
+        td input[type="text"],
+        td textarea {
+            border: 1px solid transparent;
+            background: transparent;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            font-size: 14px;
+            color: var(--primary-color);
+            border-radius: 6px;
+        }
+
+        td input[type="text"]:focus,
+        td textarea:focus {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: var(--secondary-color);
+        }
+
+        img.mini {
+            max-width: 60px;
+            max-height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        #actionButtons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .small {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .rowActions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .previewImg {
+            max-width: 150px;
+            max-height: 150px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 2px dashed var(--secondary-color);
+            object-fit: cover;
+        }
+
+        /* TOAST NOTIFICATIONS */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all .25s ease;
+            max-width: 360px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.ok {
+            background: #059669;
+        }
+
+        .toast.info {
+            background: #2563eb;
+        }
+
+        .toast.err {
+            background: #dc2626;
+        }
+
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            z-index: 5000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>⚡ Admin — Génesis Electrodomésticos</h1>
+
+        <div class="topRow">
+            <div class="git-config">
+                <div class="git-title">📍 Configuración de GitHub</div>
+                <div
+                    style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                    <div><span class="small">Repositorio actual:</span> <b id="repoDisplay">cargando...</b></div>
+                    <button id="btnLockAdmin" onclick="toggleAdminLock()"
+                        style="padding: 4px 10px; font-size: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px;">🔒
+                        Acceso Propietario</button>
+                </div>
+                <div class="token-group" id="tokenControlGroup"
+                    style="display: none; flex-wrap: wrap; gap: 8px; align-items: center;">
+                    <label style="font-size:14px; font-weight:600;">GitHub Token:</label>
+                    <input type="password" id="token" placeholder="Pegar Token" style="max-width:220px">
+                    <button onclick="saveToken()">Guardar</button>
+                    <button onclick="clearToken()" style="background:#64748b">Borrar</button>
+                    <span id="tokenStatus" class="small" style="font-weight:bold">Validando...</span>
+                </div>
+            </div>
+            <div class="controls">
+                <input id="search" placeholder="Filtrar producto..." oninput="filterProducts()" style="min-width:240px">
+                <button onclick="toggleForm()">➕ Nuevo Electrodoméstico</button>
+            </div>
+        </div>
+
+        <div id="actionButtons">
+            <button id="guardarTodos" onclick="guardarTodosLosPrecios()">💾 GUARDAR CAMBIOS EN GITHUB</button>
+            <button class="secondary" onclick="irWhatsApp()" style="background:#25d366;">📲 Soporte WhatsApp</button>
+        </div>
+
+        <!-- FORMULARIO DE ALTA / EDICIÓN -->
+        <form id="form">
+            <input type="hidden" id="editId">
+            <h3 style="margin-top:0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom:8px;"
+                id="formTitle">Agregar Nuevo Electrodoméstico</h3>
+            <div class="form-grid">
+                <div>
+                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Nombre del
+                        Producto</label>
+                    <input id="nombre" type="text" style="width:100%;" placeholder="Ej: Smart TV 55 pulgadas">
+                </div>
+                <div>
+                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Precio /
+                        Cuotas</label>
+                    <input id="precio" type="text" placeholder="Ej: 380000 o 12 meses de $175.000" style="width:100%;">
+                </div>
+                <div style="grid-column: 1 / -1">
+                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Descripción y
+                        Características</label>
+                    <textarea id="descripcion" rows="2" style="width:100%;"
+                        placeholder="Ej: 4K UHD, Wi-Fi, 3 entradas HDMI"></textarea>
+                </div>
+
+                <!-- CARGA DE IMAGEN CON DRAG & DROP -->
+                <div style="grid-column: 1 / -1">
+                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Foto del
+                        Producto</label>
+                    <input type="file" id="imagenFile" accept="image/*" style="display:none"
+                        onchange="handleFileSelect(event)">
+                    <div id="dropZone" class="dropZone" onclick="document.getElementById('imagenFile').click()"
+                        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+                        ondrop="handleDrop(event)">
+                        📸 <b id="dropText">Hacé clic aquí o arrastrá tu foto desde tu computadora</b>
+                        <div style="font-size:12px; color:var(--secondary-color); margin-top:4px">Se subirá
+                            automáticamente a la carpeta <code>img/</code> en GitHub</div>
+                    </div>
+                    <input type="hidden" id="imagen">
+                    <div style="display: flex; justify-content: center; width: 100%;">
+                        <img id="preview" class="previewImg" style="display:none">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Categoría</label>
+                    <input id="categoria" type="text" placeholder="Ej: Televisores, Heladeras, Climatización..."
+                        style="width:100%;">
+                </div>
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="button" onclick="guardarFormulario()">Agregar a la lista</button>
+                <button type="button" onclick="cancelForm()" style="background:#64748b">Cancelar</button>
+            </div>
+        </form>
+
+        <!-- TABLA PRINCIPAL DE PRODUCTOS -->
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:70px">Foto</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th style="width:160px">Categoría</th>
+                    <th style="width:160px">Precio / Cuotas</th>
+                    <th style="width:140px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay">
+        <div style="font-size:22px; font-weight:bold;">Sincronizando Catálogo en GitHub...</div>
+    </div>
+
+    <script>
+        const host = window.location.hostname;
+        const pathParts = window.location.pathname.split("/");
+
+        let USERNAME = "electrogenesis10-ops";
+        let REPO = "carta";
+
+        if (host.includes(".github.io")) {
+            USERNAME = host.split(".")[0];
+            REPO = pathParts[1] || "";
+        }
+
+        document.getElementById('repoDisplay').innerText = `${USERNAME} / ${REPO}`;
+
+        const BRANCH = "main";
+        const MAIN_JSON = "productos.json";
+
+        let productos = [];
+        let guardando = false;
+
+        function mostrarLoading() { document.getElementById("loadingOverlay").style.display = "flex"; }
+        function ocultarLoading() { document.getElementById("loadingOverlay").style.display = "none"; }
+
+        function showToast(msg, variant = 'ok') {
+            const div = document.createElement('div');
+            div.className = `toast ${variant}`;
+            div.innerText = msg;
+            document.body.appendChild(div);
+            requestAnimationFrame(() => div.classList.add('show'));
+            setTimeout(() => { div.classList.remove('show'); setTimeout(() => div.remove(), 300); }, 3000);
+        }
+
+        const ADMIN_CODE = "aguero2026";
+        function toggleAdminLock() {
+            const group = document.getElementById('tokenControlGroup');
+            const btn = document.getElementById('btnLockAdmin');
+            if (group.style.display === 'flex') {
+                group.style.display = 'none';
+                btn.innerHTML = '🔒 Acceso Propietario';
+                sessionStorage.removeItem('admin_unlocked');
+            } else {
+                if (sessionStorage.getItem('admin_unlocked') === 'true') {
+                    group.style.display = 'flex';
+                    btn.innerHTML = '🔓 Propietario Activo';
+                    return;
+                }
+                const code = prompt("Ingresá el código de seguridad:");
+                if (code === ADMIN_CODE) {
+                    group.style.display = 'flex';
+                    btn.innerHTML = '🔓 Propietario Activo';
+                    sessionStorage.setItem('admin_unlocked', 'true');
+                }
+            }
+        }
+
+        function saveToken() {
+            const t = document.getElementById('token').value.trim();
+            localStorage.setItem('github_token', t);
+            validarTokenGitHub();
+            showToast('Token guardado');
+        }
+
+        function clearToken() { localStorage.removeItem('github_token'); location.reload(); }
+        function getToken() { return localStorage.getItem('github_token'); }
+
+        async function validarTokenGitHub() {
+            const token = getToken();
+            const statusEl = document.getElementById('tokenStatus');
+            if (!token) { statusEl.innerText = "❌ Sin Token"; return; }
+            try {
+                const res = await fetch('https://api.github.com/user', { headers: { Authorization: `token ${token}` } });
+                if (res.ok) {
+                    const data = await res.json();
+                    statusEl.innerText = `✅ Activo: ${data.login}`;
+                    statusEl.style.color = "#10b981";
+                } else {
+                    statusEl.innerText = "⚠️ Token Inválido";
+                    statusEl.style.color = "#ef4444";
+                }
+            } catch (e) { statusEl.innerText = "Error API"; }
+        }
+
+        /* LÓGICA DE SUBIDA DE IMAGEN DRAG & DROP */
+        function handleDragOver(e) { e.preventDefault(); document.getElementById("dropZone").classList.add("dragover"); }
+        function handleDragLeave(e) { e.preventDefault(); document.getElementById("dropZone").classList.remove("dragover"); }
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById("dropZone").classList.remove("dragover");
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) procesarYSubirImagen(e.dataTransfer.files[0]);
+        }
+        function handleFileSelect(e) {
+            if (e.target.files && e.target.files[0]) procesarYSubirImagen(e.target.files[0]);
+        }
+
+        function getImgUrl(path) {
+            if (!path) return '';
+            if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+                return path;
+            }
+            return `https://raw.githubusercontent.com/${USERNAME}/${REPO}/${BRANCH}/${path}`;
+        }
+
+        async function procesarYSubirImagen(file) {
+            if (!file.type.startsWith("image/")) { showToast("Seleccioná un archivo de imagen válido", "err"); return; }
+            const token = getToken();
+            if (!token) { showToast("Primero ingresá y guardá tu Token de GitHub", "err"); return; }
+
+            // Mostrar preview local inmediato mediante un URL de objeto
+            const tempUrl = URL.createObjectURL(file);
+            const img = document.getElementById('preview');
+            img.src = tempUrl;
+            img.style.display = 'block';
+
+            mostrarLoading();
+            const dropText = document.getElementById("dropText");
+            if (dropText) dropText.innerText = "⏳ Subiendo foto a GitHub...";
+
+            try {
+                const base64Full = await fileToBase64(file);
+                const base64Data = base64Full.split(',')[1];
+
+                const parts = file.name.split('.');
+                const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'jpg';
+                const baseName = parts.join('_').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                const pathGitHub = `img/${Date.now()}_${baseName}.${ext}`;
+
+                await githubPutFile(pathGitHub, base64Data, `Subida de foto ${pathGitHub} desde Admin`, true);
+
+                document.getElementById("imagen").value = pathGitHub;
+                showToast("¡Foto subida con éxito!", "ok");
+            } catch (err) {
+                // Si falla la subida, ocultamos el preview temporal
+                img.style.display = 'none';
+                img.src = '';
+                showToast("Error al subir foto: " + (err.message || err), "err");
+            } finally {
+                ocultarLoading();
+                if (dropText) dropText.innerText = "📸 Hacé clic aquí o arrastrá tu foto desde tu computadora";
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function sanitizePrice(v) { return String(v || '').trim(); }
+        function findIndexById(id) { return productos.findIndex(p => p.id === id); }
+        function generateNextProdId() {
+            let max = 0;
+            productos.forEach(p => {
+                const n = parseInt(String(p.id || '').replace('prod', ''), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return 'prod' + String(max + 1).padStart(4, '0');
+        }
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(`https://raw.githubusercontent.com/${USERNAME}/${REPO}/${BRANCH}/${MAIN_JSON}?t=${Date.now()}`);
+                if (!res.ok) throw new Error('Error al cargar productos');
+                productos = await res.json();
+                if (!Array.isArray(productos)) productos = [];
+                render(productos);
+
+                const tSaved = getToken();
+                if (tSaved) document.getElementById('token').value = tSaved;
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        function render(lista) {
+            const tb = document.getElementById('tbody');
+            tb.innerHTML = '';
+            lista.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center">
+                        <img src="${getImgUrl(p.imagen)}" class="mini" onerror="this.src='https://via.placeholder.com/60?text=Foto'">
+                    </td>
+                    <td><input type="text" value="${(p.nombre || '').replace(/"/g, '&quot;')}" oninput="updateLocal('${p.id}', 'nombre', this.value)"></td>
+                    <td><textarea oninput="updateLocal('${p.id}', 'descripcion', this.value)">${p.descripcion || ''}</textarea></td>
+                    <td><input type="text" value="${(p.categoria || '').replace(/"/g, '&quot;')}" oninput="updateLocal('${p.id}', 'categoria', this.value)"></td>
+                    <td><input type="text" value="${p.precio || '0'}" style="font-weight:bold; color:var(--secondary-color);" oninput="updateLocal('${p.id}', 'precio', this.value)"></td>
+                    <td class="rowActions">
+                        <button onclick="loadIntoFormById('${p.id}')" style="background:var(--secondary-color);">Editar</button>
+                        <button class="danger" onclick="eliminarProductoPorId('${p.id}')">Borrar</button>
+                    </td>
+                `;
+                tb.appendChild(tr);
+            });
+        }
+
+        function updateLocal(id, field, value) {
+            const idx = findIndexById(id);
+            if (idx !== -1) {
+                if (field === 'precio') value = sanitizePrice(value);
+                productos[idx][field] = value;
+            }
+        }
+
+        function eliminarProductoPorId(id) {
+            if (!confirm('¿Deseas eliminar este producto?')) return;
+            productos = productos.filter(p => p.id !== id);
+            render(productos);
+        }
+
+        function toggleForm() {
+            const f = document.getElementById('form');
+            if (f.style.display === 'block') f.style.display = 'none';
+            else {
+                f.style.display = 'block';
+                document.getElementById('editId').value = '';
+                document.getElementById('form').reset();
+                document.getElementById('preview').style.display = 'none';
+            }
+        }
+
+        function cancelForm() { document.getElementById('form').style.display = 'none'; }
+        function previewImage(force = false) {
+            const img = document.getElementById('preview');
+            const url = document.getElementById('imagen').value.trim();
+            if (!url) { img.style.display = 'none'; return; }
+
+            // Si ya estamos mostrando un blob local recién subido, no lo sobrescribimos con la ruta de github
+            if (!force && img.src.startsWith('blob:') && img.style.display === 'block' && url.startsWith('img/')) {
+                return;
+            }
+
+            img.src = getImgUrl(url);
+            img.onload = () => img.style.display = 'block';
+            img.onerror = () => img.style.display = 'none';
+        }
+
+        function guardarFormulario() {
+            const id = document.getElementById('editId').value;
+            const nombre = document.getElementById('nombre').value.trim();
+            const precio = sanitizePrice(document.getElementById('precio').value);
+            const descripcion = document.getElementById('descripcion').value.trim();
+            const imagen = document.getElementById('imagen').value.trim() || 'img/default.jpg';
+            const categoria = document.getElementById('categoria').value.trim() || 'General';
+
+            if (!nombre) { showToast("El producto debe tener un nombre", "err"); return; }
+            const newId = id || generateNextProdId();
+            const obj = { id: newId, nombre, precio, descripcion, imagen, categoria };
+
+            if (id) {
+                const idx = findIndexById(id);
+                if (idx !== -1) productos[idx] = obj;
+            } else {
+                productos.push(obj);
+            }
+
+            render(productos);
+            cancelForm();
+            showToast("Lista actualizada localmente.");
+        }
+
+        function loadIntoFormById(id) {
+            const p = productos.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('editId').value = p.id;
+            document.getElementById('nombre').value = p.nombre || '';
+            document.getElementById('precio').value = p.precio || '';
+            document.getElementById('descripcion').value = p.descripcion || '';
+            document.getElementById('imagen').value = p.imagen || '';
+            document.getElementById('categoria').value = p.categoria || '';
+            previewImage(true);
+            document.getElementById('form').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        async function githubPutFile(path, contentString, message, isBase64 = false) {
+            const token = getToken();
+            if (!token) throw new Error("No has configurado un token de GitHub.");
+            let sha;
+            try {
+                const resInfo = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/${path}?t=${Date.now()}`, {
+                    headers: { Authorization: `token ${token}` }
+                });
+                if (resInfo.ok) { const data = await resInfo.json(); sha = data.sha; }
+            } catch (e) { }
+
+            const base64Content = isBase64 ? contentString : btoa(unescape(encodeURIComponent(contentString)));
+            const body = { message, content: base64Content, branch: BRANCH, sha };
+
+            const res = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/${path}`, {
+                method: 'PUT',
+                headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) throw new Error(`Error en GitHub API: ${res.status}`);
+        }
+
+        async function guardarTodosLosPrecios() {
+            const token = getToken();
+            if (!token) { showToast("Guardá tu token de GitHub arriba para guardar cambios.", "err"); return; }
+            mostrarLoading();
+            try {
+                const cleanList = productos.map(p => ({
+                    id: p.id,
+                    nombre: p.nombre || '',
+                    descripcion: p.descripcion || '',
+                    precio: sanitizePrice(p.precio),
+                    imagen: p.imagen || '',
+                    categoria: p.categoria || ''
+                }));
+                await githubPutFile(MAIN_JSON, JSON.stringify(cleanList, null, 2), "Actualización de catálogo de electrodomésticos");
+                showToast("✨ ¡Catálogo guardado en GitHub!", "ok");
+            } catch (e) {
+                showToast("Error al guardar: " + (e.message || e), "err");
+            } finally {
+                ocultarLoading();
+                render(productos);
+            }
+        }
+
+        function filterProducts() {
+            const q = document.getElementById('search').value.toLowerCase().trim();
+            if (!q) { render(productos); return; }
+            const filtered = productos.filter(p =>
+                (p.nombre || '').toLowerCase().includes(q) ||
+                (p.descripcion || '').toLowerCase().includes(q) ||
+                (p.categoria || '').toLowerCase().includes(q)
+            );
+            render(filtered);
+        }
+
+        function irWhatsApp() {
+            window.open(`https://wa.me/5491123140119?text=${encodeURIComponent("Hola, necesito ayuda con el admin de Génesis Electrodomésticos")}`, "_blank");
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            validarTokenGitHub();
+            loadProducts();
+        });
+    </script>
+</body>
+
+</html>

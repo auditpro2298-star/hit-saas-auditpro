@@ -298,19 +298,28 @@ router.get('/dashboard', async (req, res) => {
     }
 });
 
-// GET /api/empresa/clientes - Listar clientes con geoposicionamiento y QR
+// GET /api/empresa/clientes - Listar clientes con geoposicionamiento, QR, encargado y estado de cobro
 router.get('/clientes', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const startOfMonth = todayStr.substring(0, 7) + '-01';
+
         let sql = `
             SELECT c.*, 
+                   COALESCE(NULLIF(c.encargado_zona, ''), (SELECT f.encargado_zona FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' ORDER BY f.id_fichero DESC LIMIT 1), 'Sin asignar') as encargado_zona,
                    (SELECT COUNT(*) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as ficheros_activos,
-                   (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado = 'PENDIENTE') as cuotas_pendientes,
-                   (SELECT SUM(f.cantidad_cuotas) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as cuotas_totales
+                   (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado != 'PAGADO') as cuotas_pendientes,
+                   (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado = 'PAGADO') as cuotas_pagadas,
+                   (SELECT SUM(f.cantidad_cuotas) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as cuotas_totales,
+                   (SELECT SUM(q.monto) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado != 'PAGADO') as monto_deuda_pendiente,
+                   (SELECT COUNT(*) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO' AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as pagado_este_mes,
+                   (SELECT MAX(q.fecha_pago) FROM cuotas q JOIN ficheros f ON q.id_fichero = f.id_fichero WHERE f.id_cliente = c.id_cliente AND q.estado = 'PAGADO') as fecha_ultimo_pago,
+                   (SELECT MAX(f.id_fichero) FROM ficheros f WHERE f.id_cliente = c.id_cliente AND f.estado = 'ACTIVO') as id_fichero_activo
             FROM clientes c 
             WHERE c.id_empresa = ?
         `;
-        const params = [id_empresa];
+        const params = [startOfMonth, todayStr, id_empresa];
 
         // Si es ENCARGADO_ZONA, solo mostrar los clientes creados por él o asignados a él
         if (req.user && req.user.rol === 'ENCARGADO_ZONA') {
@@ -577,6 +586,22 @@ router.patch('/clientes/:id/calificacion', async (req, res) => {
     } catch (err) {
         console.error('Error al actualizar calificación:', err);
         res.status(500).json({ error: 'Error al actualizar calificación: ' + err.message });
+    }
+});
+
+// PUT /api/empresa/clientes/:id/encargado - Asignar / Cambiar Encargado de Zona del cliente y sus ficheros
+router.put('/clientes/:id/encargado', requireAdminOrEncargado, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    const { id } = req.params;
+    const { encargado_zona } = req.body;
+    try {
+        const finalEncargado = (encargado_zona || 'Sin asignar').trim();
+        await run("UPDATE clientes SET encargado_zona = ? WHERE id_cliente = ? AND id_empresa = ?", [finalEncargado, id, id_empresa]);
+        await run("UPDATE ficheros SET encargado_zona = ? WHERE id_cliente = ? AND id_empresa = ? AND estado = 'ACTIVO'", [finalEncargado, id, id_empresa]);
+        res.json({ success: true, message: `✅ Encargado de Zona asignado a "${finalEncargado}" para el cliente #${id}.` });
+    } catch (err) {
+        console.error('Error actualizando encargado del cliente:', err);
+        res.status(500).json({ error: 'Error al actualizar encargado de zona.' });
     }
 });
 

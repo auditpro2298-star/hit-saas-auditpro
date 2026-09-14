@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrodomésticos Génesis</title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-color: #38bdf8;
+            --accent-color: #2563eb;
+            --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            text-align: center;
+            scroll-behavior: smooth;
+        }
+
+        /* ================= HEADER ================= */
+        header {
+            height: 200px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        header img {
+            max-height: 180px;
+            max-width: 95%;
+            object-fit: contain;
+        }
+
+        .header-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.8rem;
+            margin: 0;
+            color: #fff;
+            letter-spacing: 2px;
+            font-weight: 800;
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        .header-subtitle {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin: 5px 0 0 0;
+            letter-spacing: 6px;
+            font-weight: 600;
+        }
+
+        /* ================= BANNER ================= */
+        .banner {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--primary-color);
+            padding: 12px 24px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 24px auto 10px auto;
+            font-weight: 600;
+            font-size: 1.1rem;
+            backdrop-filter: blur(8px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ================= BUSCADOR ================= */
+        .search-box {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 600px;
+            padding: 0 15px;
+        }
+
+        .search-box input {
+            padding: 12px 16px;
+            width: 70%;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+        }
+
+        .search-box button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .search-box button:hover {
+            background: #3b82f6;
+            transform: translateY(-1px);
+        }
+
+        #btnVoice {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        #btnVoice:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* ================= CATEGORÍAS ================= */
+        #category-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 1000px;
+            padding: 0 15px;
+        }
+
+        #category-buttons button {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            padding: 8px 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: var(--shadow-sm);
+        }
+
+        #category-buttons button:hover {
+            color: var(--text-color);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        #category-buttons button.active-cat {
+            background: linear-gradient(135deg, var(--accent-color), #1d4ed8);
+            color: #fff;
+            border-color: transparent;
+            transform: scale(1.05);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        /* ================= GRILLA DE PRODUCTOS ================= */
+        #product-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .item {
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            position: relative;
+        }
+
+        .item:hover {
+            transform: translateY(-6px);
+            border-color: rgba(56, 189, 248, 0.35);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 20px rgba(56, 189, 248, 0.15);
+        }
+
+        /* Contenedor y vitrina de imagen para ajuste perfecto */
+        .item-img-container {
+            width: 100%;
+            height: 240px;
+            background: radial-gradient(circle at center, #1e293b 0%, #0b1222 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 14px;
+            box-sizing: border-box;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .item-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
+            filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
+        }
+
+        .item:hover .item-img-container img {
+            transform: scale(1.08);
+            filter: drop-shadow(0 10px 22px rgba(56, 189, 248, 0.3));
+        }
+
+        /* Badges de Categoría */
+        .cat-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--primary-color);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            z-index: 2;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            max-width: 75%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cat-badge.promo {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(249, 115, 22, 0.9));
+            border-color: rgba(254, 240, 138, 0.6);
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Botón de ampliar en la esquina de la foto */
+        .zoom-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.25s ease;
+            z-index: 2;
+        }
+
+        .item:hover .zoom-badge {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .item-info {
+            padding: 18px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+        }
+
+        .item-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            color: var(--text-color);
+            line-height: 1.35;
+        }
+
+        .item-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0 0 16px 0;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 3.8em;
+            white-space: pre-line;
+        }
+
+        .item-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+        }
+
+        .price {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            letter-spacing: -0.3px;
+            flex: 1;
+        }
+
+        /* ================= LIGHTBOX / MODAL ================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 15, 29, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 6000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            max-width: 650px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.92);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-img-wrapper {
+            background: radial-gradient(circle at center, #1e293b 0%, #0b1120 100%);
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 280px;
+            max-height: 380px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        .modal-img-wrapper img {
+            max-width: 100%;
+            max-height: 340px;
+            object-fit: contain;
+            border-radius: 12px;
+            filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.5));
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .modal-close-btn:hover {
+            background: #ef4444;
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 24px;
+            text-align: left;
+        }
+
+        .modal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin: 0 0 10px 0;
+            color: #fff;
+        }
+
+        .modal-desc {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin: 0 0 20px 0;
+            white-space: pre-line;
+        }
+
+        .modal-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .modal-price {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+
+        /* ================= BOTON SUBIR ================= */
+        #btnUp {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: none;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s ease;
+        }
+
+        #btnUp:hover {
+            background: #3b82f6;
+            transform: scale(1.1);
+        }
+
+        /* ================= ONDA DE SONIDO / VOICE SEARCH ================= */
+        .voice-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        .voice-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .voice-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            max-width: 380px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .voice-overlay.active .voice-card {
+            transform: scale(1);
+        }
+
+        .voice-icon-wrapper {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .voice-mic-icon {
+            font-size: 2.2rem;
+            z-index: 2;
+        }
+
+        .voice-pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(56, 189, 248, 0.2);
+            animation: pulse-wave 2s infinite ease-out;
+            z-index: 1;
+        }
+
+        @keyframes pulse-wave {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1.6);
+                opacity: 0;
+            }
+        }
+
+        .voice-card h3 {
+            margin: 10px 0 5px 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .voice-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin: 0 0 25px 0;
+        }
+
+        /* Sound Wave Animation */
+        .sound-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 40px;
+            margin-bottom: 30px;
+        }
+
+        .sound-wave span {
+            display: block;
+            width: 4px;
+            height: 10px;
+            background: var(--primary-color);
+            border-radius: 4px;
+            animation: bounce-wave 1.2s infinite ease-in-out;
+        }
+
+        .sound-wave span:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .sound-wave span:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .sound-wave span:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .sound-wave span:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+
+        .sound-wave span:nth-child(5) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce-wave {
+
+            0%,
+            100% {
+                height: 10px;
+                background: var(--primary-color);
+            }
+
+            50% {
+                height: 38px;
+                background: var(--accent-color);
+            }
+        }
+
+        .voice-close-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .voice-close-btn:hover {
+            background: #ef4444;
+            border-color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ONDA DE SONIDO / VOICE SEARCH OVERLAY -->
+    <div id="voice-overlay" class="voice-overlay">
+        <div class="voice-card">
+            <div class="voice-icon-wrapper">
+                <div class="voice-pulse"></div>
+                <div class="voice-mic-icon">🎤</div>
+            </div>
+            <h3>Escuchando...</h3>
+            <p>Hablá ahora para buscar en el catálogo</p>
+            <div class="sound-wave">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <button id="btnVoiceClose" class="voice-close-btn">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL / LIGHTBOX DE PRODUCTO -->
+    <div id="productModal" class="modal-overlay" onclick="cerrarModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="cerrarModal()" title="Cerrar">✕</button>
+            <div class="modal-img-wrapper">
+                <img id="modalImg" src="" alt="Foto del producto">
+            </div>
+            <div class="modal-body">
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <p id="modalDesc" class="modal-desc"></p>
+                <div class="modal-footer">
+                    <span id="modalPrice" class="modal-price"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <img src="img/749315276_1038506095766615_464477358869599250_n.jpg" alt="logo"
+            onerror="this.src='https://raw.githubusercontent.com/electrogenesis10-ops/carta/main/img/749315276_1038506095766615_464477358869599250_n.jpg'">
+    </header>
+
+    <div class="banner" id="banner-text">¡Bienvenidos a Electrodomésticos Génesis!</div>
+
+    <div class="search-box">
+        <input id="search" type="text" placeholder="Buscar electrodoméstico o categoría...">
+        <button id="btnSearch">Buscar</button>
+        <button id="btnVoice" title="Buscar por voz">🎤</button>
+    </div>
+
+    <div id="category-buttons"></div>
+    <div id="product-list"></div>
+    <button id="btnUp">⬆️</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const USER = 'electrogenesis10-ops';
+            const REPO = 'carta';
+
+            const categoryContainer = document.getElementById('category-buttons');
+            const productList = document.getElementById('product-list');
+            const searchInput = document.getElementById('search');
+            const btnSearch = document.getElementById('btnSearch');
+            const btnVoice = document.getElementById('btnVoice');
+            let productos = [];
+
+            const PLACEHOLDER_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200' fill='%231e293b'><rect width='300' height='200' fill='%231e293b'/><text x='50%' y='45%' dominant-baseline='middle' text-anchor='middle' fill='%2338bdf8' font-family='sans-serif' font-weight='bold' font-size='16'>⚡ Electrodomésticos</text><text x='50%' y='65%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='13'>Génesis</text></svg>";
+
+            function getImgUrl(path) {
+                if (!path) return PLACEHOLDER_SVG;
+                if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+                    return path;
+                }
+                return `https://raw.githubusercontent.com/${USER}/${REPO}/main/${path}`;
+            }
+
+            // --- PRODUCTOS Y CATEGORIAS ---
+            async function load() {
+                try {
+                    let res;
+                    try {
+                        res = await fetch(`https://raw.githubusercontent.com/${USER}/${REPO}/main/productos.json`, { cache: "no-store" });
+                    } catch (err) {
+                        res = await fetch('productos.json');
+                    }
+                    if (!res || !res.ok) {
+                        res = await fetch('productos.json');
+                    }
+                    if (!res.ok) throw new Error("No se pudo obtener el catálogo");
+                    const data = await res.json();
+
+                    productos = data.map(p => ({
+                        id: p.id,
+                        nombre: p.nombre || p.name || p.nome || 'Electrodoméstico',
+                        descripcion: p.descripcion || p.description || p.descricao || '',
+                        precio: p.precio || p.price || p.preco || '0',
+                        imagen: p.imagen || p.image || p.imagem || '',
+                        categoria: p.categoria || p.category || 'General'
+                    }));
+
+                    renderCategorias();
+                    render(productos);
+                } catch (e) {
+                    console.error(e);
+                    productList.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; padding: 40px;">No se pudo cargar el catálogo. Intente de nuevo más tarde.</p>`;
+                }
+            }
+
+            function render(arr) {
+                if (arr.length === 0) {
+                    productList.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; padding: 40px;">No se encontraron resultados.</p>`;
+                    return;
+                }
+                productList.innerHTML = arr.map(p => {
+                    const fullImg = getImgUrl(p.imagen);
+                    const catUpper = (p.categoria || '').toUpperCase();
+                    const isPromo = catUpper.includes('PROMO') || catUpper.includes('COMBO') || catUpper.includes('SUPER');
+                    
+                    let rawPrice = (p.precio || '0').toString().replace(/\t+/g, ' ').trim();
+                    const priceFormatted = rawPrice.includes('$') ? rawPrice : '$' + rawPrice;
+
+                    return `
+                    <div class="item">
+                        <div class="item-img-container" onclick="abrirModal('${p.id}')" title="Clic para ampliar foto">
+                            ${p.categoria ? `<span class="cat-badge ${isPromo ? 'promo' : ''}">${p.categoria}</span>` : ''}
+                            <span class="zoom-badge" title="Ampliar">🔍</span>
+                            <img src="${fullImg}" alt="${p.nombre}" loading="lazy" onerror="this.onerror=null; this.src='${PLACEHOLDER_SVG}';">
+                        </div>
+                        <div class="item-info">
+                            <div>
+                                <h3 class="item-title">${p.nombre}</h3>
+                                <p class="item-desc">${p.descripcion || 'Consultanos por más detalles y planes de cuotas.'}</p>
+                            </div>
+                            <div class="item-footer">
+                                <span class="price">${priceFormatted}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            function renderCategorias() {
+                const cats = ["Todos", ...new Set(productos.map(p => p.categoria).filter(Boolean))];
+                categoryContainer.innerHTML = cats.map(cat => `
+                    <button class="${cat === "Todos" ? 'active-cat' : ''}" onclick="filtrarCat('${cat}', this)">${cat}</button>
+                `).join('');
+            }
+
+            window.filtrarCat = function (cat, btn) {
+                document.querySelectorAll("#category-buttons button").forEach(b => b.classList.remove("active-cat"));
+                btn.classList.add("active-cat");
+                const filtrados = cat === "Todos" ? productos : productos.filter(p => p.categoria === cat);
+                render(filtrados);
+                window.scrollTo({ top: productList.offsetTop - 80, behavior: "smooth" });
+            };
+
+            // --- LÓGICA DE MODAL LIGHTBOX ---
+            window.abrirModal = function (id) {
+                const p = productos.find(x => x.id === id);
+                if (!p) return;
+                const modal = document.getElementById('productModal');
+                const modalImg = document.getElementById('modalImg');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalDesc = document.getElementById('modalDesc');
+                const modalPrice = document.getElementById('modalPrice');
+
+                modalImg.src = getImgUrl(p.imagen);
+                modalImg.onerror = function() { this.src = PLACEHOLDER_SVG; };
+                modalTitle.innerText = p.nombre;
+                modalDesc.innerText = p.descripcion || 'Consultanos por disponibilidad, medios de pago y envío a domicilio.';
+                
+                let rawPrice = (p.precio || '0').toString().replace(/\t+/g, ' ').trim();
+                const priceFormatted = rawPrice.includes('$') ? rawPrice : '$' + rawPrice;
+                modalPrice.innerText = priceFormatted;
+
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            };
+
+            window.cerrarModal = function (e) {
+                const modal = document.getElementById('productModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            };
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') cerrarModal();
+            });
+
+            // --- LÓGICA DE BÚSQUEDA ---
+            function filtrar() {
+                const q = searchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const f = productos.filter(p => {
+                    const nombre = (p.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const desc = (p.descripcion || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const cat = (p.categoria || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return nombre.includes(q) || desc.includes(q) || cat.includes(q);
+                });
+                render(f);
+            }
+
+            searchInput.addEventListener('input', filtrar);
+            btnSearch.onclick = () => {
+                filtrar();
+                window.scrollTo({ top: productList.offsetTop - 80, behavior: "smooth" });
+            };
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    filtrar();
+                    window.scrollTo({ top: productList.offsetTop - 80, behavior: "smooth" });
+                }
+            };
+
+            // --- BÚSQUEDA POR VOZ ---
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const voiceOverlay = document.getElementById('voice-overlay');
+            const btnVoiceClose = document.getElementById('btnVoiceClose');
+
+            if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'es-AR';
+                recognition.onstart = () => {
+                    btnVoice.textContent = "🛑";
+                    if (voiceOverlay) voiceOverlay.classList.add('active');
+                };
+                recognition.onend = () => {
+                    btnVoice.textContent = "🎤";
+                    if (voiceOverlay) voiceOverlay.classList.remove('active');
+                };
+                recognition.onresult = (event) => {
+                    const voiceText = event.results[0][0].transcript;
+                    searchInput.value = voiceText;
+                    filtrar();
+                    window.scrollTo({ top: productList.offsetTop - 80, behavior: "smooth" });
+                };
+                btnVoice.onclick = () => {
+                    recognition.start();
+                };
+                if (btnVoiceClose) {
+                    btnVoiceClose.onclick = () => {
+                        recognition.abort();
+                    };
+                }
+            } else {
+                btnVoice.style.display = 'none';
+            }
+
+            // --- BOTON SUBIR ---
+            window.onscroll = () => { document.getElementById('btnUp').style.display = window.scrollY > 300 ? "block" : "none"; };
+            document.getElementById('btnUp').onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+            load();
+        });
+    </script>
+</body>
+
+</html>
