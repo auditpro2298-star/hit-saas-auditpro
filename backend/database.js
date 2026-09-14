@@ -598,9 +598,73 @@ async function initDatabase() {
         // Reparación automática y saneamiento de fechas corruptas o con prefijo +/año extendido
         await autoRepairCorruptedDates();
 
+        // Reinicio diario y saneamiento de asignaciones de cobradores: limpia pendientes de días anteriores y los devuelve al encargado
+        await ejecutarResetDiarioCobradores(null, true);
+
         console.log('✅ Base de datos inicializada y datos semilla verificados con éxito.');
     } catch (err) {
         console.error('Error al inicializar la base de datos:', err.message);
+    }
+}
+
+async function ejecutarResetDiarioCobradores(id_empresa = null, forzar = false) {
+    try {
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+        
+        let empresas = [];
+        if (id_empresa) {
+            const emp = await get('SELECT id_empresa, dia_ultimo_reset FROM empresas WHERE id_empresa = ?', [id_empresa]);
+            if (emp) empresas = [emp];
+        } else {
+            empresas = await query("SELECT id_empresa, dia_ultimo_reset FROM empresas WHERE estado_suscripcion != 'BLOQUEADA'");
+        }
+
+        for (const emp of empresas) {
+            const empId = emp.id_empresa;
+            if (forzar || !emp.dia_ultimo_reset || emp.dia_ultimo_reset !== todayStr) {
+                console.log(`🌅 [Reset Diario] Ejecutando reinicio de rutas para Empresa ID #${empId} (${todayStr})...`);
+
+                // 1. Desasignar cobrador de ficheros activos que NO tengan cobro realizado hoy
+                // Se preserva encargado_zona intacto para que vuelva a la lista del supervisor
+                await run(`
+                    UPDATE ficheros 
+                    SET id_cobrador_asignado = NULL 
+                    WHERE id_empresa = ? 
+                      AND estado = 'ACTIVO' 
+                      AND id_cobrador_asignado IS NOT NULL
+                      AND id_fichero NOT IN (
+                          SELECT DISTINCT id_fichero 
+                          FROM cuotas 
+                          WHERE id_empresa = ? 
+                            AND estado = 'PAGADO' 
+                            AND fecha_pago IS NOT NULL 
+                            AND date(fecha_pago) = ?
+                      )
+                `, [empId, empId, todayStr]);
+
+                // 2. Desasignar cobrador de cuotas pendientes o rechazadas de esos ficheros
+                await run(`
+                    UPDATE cuotas 
+                    SET id_cobrador = NULL 
+                    WHERE id_empresa = ? 
+                      AND estado != 'PAGADO'
+                      AND id_fichero NOT IN (
+                          SELECT DISTINCT id_fichero 
+                          FROM cuotas 
+                          WHERE id_empresa = ? 
+                            AND estado = 'PAGADO' 
+                            AND fecha_pago IS NOT NULL 
+                            AND date(fecha_pago) = ?
+                      )
+                `, [empId, empId, todayStr]);
+
+                // 3. Actualizar dia_ultimo_reset en la empresa
+                await run('UPDATE empresas SET dia_ultimo_reset = ? WHERE id_empresa = ?', [todayStr, empId]);
+                console.log(`✅ [Reset Diario] Rutas reiniciadas a cero para Empresa ID #${empId}. Clientes no cobrados devueltos a la lista del encargado de zona.`);
+            }
+        }
+    } catch (err) {
+        console.error('⚠️ Error al ejecutar reset diario de cobradores:', err.message);
     }
 }
 
@@ -1070,5 +1134,6 @@ module.exports = {
     syncSequences,
     resequenceAndReset,
     restoreBackup,
-    wipeDatabase
+    wipeDatabase,
+    ejecutarResetDiarioCobradores
 };

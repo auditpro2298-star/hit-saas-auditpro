@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query, run, get } = require('../database');
+const { query, run, get, ejecutarResetDiarioCobradores } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Los endpoints del cobrador requieren autenticación y rol COBRADOR (o Admin para pruebas)
@@ -15,6 +15,9 @@ router.get('/hoja-de-ruta', async (req, res) => {
     const { filtro } = req.query; // 'TODOS' o por defecto 'HOY' (Ruta de hoy)
 
     try {
+        // Asegurar que las asignaciones no cobradas de días anteriores se hayan limpiado a cero y devuelto al encargado
+        await ejecutarResetDiarioCobradores(id_empresa);
+
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD en Argentina
         const startOfMonth = todayStr.substring(0, 7) + '-01';
 
@@ -22,12 +25,12 @@ router.get('/hoja-de-ruta', async (req, res) => {
             SELECT f.id_fichero, f.producto_nombre, f.valor_cuota, f.cantidad_cuotas, f.monto_total, f.saldo_favor, f.estado as fichero_estado, f.fecha_creacion, f.fecha_entrega, f.orden_visita,
                    c.id_cliente, c.nombre_apellido, c.direccion, COALESCE(c.barrio, 'General') as barrio, c.piso_dpto, c.referencia_domicilio, c.telefono, c.latitud, c.longitud, c.qr_token, c.dni,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_saldadas,
-                   (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_nro,
-                   (SELECT MIN(id_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proxima_cuota_id,
-                   (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
+                   (SELECT MIN(nro_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') as proxima_cuota_nro,
+                   (SELECT MIN(id_cuota) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') as proxima_cuota_id,
+                   (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') as proximo_vencimiento,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) as cobrado_hoy,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) as no_cobrado_hoy,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE' AND date(q.fecha_vencimiento) <= ?) as cuotas_vencidas_pendientes,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO' AND date(q.fecha_vencimiento) <= ?) as cuotas_vencidas_pendientes,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as pagado_este_mes
             FROM ficheros f
             JOIN clientes c ON f.id_cliente = c.id_cliente
@@ -54,7 +57,7 @@ router.get('/hoja-de-ruta', async (req, res) => {
                     (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'NO_COBRADO' AND ((q.fecha_pago IS NOT NULL AND date(q.fecha_pago) = ?) OR (q.promesa_pago_fecha IS NOT NULL AND date(q.promesa_pago_fecha) = ?))) > 0
                     OR
                     (
-                        (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') > 0
+                        (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') > 0
                         AND (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) = 0
                     )
                     OR

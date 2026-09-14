@@ -599,11 +599,14 @@
 
                 <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <div class="glass-card">
-                        <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem;">🛵 Asignación y
-                            Priorización de Rutas</h3>
+                        <div class="flex justify-between items-center" style="margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0;">🛵 Asignación y Priorización de Rutas</h3>
+                            <button class="btn btn-warning" style="font-size: 0.78rem; padding: 0.35rem 0.75rem;" onclick="resetAsignacionesDiario()" title="Reiniciar asignaciones de cobradores y devolver no cobrados a la lista de la zona">
+                                🔄 Reiniciar Rutas a Cero
+                            </button>
+                        </div>
                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                            Defina el orden de visitas (ej. 1, 2, 3...) y asigne cobradores. El orden se refleja en
-                            tiempo real en la App Móvil de calle.
+                            Defina el orden de visitas (ej. 1, 2, 3...) y asigne cobradores. El orden se refleja en tiempo real en la App Móvil de calle.
                         </p>
                         <div class="table-container" style="max-height: 520px; overflow-y: auto;">
                             <table class="styled-table">

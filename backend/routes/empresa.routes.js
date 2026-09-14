@@ -87,7 +87,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { query, run, get, syncSequences, resequenceAndReset, restoreBackup, isPostgres } = require('../database');
+const { query, run, get, syncSequences, resequenceAndReset, restoreBackup, isPostgres, ejecutarResetDiarioCobradores } = require('../database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todos los endpoints de empresa requieren autenticación y pertenecer al rol ADMIN_EMPRESA, SUPER_ADMIN o VENDEDOR
@@ -637,6 +637,8 @@ router.get('/ficheros', async (req, res) => {
     }
 
     try {
+        await ejecutarResetDiarioCobradores(id_empresa);
+
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
         const dateParts = todayStr.split('-');
         const currentYear = parseInt(dateParts[0], 10);
@@ -647,10 +649,10 @@ router.get('/ficheros', async (req, res) => {
         let sql = `
             SELECT f.*, c.nombre_apellido as cliente_nombre, c.dni, c.dni as cliente_dni, c.direccion, c.barrio, c.qr_token, c.latitud, c.longitud,
                    c.telefono as cliente_telefono, c.telefono, c.referencia_domicilio, c.nro_cliente_interno,
-                   (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as proximo_vencimiento,
+                   (SELECT MIN(fecha_vencimiento) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') as proximo_vencimiento,
                    u.nombre as cobrador_nombre,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO') as cuotas_pagadas,
-                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PENDIENTE') as cuotas_pendientes,
+                   (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado != 'PAGADO') as cuotas_pendientes,
                    (SELECT COUNT(*) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as pagado_hoy,
                    (SELECT MAX(fecha_pago) FROM cuotas q WHERE q.id_fichero = f.id_fichero AND q.estado = 'PAGADO' AND date(q.fecha_pago) >= ? AND date(q.fecha_pago) <= ? AND (q.nombre_cobrador IS NULL OR q.nombre_cobrador != 'Sistema (Carga Inicial)')) as fecha_pago_hoy
             FROM ficheros f
@@ -893,6 +895,8 @@ router.put('/ficheros/:id/orden', async (req, res) => {
 router.get('/cobradores', async (req, res) => {
     const id_empresa = getEmpresaId(req);
     try {
+        await ejecutarResetDiarioCobradores(id_empresa);
+
         const cobradores = await query(`
             SELECT id_usuario, nombre, email, telefono, zona_asignada, activo,
                    (SELECT COUNT(*) FROM ficheros f WHERE f.id_cobrador_asignado = u.id_usuario AND f.estado = 'ACTIVO') as ficheros_asignados
@@ -1571,6 +1575,18 @@ router.post('/restore', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Error durante restauración:', err);
         res.status(500).json({ error: 'Error durante la restauración de datos: ' + err.message });
+    }
+});
+
+// POST /api/empresa/reset-asignaciones-diario - Reiniciar manualmente las rutas de hoy (limpiar a cero lista de cobradores y devolver no cobrados a encargados de zona)
+router.post('/reset-asignaciones-diario', requireAdminOrEncargado, async (req, res) => {
+    const id_empresa = getEmpresaId(req);
+    try {
+        await ejecutarResetDiarioCobradores(id_empresa, true);
+        res.json({ success: true, message: '✅ Rutas diarias reiniciadas. Clientes no cobrados devueltos a la lista del encargado de zona para su redistribución.' });
+    } catch (err) {
+        console.error('Error al reiniciar asignaciones diarias:', err);
+        res.status(500).json({ error: 'Error al reiniciar asignaciones diarias.' });
     }
 });
 

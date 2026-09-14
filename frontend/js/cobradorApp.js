@@ -211,9 +211,14 @@ function renderHojaDeRutaCards(ruta, isFromCache = false, isSearching = false) {
             rutaList.innerHTML = `<div class="glass-card text-center" style="padding:1.5rem;">🔍 No se encontraron clientes que coincidan con la búsqueda.</div>`;
         } else if (currentRutaFilter === 'HOY') {
             rutaList.innerHTML = `<div class="glass-card text-center" style="padding:2rem;">
-                <div style="font-size:2.5rem; margin-bottom:0.5rem;">🎉</div>
-                <h4 style="font-weight:800; font-size:1.1rem; margin-bottom:0.4rem; color:var(--success);">¡Al día! No tienes visitas pendientes hoy</h4>
-                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">Todos los clientes cobrados saldaron su cuota del período. Si deseas ver clientes futuros o adelantar cuotas, toca "📂 Toda la Cartera".</p>
+                <div style="font-size:2.6rem; margin-bottom:0.5rem;">🛵</div>
+                <h4 style="font-weight:800; font-size:1.15rem; margin-bottom:0.4rem; color:var(--text-primary);">Hoja de Ruta en Cero</h4>
+                <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1.1rem; line-height:1.4;">
+                    Tu lista de hoy está en cero. El encargado de tu zona te asignará los clientes a visitar para tu recorrido del día.
+                </p>
+                <div style="font-size:0.8rem; color:var(--text-muted); background:rgba(0,0,0,0.04); padding:0.75rem; border-radius:8px; margin-bottom:1.2rem; border:1px solid rgba(255,255,255,0.05);">
+                    💡 Si necesitas cobrar a un cliente fuera de ruta, toca <strong>"⚡ Escanear QR"</strong> arriba o búscalo por DNI.
+                </div>
                 <button class="btn btn-outline" style="font-size:0.85rem; padding:0.5rem 1rem;" onclick="setRutaFilter('TODOS')">📂 Ver Toda la Cartera</button>
             </div>`;
         } else {

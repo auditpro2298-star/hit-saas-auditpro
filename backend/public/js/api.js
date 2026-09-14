@@ -813,6 +813,18 @@ class APIClient {
             });
         }
 
+        if (endpoint === '/empresa/reset-asignaciones-diario' && method === 'POST') {
+            const todayStr = new Date().toISOString().split('T')[0];
+            db.ficheros.forEach(f => {
+                const paidToday = db.cuotas.some(q => q.id_fichero === f.id_fichero && q.estado === 'PAGADO' && (q.fecha_pago || '').startsWith(todayStr));
+                if (!paidToday) {
+                    f.id_cobrador_asignado = null;
+                }
+            });
+            saveMockDB(db);
+            return { success: true, message: '✅ Rutas diarias reiniciadas a cero (Modo Demo).' };
+        }
+
         if (endpoint === '/empresa/reset-asignaciones-mensual' && method === 'POST') {
             db.ficheros.forEach(f => {
                 f.id_cobrador_asignado = null;

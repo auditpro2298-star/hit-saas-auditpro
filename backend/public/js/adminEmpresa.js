@@ -2914,6 +2914,22 @@ window.exportarCierresCajaCSV = exportarCierresCajaCSV;
 window.triggerRestoreUpload = triggerRestoreUpload;
 window.procesarRestoreBackup = procesarRestoreBackup;
 
+async function resetAsignacionesDiario() {
+    const confirm = window.confirm("⚠️ ¿Desea reiniciar las rutas del día a cero?\n\nEsto liberará la asignación de todos los cobradores de los clientes que no fueron cobrados hoy, devolviéndolos a la lista del Encargado de Zona para su redistribución.");
+    if (!confirm) return;
+
+    try {
+        const res = await api.post('/empresa/reset-asignaciones-diario');
+        await showAlert(res.message || '✅ Rutas diarias reiniciadas con éxito.');
+        await loadAsignacionRutas();
+        await loadFicheros();
+    } catch (err) {
+        console.error('Error al reiniciar asignaciones diarias:', err);
+        await showAlert(err.message || '❌ Error al reiniciar asignaciones diarias.');
+    }
+}
+window.resetAsignacionesDiario = resetAsignacionesDiario;
+
 async function resetAsignacionesMensual() {
     const confirm = window.confirm("⚠️ ¿Está seguro de que desea reiniciar todas las asignaciones del mes? Esto desasignará a los cobradores y encargados de todos los ficheros.");
     if (!confirm) return;
