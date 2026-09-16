@@ -745,13 +745,31 @@
             animation: dot-pulse 1.2s infinite ease-in-out both;
         }
 
-        .spinner-dot:nth-child(1) { animation-delay: -0.32s; }
-        .spinner-dot:nth-child(2) { animation-delay: -0.16s; }
-        .spinner-dot:nth-child(3) { animation-delay: 0s; }
+        .spinner-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .spinner-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .spinner-dot:nth-child(3) {
+            animation-delay: 0s;
+        }
 
         @keyframes dot-pulse {
-            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-            40% { transform: scale(1.2); opacity: 1; }
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.6);
+                opacity: 0.4;
+            }
+
+            40% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
         }
 
         .catalog-end-badge {
@@ -766,16 +784,24 @@
         .item-img-container.img-loading::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(90deg, rgba(255,255,255,0.01) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.01) 75%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.01) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.01) 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
             z-index: 1;
         }
 
         @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
         }
     </style>
 </head>
@@ -835,7 +861,7 @@
 
     <div id="category-buttons"></div>
     <div id="product-list"></div>
-    
+
     <!-- INFINITE SCROLL SENTINEL & SPINNER -->
     <div id="infinite-sentinel" class="infinite-sentinel">
         <div id="sentinel-loader" class="sentinel-spinner" style="display: none;">
@@ -857,7 +883,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const USER = 'electrogenesis10-ops';
             const REPO = 'carta';
-            const WA_PHONE = '5491169100558';
+            const WA_PHONE = '5491123140119';
 
             const categoryContainer = document.getElementById('category-buttons');
             const productList = document.getElementById('product-list');
@@ -966,10 +992,10 @@
                 const primarySrc = sources[0];
                 const catUpper = (p.categoria || '').toUpperCase();
                 const isPromo = catUpper.includes('PROMO') || catUpper.includes('COMBO') || catUpper.includes('SUPER');
-                
+
                 let rawPrice = (p.precio || '0').toString().replace(/\t+/g, ' ').trim();
                 const priceFormatted = rawPrice.includes('$') ? rawPrice : '$' + rawPrice;
-                
+
                 const waText = encodeURIComponent(`Hola Génesis Electrodomésticos, quiero consultar por: ${p.nombre} (${priceFormatted})`);
                 const waLink = `https://wa.me/${WA_PHONE}?text=${waText}`;
 
@@ -1023,7 +1049,7 @@
 
                 const nextBatch = activeList.slice(renderedCount, renderedCount + PAGE_SIZE);
                 const htmlChunk = nextBatch.map(p => createCardHTML(p)).join('');
-                
+
                 productList.insertAdjacentHTML('beforeend', htmlChunk);
                 renderedCount += nextBatch.length;
 
@@ -1100,11 +1126,11 @@
                 const sources = getImgSources(p.imagen);
                 modalImg.setAttribute('data-fail-step', '0');
                 modalImg.src = sources[0];
-                modalImg.onerror = function() { handleImgError(this, p.imagen); };
-                
+                modalImg.onerror = function () { handleImgError(this, p.imagen); };
+
                 modalTitle.innerText = p.nombre;
                 modalDesc.innerText = p.descripcion || 'Consultanos por disponibilidad, medios de pago y envío a domicilio.';
-                
+
                 let rawPrice = (p.precio || '0').toString().replace(/\t+/g, ' ').trim();
                 const priceFormatted = rawPrice.includes('$') ? rawPrice : '$' + rawPrice;
                 modalPrice.innerText = priceFormatted;
@@ -1196,4 +1222,3 @@
 </body>
 
 </html>
-
