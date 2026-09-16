@@ -270,6 +270,7 @@ router.get('/dashboard', async (req, res) => {
     try {
         await autoCerrarCajasPendientes(id_empresa);
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const empresa = await get('SELECT id_empresa, nombre_comercial, rubro FROM empresas WHERE id_empresa = ?', [id_empresa]);
         const clientesCount = await get('SELECT COUNT(*) as total FROM clientes WHERE id_empresa = ?', [id_empresa]);
         const ficherosCount = await get("SELECT COUNT(*) as activos, SUM(monto_total) as monto_cartera FROM ficheros WHERE id_empresa = ? AND estado = 'ACTIVO'", [id_empresa]);
         const cobradoHoy = await get("SELECT SUM(monto) as total_hoy, COUNT(*) as cuotas_hoy FROM cuotas WHERE id_empresa = ? AND estado = 'PAGADO' AND date(fecha_pago) = ? AND (nombre_cobrador IS NULL OR nombre_cobrador != 'Sistema (Carga Inicial)')", [id_empresa, todayStr]);
@@ -278,6 +279,8 @@ router.get('/dashboard', async (req, res) => {
         const whatsappHoy = await get("SELECT COUNT(*) as total_wp FROM whatsapp_notifications WHERE id_empresa = ? AND date(fecha_envio) = ?", [id_empresa, todayStr]);
 
         res.json({
+            empresa_nombre: empresa?.nombre_comercial || 'Empresa',
+            rubro: empresa?.rubro || 'Gestión de Casa de Cuotas',
             clientes_total: clientesCount.total || 0,
             ficheros_activos: ficherosCount.activos || 0,
             cartera_activa: ficherosCount.monto_cartera || 0,

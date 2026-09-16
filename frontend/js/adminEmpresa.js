@@ -68,12 +68,25 @@ async function initEmpresaPanel() {
     }
     // ---------------------------------------------
 
+    // Actualizar nombre comercial de la empresa en la cabecera
+    const titleEl = document.getElementById('empresa-header-title');
+    if (titleEl && window.currentUser && window.currentUser.empresa_nombre) {
+        titleEl.innerText = `${window.currentUser.empresa_nombre.toUpperCase()} — Gestión de Casa de Cuotas`;
+    }
+
     await loadEmpresaDashboard();
     // Por defecto cargar la solapa de clientes y mapa
     await switchEmpresaTab('clientes');
 }
 
 function renderEmpresaDashboard(d) {
+    const titleEl = document.getElementById('empresa-header-title');
+    const userEmpresa = (window.currentUser && window.currentUser.empresa_nombre) || d.empresa_nombre;
+    if (titleEl && userEmpresa) {
+        const rubroText = d.rubro || 'Gestión de Casa de Cuotas';
+        titleEl.innerText = `${userEmpresa.toUpperCase()} — ${rubroText}`;
+    }
+
     document.getElementById('emp-clientes-total').innerText = d.clientes_total || 0;
     document.getElementById('emp-ficheros-activos').innerText = d.ficheros_activos || 0;
     document.getElementById('emp-cartera-activa').innerText = `$${Number(d.cartera_activa || 0).toLocaleString('es-AR')}`;
