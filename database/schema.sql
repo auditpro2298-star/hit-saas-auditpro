@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS empresas (
     cuit_rut VARCHAR(50) NOT NULL UNIQUE,
     estado_suscripcion VARCHAR(30) NOT NULL DEFAULT 'ACTIVA', -- Valores: 'ACTIVA', 'VENCIDA', 'BLOQUEADA', 'PRUEBA'
     logo_url VARCHAR(500) DEFAULT 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150',
+    rubro VARCHAR(100) DEFAULT 'Gestión de Casa de Cuotas',
     monto_abono_mensual DECIMAL(12,2) DEFAULT 35000.00,
     fecha_alta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ultimo_pago TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

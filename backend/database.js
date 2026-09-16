@@ -52,6 +52,7 @@ if (isPostgres) {
                 db.run("ALTER TABLE clientes ADD COLUMN encargado_zona TEXT", () => {});
                 db.run("ALTER TABLE empresas ADD COLUMN mes_ultimo_reset VARCHAR(7)", () => {});
                 db.run("ALTER TABLE empresas ADD COLUMN dia_ultimo_reset VARCHAR(30)", () => {});
+                db.run("ALTER TABLE empresas ADD COLUMN rubro VARCHAR(100) DEFAULT 'Gestión de Casa de Cuotas'", () => {});
                 
                 // Asegurar índices de alto rendimiento para desarrollo
                 db.run("CREATE INDEX IF NOT EXISTS idx_ficheros_cliente ON ficheros(id_cliente)", () => {});
